@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: portindex,v 1.12 2004-10-08 21:17:03 matthew Exp $
+# @(#) $Id: portindex,v 1.13 2004-10-10 20:37:18 matthew Exp $
 #
 # Read the ports index file and parse it into a series of
 # objects. Scan the ports tree for updates since the last index was
@@ -40,52 +40,21 @@ use strict;
 use warnings;
 use POSIX qw(strftime);
 use File::Find;
-use vars qw($base $verbose);
 
 use FreeBSD::Port;
 use FreeBSD::Ports::Tree;
 
+our $verbose;
+
 $0 =~ s@.*/@@;    # Script name for error messages
 $::verbose = 1;   # Be garrulous.
-
-#-------------------------------------------------------------------------
-
-# Compare version of the pkg data read from the INDEX ($pkg) with
-# what's on disk ($dir), moving the leaf entries from $oldports to
-# $newports and modifying the contents accordingly.  Create any
-# missing entries.
-sub process_pkg($$$$)
-{
-    my $oldports = shift;
-    my $newports = shift;
-    my $dir      = shift;
-    my $pkg      = shift;
-    my $pkgx;
-
-    # if this is a new port, $pkg and $pkgx should both be undef...
-    $pkgx = $oldports->delete($dir);
-
-    if ( defined($pkgx) != defined($pkg) && $pkgx != $pkg ) {
-        warn "$0: it's all gone horribly wrong! $pkg != $pkgx\n";
-    }
-
-    # [...]
-
-    $newports->insert( $dir, $pkg );
-
-    return;
-}
-
-#-------------------------------------------------------------------------
 
 MAIN:
 {
     my $tree;
 
-    $tree = FreeBSD::Ports::Tree->new();
-
-    # $tree->read_index(*STDIN);
-
+    $tree =
+      FreeBSD::Ports::Tree->new( -Filename => '/var/tmp/portindex-cache.db' );
     $tree->scan_makefiles('/usr/ports');
 
     # Scan through the Makefiles in the ports tree looking for ports
@@ -93,7 +62,7 @@ MAIN:
     # INDEX.  Compare the 'SUBDIR' links in the Makefiles with the
     # port origins to find added or deleted ports
 
-    $tree->print(*STDOUT);
+    $tree->print_index(*STDOUT);
 }
 
 #

@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.8 2004-10-08 21:17:03 matthew Exp $
+# @(#) $Id: Port.pm,v 1.9 2004-10-10 20:37:18 matthew Exp $
 #
 
 #
@@ -41,118 +41,29 @@ use strict;
 use warnings;
 use Carp;
 
-# Ports should be uniquely identified by pkgname
-our (%index);
-
 sub new ($@)
 {
     my $caller = shift;
-    my $class = ref($caller) || $caller;
-    my $self;
-    my %args = @_;
+    my $class  = ref($caller) || $caller;
+    my %self   = @_;
 
     croak __PACKAGE__, "::new() -- PKGNAME missing"
-      unless defined $args{PKGNAME};
+      unless defined $self{PKGNAME};
+    croak __PACKAGE__, "::new() -- ORIGIN missing"
+      unless defined $self{ORIGIN};
 
-    if ( defined $index{ $args{PKGNAME} } ) {
-        $self = $index{ $args{PKGNAME} };
-        %{$self} = ( %{$self}, %args );
-    } else {
-        $self = $index{ $args{PKGNAME} } = \%args;
-    }
-
-    bless $self, $class;
-
-    for my $dep (
-        qw( EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS BUILD_DEPENDS
-        RUN_DEPENDS )
-      )
-    {
-
-        # If the hash key has not yet been created, don't do anything
-        if ( exists $self->{$dep} ) {
-            if ( !defined $self->{$dep} ) {
-                $self->{$dep} = [];    # Empty list
-            } elsif ( !ref $self->{$dep} ) {
-                $self->{$dep} = [ split / /, $self->{$dep} ];
-            }
-        }
-    }
-    return $self;
+    return bless \%self, $class;
 }
 
-sub DESTROY ($)
-{
-    my $self = shift;
-
-    delete $index{ $self->PKGNAME() };
-    undef $self;
-    return;
-}
-
-# Take the string returned by 'make describe' or read as one line out
-# of INDEX and use it to populate a pkg object
-sub new_from_indexline($$)
-{
-    my $caller = shift;
-    my $desc   = shift;
-    my $self;
-
-    my $pkgname;
-    my $origin;
-    my $stuff;
-    my $build_depends;
-    my $run_depends;
-    my $www;
-    my $extract_depends;
-    my $patch_depends;
-    my $fetch_depends;
-
-    chomp($desc);
-
-    (
-        $pkgname,         $origin,        $stuff,
-        $build_depends,   $run_depends,   $www,
-        $extract_depends, $patch_depends, $fetch_depends
-      )
-      = (
-        $desc =~ m{
-			 ^([^|]+)\|          # PKGNAME
-	          ([^|]+)\|          # ORIGIN
-	          ((?:[^|]*\|){4}[^|]*)\|
-			                     # PREFIX,COMMENT,DESCR,MAINTAINER,CATEGORIES
-	          ([^|]*)\|          # BUILD_DEPENDS
-	          ([^|]*)\|          # RUN_DEPENDS
-	          ([^|]*)\|          # WWW
-	          ([^|]*)\|          # EXTRACT_DEPENDS
-	          ([^|]*)\|          # PATCH_DEPENDS
-	          ([^|]*)$           # FETCH_DEPENDS
-		  }x
-      )
-      or croak __PACKAGE__, "::new_from_indexline():$.: -- incorrect format";
-
-    $self = $caller->new(
-        PKGNAME         => $pkgname,
-        ORIGIN          => $origin,
-        STUFF           => $stuff,
-        EXTRACT_DEPENDS => $extract_depends,
-        PATCH_DEPENDS   => $patch_depends,
-        FETCH_DEPENDS   => $fetch_depends,
-        BUILD_DEPENDS   => $build_depends,
-        RUN_DEPENDS     => $run_depends,
-        WWW             => $www,
-    );
-    return $self;
-}
-
-# This is very similar to new_from_indexline, except it uses the
-# output from 'make describe'.  Format is very similar to an index
-# line, except that the fields are in a different (more sendsible)
-# order, and the dependencies are given using the port ORIGIN, rather
-# than PKGNAME.  Only the immediate dependencies of any port are
-# given, not the cumulative dependencies of the port and all of its
-# dependencies, etc.  Transforming the ORIGIN lines into the usual form
-# has to wait until all the port objects have been created.
+# Process the output from 'make describe' into a FreeBSD::Port object.
+# The 'make describe' format is very similar to an index line, except
+# that the fields are in a different (more sendsible) order, and the
+# dependencies are given using the port ORIGIN, rather than PKGNAME.
+# Only the immediate dependencies of any port are given, not the
+# cumulative dependencies of the port and all of its dependencies,
+# etc.  Transforming the ORIGIN lines into the PKGNAME form has to
+# wait until all the port objects have been created, ie. on output of
+# the INDEX file.
 sub new_from_description($$)
 {
     my $caller = shift;
@@ -190,7 +101,14 @@ sub new_from_description($$)
               ([^|]*)$           # WWW
           }x
       )
-      or croak __PACKAGE__, "::new_from_makedescribe: -- incorrect format";
+      or croak __PACKAGE__,
+      "::new_from_description(): -- incorrect format: $desc";
+
+    $extract_depends = [ split ' ', $extract_depends ];
+    $patch_depends   = [ split ' ', $patch_depends ];
+    $fetch_depends   = [ split ' ', $fetch_depends ];
+    $build_depends   = [ split ' ', $build_depends ];
+    $run_depends     = [ split ' ', $run_depends ];
 
     $self = $caller->new(
         PKGNAME         => $pkgname,
@@ -205,56 +123,6 @@ sub new_from_description($$)
     );
 
     return $self;
-}
-
-# Use the $tree hash to convert package dependency lists from ORIGINs
-# to PKGNAMEs
-sub origin_to_pkgname ($$@)
-{
-    my $self = shift;
-    my $tree = shift;
-    my @deps = @_;
-    my $translated;
-
-    for my $dep (@deps) {
-        $translated = [];
-
-        for my $origin ( @{ $self->$dep() } ) {
-            my $p = $tree->get($origin);
-
-            if ( defined $p ) {
-                push @{$translated}, $p->PKGNAME();
-            } else {
-                carp __PACKAGE__, "::origin_to_pathname(): ",
-                  "Can't find package with origin $origin";
-            }
-        }
-        $self->$dep($translated);
-    }
-    return $self;
-}
-
-# Another variant using 'make describe' -- this one takes the port
-# directory as an argument, and runs make sescribe in it.  Changes
-# current working directory of the process: croaks if no such
-# directory.
-sub new_from_make_describe($$)
-{
-    my $caller = shift;
-    my $path   = shift;
-    my $self;
-    my $desc;
-
-    chdir $path
-      or croak __PACKAGE__, "::new_from_make_describe(): can't chdir() -- $!";
-    open MAKE, '/usr/bin/make describe|'
-      or croak __PACKAGE__, "::new_from_make_describe(): can't run make -- $!";
-    $desc = <MAKE>;
-    close MAKE
-      or croak __PACKAGE__, "::new_from_make_describe(): ",
-      ( $! ? "close failed -- $!" : "make: bad exit status -- $?" );
-
-    return $caller->new_from_description($desc);
 }
 
 # Bulk creation of accessor methods.
@@ -279,17 +147,18 @@ sub print ($*;$)
 {
     my $self    = shift;
     my $fh      = shift;
+    my $o2pn    = shift;
     my $counter = shift;
 
     print $fh $self->PKGNAME(), '|';
     print $fh $self->ORIGIN(),  '|';
     print $fh $self->STUFF(),   '|';
-    print $fh $self->_chase_deps('BUILD_DEPENDS'), '|';
-    print $fh $self->_chase_deps('RUN_DEPENDS'),   '|';
+    print $fh $self->_chase_deps( $o2pn, 'BUILD_DEPENDS' ), '|';
+    print $fh $self->_chase_deps( $o2pn, 'RUN_DEPENDS' ),   '|';
     print $fh $self->WWW(), '|';
-    print $fh $self->_chase_deps('EXTRACT_DEPENDS'), '|';
-    print $fh $self->_chase_deps('PATCH_DEPENDS'),   '|';
-    print $fh $self->_chase_deps('FETCH_DEPENDS'),   "\n";
+    print $fh $self->_chase_deps( $o2pn, 'EXTRACT_DEPENDS' ), '|';
+    print $fh $self->_chase_deps( $o2pn, 'PATCH_DEPENDS' ),   '|';
+    print $fh $self->_chase_deps( $o2pn, 'FETCH_DEPENDS' ),   "\n";
 
     if ( $::verbose && defined $counter ) {
         if ( $$counter % 1000 == 0 ) {
@@ -302,73 +171,23 @@ sub print ($*;$)
     return $self;
 }
 
-# Turn the list of references to hashes, which are the dependencies
-# (of the specified type) for this package into a list of package
-# names.
-sub _chase_deps($$)
+# Currently, just turns the dependency array into a space separated
+# list.  Translate from ORIGINs into PKGNAMEs
+sub _chase_deps($$$)
 {
     my $self = shift;
+    my $o2pn = shift;
     my $dep  = shift;
+    my @dependencies;
 
-    return join ' ', @{ $self ->${dep}() };
-}
-
-# Create the inverse dependency lists for each package: that is, the
-# list of packages that depend on this one in order to build, run,
-# etc.  dependency on it.  $dep is a hash key -- one of BUILD_DEPENDS,
-# RUN_DEPENDS, EXTRACT_DEPENDS, PATCH_DEPENDS, FETCH_DEPENDS -- which
-# we invert to create links from the dependencies' FOO_INVERSE entry
-# to $self.  Ie. FOO_INVERSE is a list of the ports which have a FOO
-# dependency on this one.
-sub invert_dependencies($$)
-{
-    my $self    = shift;
-    my $dep     = shift;
-    my $pkgname = $self->PKGNAME();
-
-    my $other;
-    my $inverse_dep;
-    my $i;
-
-    ( $inverse_dep = $dep ) =~ s/DEPENDS/INVERSE/;
-
-    foreach my $dependency ( @{ $self ->${dep}() } ) {
-        unless ( defined $index{$dependency} ) {
-            carp __PACKAGE__, "::invert_dependencies(): $pkgname claims ",
-              "$dependency as a $dep, but $dependency is unknown";
-        }
-        $other = $index{$dependency};
-
-        if ( $other ->${inverse_dep}() ) {
-
-            # Insert the upreference into the
-            # $dependency->{$inverse_dep} list so that the list
-            # remains sorted by $pkgname
-
-            $i = 0;    # Index at which to make insertion
-            foreach my $dependent ( @{ $other ->${inverse_dep}() } ) {
-                if ( $dependent eq $pkgname ) {
-
-                    # Already in the list
-                    last;
-                }
-                if ( $dependent gt $pkgname ) {
-
-                    # Add before this entry...
-                    splice( @{ $other ->${inverse_dep}() }, $i, 0, $pkgname );
-                    last;
-                }
-                $i++;
-            }
+    for my $origin ( @{ $self ->${dep}() } ) {
+        if ( defined $o2pn->{$origin} ) {
+            push @dependencies, $o2pn->{$origin};
         } else {
-
-            # It's easy to order a list of one thing...
-            $other ->${inverse_dep}( [$pkgname] );
+            carp __PACKAGE__, "::_chase_deps(): No PKGNAME found for $origin";
         }
     }
-    print STDERR "Inverted $dep dependencies of $pkgname\n"
-      if $::verbose;
-    return $self;
+    return join ' ', sort @dependencies;
 }
 
 1;
