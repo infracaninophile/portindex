@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.24 2004-10-23 21:37:22 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.25 2004-10-24 10:38:57 matthew Exp $
 #
 
 #
@@ -247,8 +247,8 @@ sub _scan_makefiles($$;$)
         # Even if the close() errors out, we've got this far, so
         # might as well carry on and try and process any output.
 
-        carp __PACKAGE__, "::_scan_makefiles():$path: ",
-          $! ? "close failed -- $!" : "make: bad exit status -- $?";
+        carp __PACKAGE__,
+          "::_scan_makefiles():$path/Makefile: close failed -- $!";
       };
 
     if (@subdirs) {
