@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.1 2004-09-30 11:01:59 matthew Exp $
+# @(#) $Id: Port.pm,v 1.2 2004-10-01 11:58:24 matthew Exp $
 #
 
 #
@@ -39,8 +39,15 @@ $VERSION = 0.01;				# Extremely alpha.
 
 use strict;
 use warnings;
+use Carp;
 
+sub new ($@) {
+	my $caller = shift;
+	my $class  = ref($caller) || $caller;
+	my %self   = @_;
 
+	return bless \%self, $class;
+}
 
 1;
 #

@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.2 2004-09-30 11:01:59 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.3 2004-10-01 11:58:24 matthew Exp $
 #
 
 #
@@ -39,9 +39,91 @@ $VERSION = 0.01;
 
 use strict;
 use warnings;
+use Carp;
 
+our ($verbose);
+
+sub new ($@)
+{
+    my $caller = shift;
+    my $class  = ref($caller) || $caller;
+    my %self   = @_;
+
+    return bless \%self, $class;
+}
+
+sub insert ($$;$)
+{
+    my $self   = shift;
+    my $origin = shift;
+    my $port   = shift;
+    my $s      = $self;
+
+    $origin = [ split '/' . $origin ]
+      unless ref $origin eq 'ARRAY';
+    $port = {}
+      unless defined $port && $port->isa("FreeBSD::Port");
+
+    while ( @{$origin} > 1 ) {
+        my $d = shift @{$origin};
+
+        $s->{$d} = {}
+          unless defined $s->{$d};
+        $s = $s->{$d};
+    }
+    $s->{ $origin->[0] } = $port;
+
+    return $self;
+}
+
+sub delete ($$)
+{
+    my $self   = shift;
+    my $origin = shift;
+    my $port;
+    my $xport;
+
+    $origin = [ split '/', $origin ]
+      unless ref $origin eq 'ARRAY';
+
+    $port = $self;
+    for my $d ( @{$origin} ) {
+        if ( $port->{$d} ) {
+            $xport = $port;
+            $port  = $port->{$d};
+        } else {
+            undef $port;
+            last;
+        }
+    }
+    delete $xport->{ $origin->[-1] }
+      if defined $port;
+    return $port;
+}
+
+sub get ($$)
+{
+    my $self   = shift;
+    my $origin = shift;
+    my $port;
+
+    $origin = [ split '/', $origin ]
+      unless ref $origin eq 'ARRAY';
+
+    $port = $self;
+    for my $d ( @{$origin} ) {
+        if ( $port->{$d} ) {
+            $port = $port->{$d};
+        } else {
+            undef $port;
+            last;
+        }
+    }
+    return $port;
+}
 
 1;
+
 #
 # That's All Folks!
 #
