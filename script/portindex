@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: portindex,v 1.19 2004-10-13 16:00:16 matthew Exp $
+# @(#) $Id: portindex,v 1.20 2004-10-16 15:24:46 matthew Exp $
 #
 # Process the cached 'make describe' output to produce an INDEX file
 # Should be a lot quicker than 'make index'.
@@ -42,23 +42,26 @@
 use strict;
 use warnings;
 
+use FreeBSD::Portindex qw(read_config);
 use FreeBSD::Port;
 use FreeBSD::Ports::Tree;
 
-our $verbose;
+our $config;
+our $pkgname = 'portindex';
 
 $0 =~ s@.*/@@;    # Script name for error messages
-$::verbose = 1;   # Be garrulous.
 
 MAIN:
 {
     my $tree;
     my $allports;
 
+    $config = read_config();
+
     $tree = FreeBSD::Ports::Tree->new(
-        -Env                 => { -Home => '/var/tmp', },
-        -CacheFilename       => 'portindex-cache.db',
-        -MasterSlaveFilename => 'portindex-masterslave.db',
+        -Env           => { -Home => $config->{CacheDir}, },
+        -CacheFilename => $config->{CacheFilename},
+        -MasterSlaveFilename => $config->{MasterSlaveFilename},
     );
 
     # Unfreeze the cached ports data
@@ -70,6 +73,36 @@ MAIN:
     $tree->print_index( $allports, *STDOUT );
 }
 
+__END__
+
+=head1 NAME
+
+portindex -- generate an INDEX file from cached data
+	
+=head1 SYNOPSIS
+
+portindex [options]
+	
+=head1 OPTIONS
+
+=over 8
+
+=item B<--help>
+
+Print a brief usage message and exit.
+
+=item B<--verbose>
+
+Turn on verbose output printed to STDERR.
+
+=back
+	
+=head1 DESCRIPTION
+
+B<portindex> processes the cached 
+	
+=cut
+	
 #
 # That's All Folks!
 #

@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-init,v 1.1 2004-10-13 16:02:49 matthew Exp $
+# @(#) $Id: cache-init,v 1.2 2004-10-16 15:24:46 matthew Exp $
 #
 
 # Build the portindex cache from scratch by scanning through the whole
@@ -59,48 +59,77 @@ use strict;
 use warnings;
 use BerkeleyDB;
 
+use FreeBSD::Portindex qw(read_config);
 use FreeBSD::Port;
 use FreeBSD::Ports::Tree;
 
-our $verbose;
+our $config;
+our $pkgname = 'portindex';
 
 $0 =~ s@.*/@@;    # Script name for error messages
-$::verbose = 1;   # Be garrulous.
 
 MAIN:
 {
     my $tree;
-    my $home            = '/var/tmp';
-    my $portscachefile  = 'portindex-cache.db';
-    my $masterslavefile = 'portindex-masterslave.db';
+
+    $config = read_config();
 
     # First, move aside any pre-existing .db files
-    chdir $home
-      or die "$0: Can't chdir to $home -- $!";
-    if ( -e $portscachefile ) {
-        rename $portscachefile, "${portscachefile}.old"
-          or die "$0: Can't make backup of $portscachefile -- $!";
-    }
-    if ( -e $masterslavefile ) {
-        rename $masterslavefile, "${masterslavefile}.old"
-          or die "$0: Can't make backup of $masterslavefile -- $!";
+    chdir $config->{CacheDir}
+      or die "$0: Can't chdir to ", $config->{CacheDir}, " -- $!";
+    for my $f (qw( CacheFilename MasterSlaveFilename )) {
+        if ( -e $config->{$f} ) {
+            rename $config->{$f}, $config->{$f} . ".old"
+              or die "$0: Can't make backup of ", $config->{$f}, " -- $!";
+        }
     }
 
     $tree = FreeBSD::Ports::Tree->new(
         -Env => {
-            -Home => $home,
+            -Home => $config->{CacheDir},
             -Mode => 0644,
         },
         -Flags               => DB_CREATE,
-        -CacheFilename       => $portscachefile,
-        -MasterSlaveFilename => $masterslavefile,
+        -CacheFilename       => $config->{CacheFilename},
+        -MasterSlaveFilename => $config->{MasterSlaveFilename},
     );
 
     # Regenerate the FreeBSD::Port objects for all listed ports (or
     # the whole tree beneath some directory).
 
-    $tree->scan_makefiles('/usr/ports');
+    $tree->scan_makefiles( $config->{PortsDir} );
 }
+
+__END__
+
+=head1 NAME
+
+cache-init -- Generate the portsindex cache by scanning the entire ports tree
+	
+=head1 SYNOPSIS
+
+cache-init [options]
+	
+=head1 OPTIONS
+
+=over 8
+
+=item B<--help>
+
+Print a brief usage message and exit.
+
+=item B<--verbose>
+
+Turn on verbose output printed to STDERR.
+
+=back
+	
+=head1 DESCRIPTION
+
+B<cache-init> scans over the entire ports tree to initialise the
+B<portindex> cache.
+
+=cut
 
 #
 # That's All Folks!

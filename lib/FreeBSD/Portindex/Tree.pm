@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.15 2004-10-13 16:02:51 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.16 2004-10-16 15:24:46 matthew Exp $
 #
 
 #
@@ -36,7 +36,7 @@
 # using BerkeleyDB Btree for backing stores.
 #
 package FreeBSD::Ports::Tree;
-$VERSION = 0.01;
+our $VERSION = 0.01;
 
 use strict;
 use warnings;
@@ -192,12 +192,12 @@ sub scan_makefiles($@)
 
     print STDERR "Processing 'make describe' output",
       @paths == 1 ? " for path \"$paths[0]\": " : ": "
-      if ($::verbose);
+      if ( $::config->{Verbose} );
     for my $path (@paths) {
         $self->_scan_makefiles( $path, \$counter );
     }
     print STDERR "<$counter>\n"
-      if ($::verbose);
+      if ( $::config->{Verbose} );
     return $self;
 }
 
@@ -294,7 +294,7 @@ sub make_describe($$;$)
         return $self;
       };
 
-    if ( $::verbose && ref $counter ) {
+    if ( $::config->{Verbose} && ref $counter ) {
         $$counter++;
         if ( $$counter % 1000 == 0 ) {
             print STDERR "[$$counter]";
@@ -377,11 +377,12 @@ sub accumulate_dependencies($$)
     my $allports = shift;
     my $counter  = 0;
 
-    print STDERR "Accumulating dependency information: " if ($::verbose);
+    print STDERR "Accumulating dependency information: "
+      if ( $::config->{Verbose} );
     for my $port ( values %{$allports} ) {
         $port->accumulate_dependencies($allports);
 
-        if ($::verbose) {
+        if ( $::config->{Verbose} ) {
             $counter++;
             if ( $counter % 1000 == 0 ) {
                 print STDERR "[$counter]";
@@ -390,7 +391,7 @@ sub accumulate_dependencies($$)
             }
         }
     }
-    print STDERR "<${counter}>\n" if ($::verbose);
+    print STDERR "<${counter}>\n" if ( $::config->{Verbose} );
 
     return $self;
 }
@@ -404,12 +405,12 @@ sub print_index($$*)
     my $fh       = shift;
     my $counter  = 0;
 
-    print STDERR "Writing INDEX file: " if ($::verbose);
+    print STDERR "Writing INDEX file: " if ( $::config->{Verbose} );
 
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
         $allports->{$origin}->print( $fh, $allports, \$counter );
     }
-    print STDERR "<${counter}>\n" if ($::verbose);
+    print STDERR "<${counter}>\n" if ( $::config->{Verbose} );
 
     return $self;
 }

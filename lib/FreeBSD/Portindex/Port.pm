@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.13 2004-10-12 13:35:36 matthew Exp $
+# @(#) $Id: Port.pm,v 1.14 2004-10-16 15:24:46 matthew Exp $
 #
 
 #
@@ -35,7 +35,7 @@
 # this is used for generating the ports INDEX.
 #
 package FreeBSD::Port;
-$VERSION = 0.01;    # Extremely alpha.
+our $VERSION = 0.01;    # Extremely alpha.
 
 use strict;
 use warnings;
@@ -218,7 +218,7 @@ sub print ($*;$)
     print $fh $self->_chase_deps( $allports, 'PATCH_DEPENDS' ),   '|';
     print $fh $self->_chase_deps( $allports, 'FETCH_DEPENDS' ),   "\n";
 
-    if ( $::verbose && defined $counter ) {
+    if ( $::config->{Verbose} && defined $counter ) {
         $$counter++;
         if ( $$counter % 1000 == 0 ) {
             print STDERR "[$$counter]";

@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.3 2004-10-14 11:16:19 matthew Exp $
+# @(#) $Id: cache-update,v 1.4 2004-10-16 15:24:46 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -64,13 +64,14 @@
 use strict;
 use warnings;
 
+use FreeBSD::Portindex qw(read_config);
 use FreeBSD::Port;
 use FreeBSD::Ports::Tree;
 
-our $verbose;
+our $config;
+our $pkgname = 'portindex';
 
 $0 =~ s@.*/@@;    # Script name for error messages
-$::verbose = 1;   # Be garrulous.
 
 MAIN:
 {
@@ -81,10 +82,12 @@ MAIN:
     my $counter = 0;
     my %seen;
 
+	$config = read_config();
+	
     $tree = FreeBSD::Ports::Tree->new(
-        -Env                 => { -Home => '/var/tmp', },
-        -CacheFilename       => 'portindex-cache.db',
-        -MasterSlaveFilename => 'portindex-masterslave.db'
+        -Env                 => { -Home => $config->{CacheDir}, },
+        -CacheFilename       => $config->{CacheFilename},
+		-MasterSlaveFilename => $config->{MasterSlaveFilename},
     );
 
     # If one of the ports given in the @updaters list is the master of
@@ -115,6 +118,36 @@ MAIN:
         $tree->make_describe($path);
     }
 }
+
+__END__
+
+=head1 NAME
+
+cache-update -- Incrementally update the portindex cache
+	
+=head1 SYNOPSIS
+
+cache-update [options]
+	
+=head1 OPTIONS
+
+=over 8
+
+=item B<--help>
+
+Print a brief usage message and exit.
+
+=item B<--verbose>
+
+Turn on verbose output printed to STDERR.
+
+=back
+	
+=head1 DESCRIPTION
+
+B<cache-update> makes incremental updates to the B<portindex> cache.
+
+=cut
 
 #
 # That's All Folks!
