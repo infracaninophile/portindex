@@ -1,6 +1,6 @@
 # This file contains -*- perl -*- code
 #
-# @(#) $Id: portindex.cfg.sample,v 1.7 2004-11-01 23:34:21 matthew Exp $
+# @(#) $Id: portindex.cfg.sample,v 1.8 2004-11-02 15:24:02 matthew Exp $
 #
 # Sample configuration file for portindex, cache-init, cache-update
 #
@@ -30,6 +30,13 @@
 ## containing the cached 'make describe' output.
 
 # $::Config{CacheFilename} = 'portindex-cache.db';
+
+## cache-init, cache-update (-s, --scrub-environment,
+## --noscrub-environment): Boolean -- delete everything from the
+## environment except for USER, HOME, PATH, SHELL, TERM, TERMCAP if
+## true.  Default no or if value set to false.
+
+# $::Config{ScrubEnvironment} = 0;
 
 ## all (-v, -q, --verbose, --noverbose, --quiet): Boolean -- turn on
 ## verbose output if true, turn off if false or undef

@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: find-updated,v 1.5 2004-11-02 11:58:13 matthew Exp $
+# @(#) $Id: find-updated,v 1.6 2004-11-02 15:24:02 matthew Exp $
 #
 
 # Scan through the ports tree, and pick out all ports containing files
@@ -319,7 +319,7 @@ settings after command line processing and then exit.
 
 =item B<--verbose>
 
-Turn on verbose output printed to C<STDERR>.
+Turn on verbose output printed to C<STDERR>.  This is the default.
 
 =item B<-q>
 
@@ -353,7 +353,8 @@ Defaults to F<portindex-cache.db>.
 =item B<--timestamp-file>=F<file>
 
 A file within the cache directory whose modification time marks the
-last time that data was modified in or added to the cache.
+last time that data was modified in or added to the cache.  Defaults
+to F<portindex-timestamp>
 
 =item B<-o> F<file>
 

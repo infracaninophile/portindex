@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-init,v 1.16 2004-11-02 15:10:11 matthew Exp $
+# @(#) $Id: cache-init,v 1.17 2004-11-02 15:24:02 matthew Exp $
 #
 
 # Build the portindex cache from scratch by scanning through the whole
@@ -233,7 +233,7 @@ settings after command line processing and then exit.
 
 =item B<--verbose>
 
-Turn on verbose output printed to C<STDERR>.
+Turn on verbose output printed to C<STDERR>.  This is the default.
 
 =item B<-q>
 
@@ -257,6 +257,7 @@ standardized environment for C<make describe> and other sub-processes.
 
 Turn off environment scrubbing.  All environment variables will be
 passed through intact to C<make describe> and other sub-processes.
+This is the default.
 
 =item B<-p> F<dir>
 
@@ -286,7 +287,8 @@ Defaults to F<portindex-cache.db>.
 =item B<--timestamp-file>=F<file>
 
 A file within the cache directory whose modification time marks the
-last time that data was modified in or added to the cache.
+last time that data was modified in or added to the cache.  Defaults
+to F<portsindex-timestamp>.
 
 =back
 
