@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.7 2004-10-19 12:51:31 matthew Exp $
+# @(#) $Id: Config.pm,v 1.8 2004-10-19 16:01:11 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -95,6 +95,8 @@ sub read_config ($)
         'propagation-delay=i' => \$config->{PropagationDelay},
       )
       if ( $0 eq 'cache-update' );
+    push @optargs, ( 'ports-dir=s' => \$config->{PortsDir}, )
+      if ( $0 eq 'cache-init' );
 
     for my $cf (
         "/usr/local/etc/${main::pkgname}.cfg",
