@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.7 2004-10-08 11:14:22 matthew Exp $
+# @(#) $Id: Port.pm,v 1.8 2004-10-08 21:17:03 matthew Exp $
 #
 
 #
@@ -63,16 +63,20 @@ sub new ($@)
 
     bless $self, $class;
 
-    $self->{ORIGIN} = [ split '/', $self->{ORIGIN} ]
-      if defined $self->{ORIGIN} && !ref $self->{ORIGIN};
-
     for my $dep (
         qw( EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS BUILD_DEPENDS
         RUN_DEPENDS )
       )
     {
-        $self->{$dep} = [ split / /, $self->{$dep} ]
-          if defined $self->{$dep} && !ref $self->{$dep};
+
+        # If the hash key has not yet been created, don't do anything
+        if ( exists $self->{$dep} ) {
+            if ( !defined $self->{$dep} ) {
+                $self->{$dep} = [];    # Empty list
+            } elsif ( !ref $self->{$dep} ) {
+                $self->{$dep} = [ split / /, $self->{$dep} ];
+            }
+        }
     }
     return $self;
 }
@@ -138,31 +142,6 @@ sub new_from_indexline($$)
         RUN_DEPENDS     => $run_depends,
         WWW             => $www,
     );
-
-    # Chase the dependency linkages
-
-    $self->_get_index_links(
-        qw( EXTRACT_DEPENDS PATCH_DEPENDS
-          FETCH_DEPENDS BUILD_DEPENDS RUN_DEPENDS )
-    );
-
-    return $self;
-}
-
-# Take a list of pkgnames (separated by spaces) as seen in
-# /usr/ports/INDEX, and convert it into a list of hash references to
-# entries in the temporary %index hash -- creating empty entries as
-# required.
-sub _get_index_links ($@)
-{
-    my $self = shift;
-    my @deps = @_;
-
-    # Don't re-process entry if it's already a ref
-    for my $dep (@deps) {
-        @{ $self->{$dep} } =
-          map { $self->new( PKGNAME => $_ ) unless ref $_; } @{ $self->{$dep} };
-    }
     return $self;
 }
 
@@ -228,19 +207,29 @@ sub new_from_description($$)
     return $self;
 }
 
-# Take a list of port origins as seen in 'make
-# describe' output, and convert it into a list of hash references to
-# entries in the %tree hash-of-hashes.  Missing entries are an error:
-# there should always be corresponding directories in the ports tree.
-sub _get_describe_links ($$@)
+# Use the $tree hash to convert package dependency lists from ORIGINs
+# to PKGNAMEs
+sub origin_to_pkgname ($$@)
 {
     my $self = shift;
     my $tree = shift;
     my @deps = @_;
+    my $translated;
 
     for my $dep (@deps) {
-        @{ $self->{$dep} } =
-          map { $tree->get($_) unless ref $_; } @{ $self->{$dep} };
+        $translated = [];
+
+        for my $origin ( @{ $self->$dep() } ) {
+            my $p = $tree->get($origin);
+
+            if ( defined $p ) {
+                push @{$translated}, $p->PKGNAME();
+            } else {
+                carp __PACKAGE__, "::origin_to_pathname(): ",
+                  "Can't find package with origin $origin";
+            }
+        }
+        $self->$dep($translated);
     }
     return $self;
 }
@@ -293,14 +282,14 @@ sub print ($*;$)
     my $counter = shift;
 
     print $fh $self->PKGNAME(), '|';
-    print $fh join( '/', @{ $self->ORIGIN() } ), '|';
-    print $fh $self->STUFF(), '|';
-    print $fh join( ' ', $self->_chase_links('BUILD_DEPENDS') ), '|';
-    print $fh join( ' ', $self->_chase_links('RUN_DEPENDS') ),   '|';
+    print $fh $self->ORIGIN(),  '|';
+    print $fh $self->STUFF(),   '|';
+    print $fh $self->_chase_deps('BUILD_DEPENDS'), '|';
+    print $fh $self->_chase_deps('RUN_DEPENDS'),   '|';
     print $fh $self->WWW(), '|';
-    print $fh join( ' ', $self->_chase_links('EXTRACT_DEPENDS') ), '|';
-    print $fh join( ' ', $self->_chase_links('PATCH_DEPENDS') ),   '|';
-    print $fh join( ' ', $self->_chase_links('FETCH_DEPENDS') ),   "\n";
+    print $fh $self->_chase_deps('EXTRACT_DEPENDS'), '|';
+    print $fh $self->_chase_deps('PATCH_DEPENDS'),   '|';
+    print $fh $self->_chase_deps('FETCH_DEPENDS'),   "\n";
 
     if ( $::verbose && defined $counter ) {
         if ( $$counter % 1000 == 0 ) {
@@ -316,48 +305,57 @@ sub print ($*;$)
 # Turn the list of references to hashes, which are the dependencies
 # (of the specified type) for this package into a list of package
 # names.
-sub _chase_links($$)
+sub _chase_deps($$)
 {
     my $self = shift;
     my $dep  = shift;
 
-    return sort map { $_->PKGNAME() } @{ $self ->${dep}() };
+    return join ' ', @{ $self ->${dep}() };
 }
 
-# Create references from each package to the packages that have a
-# dependency on it.  $dep is a hash key -- one of BUILD_DEPENDS,
+# Create the inverse dependency lists for each package: that is, the
+# list of packages that depend on this one in order to build, run,
+# etc.  dependency on it.  $dep is a hash key -- one of BUILD_DEPENDS,
 # RUN_DEPENDS, EXTRACT_DEPENDS, PATCH_DEPENDS, FETCH_DEPENDS -- which
 # we invert to create links from the dependencies' FOO_INVERSE entry
 # to $self.  Ie. FOO_INVERSE is a list of the ports which have a FOO
 # dependency on this one.
 sub invert_dependencies($$)
 {
-    my $self = shift;
-    my $dep  = shift;
+    my $self    = shift;
+    my $dep     = shift;
+    my $pkgname = $self->PKGNAME();
 
+    my $other;
     my $inverse_dep;
     my $i;
 
-    ( $inverse_dep = $dep ) =~ s/DEPENDSS/INVERSE/;
+    ( $inverse_dep = $dep ) =~ s/DEPENDS/INVERSE/;
 
     foreach my $dependency ( @{ $self ->${dep}() } ) {
-        if ( defined $dependency ->${inverse_dep}() ) {
+        unless ( defined $index{$dependency} ) {
+            carp __PACKAGE__, "::invert_dependencies(): $pkgname claims ",
+              "$dependency as a $dep, but $dependency is unknown";
+        }
+        $other = $index{$dependency};
+
+        if ( $other ->${inverse_dep}() ) {
 
             # Insert the upreference into the
             # $dependency->{$inverse_dep} list so that the list
             # remains sorted by $pkgname
 
             $i = 0;    # Index at which to make insertion
-            foreach my $dependent ( @{ $dependency ->${inverse_dep}() } ) {
-                if ( $dependent->PKGNAME() eq $self->PKGNAME() ) {
+            foreach my $dependent ( @{ $other ->${inverse_dep}() } ) {
+                if ( $dependent eq $pkgname ) {
 
                     # Already in the list
                     last;
                 }
-                if ( $dependent->PKGNAME() gt $self->PKGNAME() ) {
+                if ( $dependent gt $pkgname ) {
 
                     # Add before this entry...
-                    splice( @{ $dependency ->${inverse_dep}() }, $i, 0, $self );
+                    splice( @{ $other ->${inverse_dep}() }, $i, 0, $pkgname );
                     last;
                 }
                 $i++;
@@ -365,10 +363,10 @@ sub invert_dependencies($$)
         } else {
 
             # It's easy to order a list of one thing...
-            $dependency ->${inverse_dep}( [$self] );
+            $other ->${inverse_dep}( [$pkgname] );
         }
     }
-    carp "Inverse $dep dependencies of ", $self->PKGNAME(), "\n"
+    print STDERR "Inverted $dep dependencies of $pkgname\n"
       if $::verbose;
     return $self;
 }

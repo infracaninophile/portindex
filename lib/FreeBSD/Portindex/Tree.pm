@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.7 2004-10-08 11:14:22 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.8 2004-10-08 21:17:03 matthew Exp $
 #
 
 #
@@ -54,30 +54,14 @@ sub new ($@)
 }
 
 # Insert port into ports tree structure according to the ORIGIN --
-# either as a string or an array of directories.  Specifying a $port
-# is optional -- leaving it out just creates a "directory" structure.
-sub insert ($$;$)
+# This is just a mapping from port origin to package name.
+sub insert ($$$)
 {
     my $self   = shift;
     my $origin = shift;
     my $port   = shift;
-    my $s      = $self;
 
-    $origin = [ split '/', $origin ]
-      unless ref $origin eq 'ARRAY';
-    $port = undef
-      unless defined $port && $port->isa("FreeBSD::Port");
-
-    # Since $origin is (usually) passed by ref, mustn't alter its
-    # contents.  How to loop over all but the last element of an array
-    # given that limitation:
-
-    for my $d ( @{$origin}[ 0 .. $#{$origin} - 1 ] ) {
-        $s->{$d} = $s->new()
-          unless defined $s->{$d};
-        $s = $s->{$d};
-    }
-    $s->{ $origin->[-1] } = $port;
+    $self->{$origin} = $port;
 
     return $self;
 }
@@ -90,48 +74,24 @@ sub delete ($$)
     my $self   = shift;
     my $origin = shift;
     my $port;
-    my $xport;
 
-    $origin = [ split '/', $origin ]
-      unless ref $origin eq 'ARRAY';
-
-    $port = $self;
-    for my $d ( @{$origin} ) {
-        if ( $port->{$d} ) {
-            $xport = $port;
-            $port  = $port->{$d};
-        } else {
-            undef $port;
-            last;
-        }
+    if ( defined $self->{$origin} ) {
+        $port = $self->{$origin};
+        delete $self->{$origin};
+    } else {
+        $port = undef;
     }
-    delete $xport->{ $origin->[-1] }
-      if defined $port;
     return $port;
 }
 
-# Return the port object for a given origin path -- note that this can
-# return object corresponding to a port subdirectory as well.  Return
+# Return the port object for a given origin path.  Return
 # undef if port not found in tree.
 sub get ($$)
 {
     my $self   = shift;
     my $origin = shift;
-    my $port;
 
-    $origin = [ split '/', $origin ]
-      unless ref $origin eq 'ARRAY';
-
-    $port = $self;
-    for my $d ( @{$origin} ) {
-        if ( $port->{$d} ) {
-            $port = $port->{$d};
-        } else {
-            undef $port;
-            last;
-        }
-    }
-    return $port;
+    return defined $self->{$origin} ? $self->{$origin} : undef;
 }
 
 # Read in the /usr/ports/INDEX file from STDIN converting to an array
@@ -175,22 +135,28 @@ sub scan_makefiles($@)
 {
     my $self  = shift;
     my @paths = @_;
+    my $count = 1;
+
+    print STDERR "Processing 'make describe' output: ";
 
     foreach my $path (@paths) {
-        $self->_scan_makefiles($path);
-
-        $self->_get_describe_links(
-            $self, qw( EXTRACT_DEPENDS
-              PATCH_DEPENDS FETCH_DEPENDS BUILD_DEPENDS RUN_DEPENDS )
-        );
+        $self->_scan_makefiles( $path, \$count );
     }
+
+    print STDERR "<$count>\n";
+
+    $self->origin_to_pkgname(
+        qw( EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS
+          BUILD_DEPENDS RUN_DEPENDS )
+    );
     return $self;
 }
 
-sub _scan_makefiles($$)
+sub _scan_makefiles($$$)
 {
-    my $self = shift;
-    my $path = shift;
+    my $self  = shift;
+    my $path  = shift;
+    my $count = shift;
     my @subdirs;
 
     # Hmmm... Using make(1) to print out the value of the variable
@@ -214,43 +180,43 @@ sub _scan_makefiles($$)
     close MAKEFILE;
 
     if (@subdirs) {
-        $self->insert($path);
-
         for my $subdir (@subdirs) {
-            $self->_scan_makefiles($subdir);
+            $self->_scan_makefiles( $subdir, $count );
         }
     } else {
 
         # This is a real port directory, not a subdir.
         my $port = FreeBSD::Port->new_from_make_describe($path);
 
-        $self->insert( $path, $port );
+        if ($::verbose) {
+            if ( $$count % 1000 == 0 ) {
+                print "[$$count]";
+            } elsif ( $$count % 100 == 0 ) {
+                print '.';
+            }
+        }
+        $$count++;
 
-        print STDERR "$path --> ", $port->PKGNAME(), "\n"
-          if $::verbose;
+        $self->insert( $path, $port );
     }
     return $self;
 }
 
-# Scan through the whole tree: this method does useful things for the
-# FreeBSD::Port object.
-sub _get_describe_links ($$@)
+# Scan through the whole tree converting the port ORIGINs in each
+# dependency list into PKGNAMEs.
+sub origin_to_pkgname ($@)
 {
     my $self = shift;
-    my $tree = shift;
     my @deps = @_;
 
-    for my $q ( keys %{$self} ) {
-        $self->{$q}->_get_describe_links( $tree, @deps );
+    for my $origin ( keys %{$self} ) {
+        $self->{$origin}->origin_to_pkgname( $self, @deps );
     }
     return $self;
 }
 
-# Print out whole INDEX file sorted by origin using %ports hash:
-# recurse through directory levels.  Elements are either
-# FreeBSD::Ports::Tree or FreeBSD::Port objects -- just call the print
-# method for each object, sorting in order of port name.
-sub print_index($*)
+# Print out whole INDEX file sorted by ORIGIN using $tree hash:
+sub print($*)
 {
     my $self    = shift;
     my $fh      = shift;
@@ -258,24 +224,11 @@ sub print_index($*)
 
     print STDERR "Writing INDEX file: " if ($::verbose);
 
-    $self->print( $fh, \$counter );
-
+    for my $origin ( sort keys %{$self} ) {
+        $self->{$origin}->print( $fh, \$counter );
+    }
     print STDERR "<${counter}>\n" if ($::verbose);
 
-    return $self;
-}
-
-# The print method for a FreeBSD::Ports::Tree object just calls the
-# print method for all of the objects it contains.
-sub print($*;$)
-{
-    my $self    = shift;
-    my $fh      = shift;
-    my $counter = shift;
-
-    for my $q ( sort keys %{$self} ) {
-        $self->{$q}->print( $fh, $counter );
-    }
     return $self;
 }
 
