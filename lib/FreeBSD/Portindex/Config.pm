@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.33 2005-01-13 22:50:37 matthew Exp $
+# @(#) $Id: Config.pm,v 1.34 2005-01-16 10:21:47 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -39,7 +39,7 @@ our @ISA       = qw(Exporter);
 our @EXPORT_OK =
   qw(read_config update_timestamp get_timestamp compare_timestamps
   scrub_environment );
-our $VERSION = '1.1';    # Release
+our $VERSION = '1.2';    # Release
 
 use strict;
 use warnings;
@@ -62,20 +62,22 @@ sub read_config ($)
     my $config = shift;
     my $help;
     my @optargs;
-    my $important_makefiles_seen = 0;
+    my $ubiquitous_makefiles_seen = 0;
+    my $endemic_makefiles_seen    = 0;
 
     %{$config} = (
-        CacheDir           => "/var/db/$::pkgname",
-        CacheFilename      => "$::pkgname-cache.db",
-        ScrubEnvironment   => 0,
-        Input              => '-',
-        Format             => 'cvsup-output',
-        Output             => '-',
-        PortsDir           => $ENV{PORTSDIR} || '/usr/ports',
-        PropagationDelay   => 3600,                                     # 1 hour
-        TimestampFilename  => "$::pkgname-timestamp",
-        Verbose            => 1,
-        ImportantMakefiles => [ "Mk/bsd.port.mk", "/etc/make.conf", ],
+        CacheDir            => "/var/db/$::pkgname",
+        CacheFilename       => "$::pkgname-cache.db",
+        ScrubEnvironment    => 0,
+        Input               => '-',
+        Format              => 'cvsup-output',
+        Output              => '-',
+        PortsDir            => $ENV{PORTSDIR} || '/usr/ports',
+        PropagationDelay    => 3600,                                    # 1 hour
+        TimestampFilename   => "$::pkgname-timestamp",
+        Verbose             => 1,
+        UbiquitousMakefiles => [ "Mk/bsd.port.mk", "/etc/make.conf", ],
+        EndemicMakefiles    => ["Mk/bsd.sites.mk"],
     );
     @optargs = (
         'cache-dir|c=s'      => \$config->{CacheDir},
@@ -98,30 +100,41 @@ sub read_config ($)
 
             $config->{Format} = $optvalue;
         },
-        'propagation-delay=i'     => \$config->{PropagationDelay},
-        'scrub-environment|s!'    => \$config->{ScrubEnvironment},
-        'important-makefile|M=s@' => sub {
+        'propagation-delay|P=i' => \$config->{PropagationDelay},
+      )
+      if ( $0 eq 'cache-update' );
+    push @optargs, (
+        'ports-dir=s'              => \$config->{PortsDir},
+        'scrub-environment|s!'     => \$config->{ScrubEnvironment},
+        'ubiquitous-makefile|M=s@' => sub {
             my $optname  = shift;
             my $optvalue = shift;
 
             # Discard built-in defaults for this list of Makefiles if
             # any are given on the command-line
 
-            $config->{ImportantMakefiles} = []
-              unless $important_makefiles_seen++;
+            $config->{UbiquitousMakefiles} = []
+              unless $ubiquitous_makefiles_seen++;
 
-            push @{ $config->{ImportantMakefiles} }, $optvalue;
+            push @{ $config->{UbiquitousMakefiles} }, $optvalue;
+        },
+        'endemic-makefile|m=s@' => sub {
+            my $optname  = shift;
+            my $optvalue = shift;
+
+            # Discard built-in defaults for this list of Makefiles if
+            # any are given on the command-line
+
+            $config->{EndemicMakefiles} = []
+              unless $endemic_makefiles_seen++;
+
+            push @{ $config->{EndemicMakefiles} }, $optvalue;
         },
       )
-      if ( $0 eq 'cache-update' );
-    push @optargs,
-      (
-        'ports-dir=s'          => \$config->{PortsDir},
-        'scrub-environment|s!' => \$config->{ScrubEnvironment},
-      )
-      if ( $0 eq 'cache-init' );
+      if ( $0 eq 'cache-init' || $0 eq 'cache-update' );
     push @optargs, (
-        '<>' => sub {
+        'ports-dir=s' => \$config->{PortsDir},
+        '<>'          => sub {
             my $optval = shift;
             my @date;
 
@@ -156,7 +169,7 @@ sub read_config ($)
         pod2usage(2);
     }
     map { $_ = "$::Config{PortsDir}/$_" unless m@^/@ }
-      @{ $::Config{ImportantMakefiles} };
+      @{ $::Config{UbiquitousMakefiles} }, @{ $::Config{EndemicMakefiles} };
     if ($help) {
         pod2usage( -exitval => 'NOEXIT', -verbose => 1 );
         show_config($config);
@@ -170,30 +183,36 @@ sub read_config ($)
 sub show_config ($)
 {
     my $config = shift;
-    my $im_fmt = "    Important Makefiles (cache-update) ........... ";
+    my $um_fmt = "  Ubiquitous Makefiles (cache-update, cache-init).. ";
+    my $em_fmt = "  Endemic Makefiles (cache-update, cache-init) .... ";
 
     print <<"E_O_CONFIG";
 
 Current Configuration:
 
-    Settings after reading all configuration files and parsing the
-    command line.  They apply to all programs, except as marked.
+  Settings after reading all configuration files and parsing the
+  command line.  They apply to all programs, except as marked.
 
-    PortsDir (cache-init) ........................ $config->{PortsDir}
-    CacheDir ..................................... $config->{CacheDir}
-    CacheFilename ................................ $config->{CacheFilename}
-    ScrubEnvironment (cache-init, cache-update) .. $config->{ScrubEnvironment}
-    Input (cache-update) ......................... $config->{Input}
-    Format (cache-update) ........................ $config->{Format}
-    PropagationDelay (cache-update) .............. $config->{PropagationDelay}
-    Output (portindex, find-updated) ............. $config->{Output}
-    TimestampFilename ............................ $config->{TimestampFilename}
-    Verbose ...................................... $config->{Verbose}
+  PortsDir (cache-init, cache-update, find-updated) $config->{PortsDir}
+  CacheDir ........................................ $config->{CacheDir}
+  CacheFilename ................................... $config->{CacheFilename}
+  ScrubEnvironment (cache-init, cache-update) ..... $config->{ScrubEnvironment}
+  Input (cache-update) ............................ $config->{Input}
+  Format (cache-update) ........................... $config->{Format}
+  PropagationDelay (cache-update) ................. $config->{PropagationDelay}
+  Output (portindex, find-updated) ................ $config->{Output}
+  TimestampFilename ............................... $config->{TimestampFilename}
+  Verbose ......................................... $config->{Verbose}
 E_O_CONFIG
-    for my $im ( @{ $config->{ImportantMakefiles} } ) {
-        print $im_fmt, $im, "\n";
-        $im_fmt = ' ' x length $im_fmt
-          unless $im_fmt =~ m/^ +$/;
+    for my $um ( @{ $config->{UbiquitousMakefiles} } ) {
+        print $um_fmt, $um, "\n";
+        $um_fmt = ' ' x length $um_fmt
+          unless $um_fmt =~ m/^ +$/;
+    }
+    for my $em ( @{ $config->{EndemicMakefiles} } ) {
+        print $em_fmt, $em, "\n";
+        $em_fmt = ' ' x length $em_fmt
+          unless $em_fmt =~ m/^ +$/;
     }
     return;
 }
@@ -235,7 +254,7 @@ sub compare_timestamps ($)
 
     $p_mtime = get_timestamp($config);
 
-    for my $file ( @{ $config->{ImportantMakefiles} } ) {
+    for my $file ( @{ $config->{UbiquitousMakefiles} } ) {
         $f_mtime = ( stat $file )[9]
           or do {
             warn "$0: can't stat $file -- $!\n";

@@ -1,6 +1,6 @@
 # This file contains -*- perl -*- code
 #
-# @(#) $Id: portindex.cfg.sample,v 1.10 2005-01-13 22:50:37 matthew Exp $
+# @(#) $Id: portindex.cfg.sample,v 1.11 2005-01-16 10:21:47 matthew Exp $
 #
 # Sample configuration file for portindex, cache-init, cache-update
 #
@@ -16,8 +16,9 @@
 ## shown, commented out.  All options can be overriden from the
 ## command line.
 
-## cache-init (-p, --ports-dir): Base directory of the ports tree,
-## same as the PORTSDIR environment variable.
+## cache-init, cache-update, find-updated (-p, --ports-dir): Base
+## directory of the ports tree, same as the PORTSDIR environment
+## variable.
 
 # $::Config{PortsDir} = $ENV{PORTSDIR} || '/usr/ports';
 
@@ -66,7 +67,7 @@
 
 # $::Config{Format} = 'cvsup-output';
 
-## cache-update (-p, --propagation-delay): A fudge factor to account
+## cache-update (-P, --propagation-delay): A fudge factor to account
 ## for the time required between a change being committed to the
 ## FreeBSD CVS repository, and when that change gets propagated out to
 ## the local cvsup(1) server -- how many seconds older than the last
@@ -81,15 +82,26 @@
 
 # $::Config{TimestampFile} = 'portindex-timestamp';
 
-## cache-update (-M, --important-makefile): List of Makefiles
-## ubiquitously included by all or the vast majority of ports.  If any
-## Makefile on this list had been modified since the last time the
-## cache was updated, then it might be preferable to re-initialise the
-## cache from scratch using cache-init rather than trying to do an
-## incremental update.  Default: /usr/ports/Mk/bsd.port.mk,
-## /etc/make.conf
+## cache-update, cache-init (-M, --ubiquitous-makefile): List of
+## Makefiles included by all or the vast majority of ports.
+## cache-update will emit a warning if any Makefile on this list has
+## been modified since the last time the cache was updated, that it
+## might be preferable to re-initialise the cache from scratch using
+## cache-init(1) rather than trying to do an incremental update.
+## Neither cache-init(1) nor cache-update(1) will store any of these
+## filenames within the cache.  Default: /usr/ports/Mk/bsd.port.mk,
+## /etc/make.conf (Note: non-absolute paths are taken as relative to
+## $::Config{PortsDir})
 
-# $::Config{ImportantMakefiles} = [ $::Config{PortsDir} . '/Mk/bsd.port.mk', '/etc/make.conf', ];
+# $::Config{UbiquitousMakefiles} = [ 'Mk/bsd.port.mk', '/etc/make.conf', ];
+
+## cache-update, cache-init (-m --endemic-makefile): List of Makefiles
+## from within $::Config{PortsDir} whose inclusion or modification is
+## assumed to have no effect on the resulting INDEX file, hence those
+## file names will not be stored in the cache. (Note: non-absolute
+## paths are taken as relative to $::Config{PortsDir})
+
+# $::Config{EndemicMakefiles} = [ 'Mk/bsd.sites.mk', ];
 
 ##
 ## That's All Folks!

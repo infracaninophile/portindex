@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.34 2005-01-13 22:50:37 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.35 2005-01-16 10:21:47 matthew Exp $
 #
 
 #
@@ -36,12 +36,12 @@
 # supplied by using BerkeleyDB Btree for backing stores.
 #
 package FreeBSD::Portindex::Tree;
-our $VERSION = '1.1';    # Release
+our $VERSION = '1.2';    # Release
 
 use strict;
 use warnings;
 use Carp;
-use BerkeleyDB;          # BDB version 2, 3, 4, 41, 42
+use BerkeleyDB;          # BDB version 2, 3, 4, 41, 42, 43
 use Storable qw(freeze thaw);
 
 use FreeBSD::Portindex::Port;
@@ -90,33 +90,34 @@ sub new ($@)
 
     # Save some regex definitions for use in the make_describe() method.
 
-    # Directories where port-specific Makefiles are found.  Although
-    # other locations do contain Makefiles that will affect the
-    # result, these generally do not change that often.
+    # Directories where ports-specific Makefiles are found.  Ignore
+    # the effect of any Makefile not matching these locations.
+    # Although other locations do contain Makefiles that will affect
+    # the result, those generally do not change that often, and tent
+    # to have minimal material effect on the final result.
 
     $self->{MAKEFILE_LOCATIONS} = qr{
         \A
             (
              /var/db/ports
              |
-             $::Config{PortsDir}
+             \Q$::Config{PortsDir}\E
              )           
         }x;
 
     # Makefiles which we ignore changes to when producing the list of
-    # ports needing updating.  Either because changes to that file
+    # ports needing updating, and which aren't recorded as included
+    # Makefiles in the cache.  Either because changes to that file
     # tend to have no effect on the final INDEX, or because changes to
     # the file trigger update checks on too many (generally /all/)
     # ports -- in which case a cache-init run is indicated
 
-    $self->{MAKEFILE_EXCEPTIONS} = qr{
-        \A
-            (
-             $::Config{PortsDir}/Mk/bsd.port.mk # Changes affect everything
-             |
-             $::Config{PortsDir}/Mk/bsd.sites.mk # Changes don't affect INDEX
-             )
-        }x;
+    my $me = '\A('
+      . join( '|',
+        map { quotemeta } @{ $::Config{UbiquitousMakefiles} },
+        @{ $::Config{EndemicMakefiles} } )
+      . ')\Z';
+    $self->{MAKEFILE_EXCEPTIONS} = qr{$me};
 
     return bless $self, $class;
 }

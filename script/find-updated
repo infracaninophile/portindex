@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: find-updated,v 1.8 2005-01-13 22:50:37 matthew Exp $
+# @(#) $Id: find-updated,v 1.9 2005-01-16 10:21:47 matthew Exp $
 #
 
 # Scan through the ports tree, and pick out all ports containing files
@@ -258,7 +258,7 @@ modified since the given date/time.
 
 =head1 SYNOPSIS
 
-B<find-updated> [B<-hvq>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-o> F<file>] date
+B<find-updated> [B<-hvq>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-p> F<dir>] [B<-o> F<file>] date
 
 =head1 DESCRIPTION
 
@@ -381,6 +381,13 @@ Defaults to F<portindex-cache.db>.
 A file within the cache directory whose modification time marks the
 last time that data was modified in or added to the cache.  Defaults
 to F<portindex-timestamp>
+
+=item B<-p> F<dir>
+
+=item B<--ports-dir>=F<dir>
+
+The location of the ports tree. Almost always defaults to
+F</usr/ports> unless C<$PORTSDIR> is set in the environment.
 
 =item B<-o> F<file>
 

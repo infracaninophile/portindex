@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.25 2005-01-13 22:50:37 matthew Exp $
+# @(#) $Id: cache-update,v 1.26 2005-01-16 10:21:47 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -300,7 +300,7 @@ cache-update -- Incrementally update the portindex cache
 
 =head1 SYNOPSIS
 
-B<cache-update> [B<-hvqs>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-f> I<format>] [B<-p> num] [B<-i> F<file>] [B<-M> F<file>]...
+B<cache-update> [B<-hvqs>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-p> F<dir>] [B<-f> I<format>] [B<-P> num] [B<-i> F<file>] [B<-M> F<file>]... [B<-m> F<file>]...
 
 =head1 DESCRIPTION
 
@@ -377,23 +377,33 @@ considered.
 
 =item *
 
-Modifications to ubiquitously included important makefiles such as
+Modifications to ubiquitously included makefiles such as
 F</etc/make.conf> or F</usr/ports/Mk/bsd.port.mk>.  B<cache-update>
 will compare timestamps on these files with the cache timestamp and
 attempt to warn you when a re-initialisation might be a good idea.
-Technically there are several other makefiles which will always be
-included any time B<make> is invoked within the ports system, but no
-warnings will be generated for those files. They rarely change, and
-when they do, the changes are unlikely to have any material effect on
-the ports F<INDEX>.
 
-The list of important makefiles to test in this manner can be set
-using the C<--important-makefile> command line option: repeat the
+The list of ubiquitous makefiles to test in this manner can be set
+using the C<--ubiquitous-makefile> command line option: repeat the
 option to add more makefiles to the list, or by the
-C<ImportantMakefiles> configuration file setting.  Any makefile name
+C<UbiquitousMakefiles> configuration file setting.  Any makefile name
 given as a non-absolure path will be taken as relative to the ports
 directory, F</usr/ports> or the value of C<$PORTSDIR> in the
 environment, or the C<PortsDir> configuration file setting.
+
+Technically there are a number of other makefiles located outside
+F</usr/ports> (C<$PORTSDIR>) which will can be included any time
+B<make> is invoked within the ports system, but these are ignored but
+B<cache-update> and B<cache-init>.  Those makefiles rarely change, and
+when they do, the changes are unlikely to have any material effect on
+the generated ports F<INDEX>.
+
+The C<--endemic-makefile> option or C<EndemicMakefiles> configuration
+file setting can be used to tell B<cache-update> of any other
+makefiles (ie. from within C<PortsDir>) to be considered to have no
+effect on the outcome of generating the F<INDEX> at all.  Again,
+non-absolute paths are taken to be relative to C<PortsDir>.  Repeat
+the option to add several entries.  The list defaults to:
+F</usr/ports/Mk/bsd.sites.mk>.
 
 =item *
 
@@ -531,6 +541,13 @@ A file within the cache directory whose modification time marks the
 last time that data was modified in or added to the cache.  Defaults
 to F<portsindex-timestamp>
 
+=item B<-p> F<dir>
+
+=item B<--ports-dir>=F<dir>
+
+The location of the ports tree. Almost always defaults to
+F</usr/ports> unless C<$PORTSDIR> is set in the environment.
+
 =item B<-i> F<file>
 
 =item B<--input>=F<file>
@@ -550,7 +567,7 @@ version.
 Which input format B<cache-update> should parse to determine the list
 of ports to reprocess.
 
-=item B<-p> I<num>
+=item B<-P> I<num>
 
 =item B<--propagation-delay>=I<num>
 
@@ -569,16 +586,30 @@ your cvsup server updates itself.
 
 =item B<-M> F<file>
 
-=item B<--important-makefile> F<file>
+=item B<--ubiquitous-makefile> F<file>
 
 Compare the modification timestamp on this file with the last time
 that B<cache-update> was run, and indicate that B<cache-init> should
-be run instead of B<cache-update>.  Output is suppressed if running in
-C<--quiet> mode.  This test is meant to pick out ubiquitously included
-makefiles such as F</usr/ports/Mk/bsd.port.mk>, where any modification
-would affect the majority of ports.  Repeat this option to add more
-important makefiles to the list of files to have their modification
-times compared to the last cache update time.  manner.
+be run instead of B<cache-update>.  Also don't trigger any recheck of
+a port's description due to updates to this file.  Output is
+suppressed if running in C<--quiet> mode.  This test is meant to pick
+out makefiles such as F</usr/ports/Mk/bsd.port.mk>, where any
+modification could affect the majority of ports -- in which case
+running B<cache-init> instead would be a good idea.
+
+Repeat this option to add more ubiquitous makefiles to the list of
+files to have their modification times compared to the last cache
+update time.
+
+=item B<-m> F<file>
+
+=item B<--endemic-makefile> F<file>
+
+Ignore this makefile as a trigger for re-checking the C<make describe>
+output for any ports.  Non absolute paths will be taken as relative to
+C<PortsDir> -- indeed, it is pointless to specify any file located
+outside C<PortsDir>.  Repeat this option to add more makefiles to the
+list.
 
 =back
 
