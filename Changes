@@ -4,3 +4,18 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 	- original version; created by h2xs 1.23 with options
 		-X -A -v 1.0 -n FreeBSD::Portindex::Port
 
+1.1  Fri Nov  5 14:32:00 2004
+
+        - Add MAKEFILE_LIST processing: do a cache update for a port
+          when any included Makefile is updated
+
+        - Add warnings about /etc/make.conf or
+          /usr/ports/Mk/bsd.port.mk being more recently updated than
+          the cache -- time to reinitialise the cache?
+
+        - Document reasons for doing cache-init rather than
+          cache-update
+
+        - When run as root, only load the /usr/local/etc/portindex.cfg
+          configuration file.
+
