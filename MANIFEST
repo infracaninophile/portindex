@@ -1,0 +1,13 @@
+bin/cache-init
+bin/cache-update
+bin/find-updated
+bin/portindex
+Changes
+lib/FreeBSD/Portindex/Config.pm
+lib/FreeBSD/Portindex/Port.pm
+lib/FreeBSD/Portindex/Tree.pm
+Makefile.PL
+MANIFEST
+portindex.cfg.sample
+README
+t/FreeBSD-Portindex.t

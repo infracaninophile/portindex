@@ -1,46 +1,62 @@
 
-    README    19 October 2004
-    -------------------------
+FreeBSD-Portindex version 1.0
+=============================
 
-$Id: README,v 1.2 2004-10-22 18:37:34 matthew Exp $
+$Id: README,v 1.3 2004-11-01 11:55:57 matthew Exp $
 
-portindex, cache-init and cache-update are a set of tools used to
-generate ports INDEX or INDEX-5 files.  They work, ultimately, in a
-very similar way to the standard 'make index' command, except that the
-portindex tools keep a cache of the 'make describe' output from each
-port, and can update that incrementally.  Once the cache has been
-initialised, all of the changes made over the course of a day or a
-week can be incorporated in a few seconds, and an up to date INDEX
-file produced in a couple more.
+portindex, cache-init, cache-update and find-updated are a set of
+tools used to generate ports INDEX or INDEX-5 files.  They work,
+ultimately, in a very similar way to the standard 'make index'
+command, except that the portindex tools keep a cache of the 'make
+describe' output from each port, and can update that incrementally.
+Once the cache has been initialised, all of the changes made over the
+course of a day or a week can be incorporated in a few seconds, and an
+up to date INDEX file produced in a couple more.
 
 The cache-update process can either take the output of running
 cvsup(1) over the ports tree, or it can read cvsup(1)'s checkouts file
 (usually /usr/sup/ports-all/checkouts.cvs:.) to work out which ports
 have been modified or deleted recently, and so should have their
 cached description updated.  Of course, it can also just read a simple
-list of the port origins to re-check, which you can generate how you
-will.
+list of the port origins to re-check, which you can generate using
+find-updated or how you will.
 
-Quick start
------------
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make test
+   make install
+
+DEPENDENCIES
+
+This module requires these other modules and libraries:
+
+   BerkeleyDB 0.25
+
+
+QUICK START
 
 Please see the POD documentation for each of the commands for details.
 However, routine usage will typically be something like this:
 
     0) Prerequisites: you will need to have installed perl-5.8.5
-       (lang/perl5.8) p5-BerkeleyDB-0.25_1 (databases/p5-BerkeleyDB
-       ports) and db42-4.2.52_3 (databases/db42).  Other perl or BDB
-       versions may work, but haven't been tested.
+       (lang/perl5.8) p5-BerkeleyDB-0.25_1 (databases/p5-BerkeleyDB)
+       and db42-4.2.52_3 (databases/db42).  Other perl or BDB versions
+       may work, but haven't been tested.
 
-    i) Unpack the portsindex tar-ball:
+    i) Unpack the portsindex tar-ball, and install:
 
         % tar -jxvf portindex-N.NN.tar.bz2
+        % cd portindex-N.NN
+        % perl Makefile.PL
+        % make
+        % make test
+        % make install
 
-       For beta test purposes, just run the portsindex programs
-       straight from the portsindex-N.NN directory.  Once I'm
-       satisfied that everything is working OK, I'll declare an
-       official release and submit the program as a new port which
-       will install everything required neatly.
+       (Of course, this step is best done via the Port)
 
    ii) Initialise the portindex cache.  This is a slow step (slower than
        'make index') but it only needs to be done once.
@@ -72,35 +88,53 @@ Then for regular day to day use:
 
 Steps (iii) and (iv) together should take under a minute: very much
 faster than building the INDEX file from scratch each time you update
-your ports.
+your ports.  
 
-Licensing
----------
-
-portindex is available under the same two clause BSD license as
-FreeBSD itself.
-
-Bugs
-----
-
-This should be considered Beta code at best.  The programs have
-survived testing during the flood of ports updates after the latest
-pre-release freeze.  Even so, I'm sure various issues with it will
-arise.
+BUGS
 
 Please report any bugs to me, m.seaman@infracaninophile.co.uk with as
 much detail as possible so I can try and reproduce them.  Please try
 and include:
 
     FreeBSD version -- 'uname -a' output.
-    Perl version -- 'perl -V' output 
+    Perl version    -- 'perl -V' output 
     Transcript of session showing how the problem occurs
 
 and anything else you think is relevant.
 
-Author
-------
+COPYRIGHT AND LICENCE
 
-    (c) Matthew Seaman 2004
-        m.seaman@infracaninophile.co.uk
+Copyright (C) 2004 by Matthew Seaman
+
+This library is free software; you can redistribute it and/or modify
+it under the following 2-clause BSD style license:
+
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+#    1.  Redistributions of source code must retain the above
+#        copyright notice, this list of conditions and the following
+#        disclaimer.
+#
+#    2.  Redistributions in binary form must reproduce the above
+#        copyright notice, this list of conditions and the following
+#        disclaimer in the documentation and/or other materials
+#        provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+# USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+# OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+
+
+
 
