@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.5 2004-10-16 19:55:15 matthew Exp $
+# @(#) $Id: cache-update,v 1.6 2004-10-17 19:12:42 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -73,12 +73,115 @@ our $pkgname = 'portindex';
 
 $0 =~ s@.*/@@;    # Script name for error messages
 
+# Just read a list of port origins, one per line, from the given file
+# handle (default STDIN).
+sub read_origin_list (*$)
+{
+    my $FH      = shift;
+    my $updates = shift;
+
+    while (<$FH>) {
+        chomp;
+        push @{$updates}, $_;
+    }
+    return $updates;
+}
+
+# Process the data read from the given filehandle assuming it to be
+# the output of cvsup(1) [ need atleast -L 1 verbosity ].  Pick out
+# the names of updated files, then convert that into a list of port
+# origins to process for updates.
+sub read_cvsup_output (*$)
+{
+    my $FH      = shift;
+    my $updates = shift;
+    my %ports;
+
+    while (<$FH>) {
+        chomp;
+        if ( my ($p) = m@(ports/[^/]+/[^/]+)/@g ) {
+            $ports{$p}++
+              unless $p =~ m@/(Mk|Templates|Tools|distfiles|packages)/@;
+        }
+    }
+    for my $p ( keys %ports ) {
+        push @{$updates}, "/usr/$p";
+    }
+    return $updates;
+}
+
+# Scan through the cvsup checkouts file -- usually
+# /usr/sup/ports-all/checkouts.cvs:. under 4.x -- and find all of the
+# file entries marked with an mtime later than some cutoff point.  The
+# cutoff point should be about 1 hour earlier than the last time
+# cache-update or cache-init was run, as determined by the mtime of
+# the DB cache files.
+sub read_cvs_checkouts (*$$)
+{
+    my $FH         = shift;
+    my $updates    = shift;
+    my $cutofftime = shift;
+    my %seen;
+
+    while (<$FH>) {
+        my $name;
+        my $rcs_attr;
+        my @rcs_attrs;
+
+        chomp;
+
+        # Assume checkout mode: only look at files (C = currently
+        # existing, c = used to be present, but now deleted).
+
+        next unless m/^[cC]/;
+
+        # Extract the important data from the checkouts line
+
+        ( undef, $name, undef, undef, $rcs_attr, undef ) = split ' ', $_, 6;
+
+        # If we've already marked this port for checking, or it's part
+        # of the infrastructure rather than an actual port, there's no
+        # point repeating all of the expensive manipulations in the
+        # rest of the loop.
+
+        $name = ( $name =~ m@(ports/[^/]+/[^/]+)/@g );
+
+        next if ( $seen{$name} );
+
+        # Unpick the $rcs_attr record.
+
+        @rcs_attrs = decode_attrs($rcs_attr);
+
+        if ( $rcs_attrs[2] > $cutofftime ) {
+            push @{$updates}, "/usr/$name";
+            $seen{$name}++;
+        }
+    }
+    return $updates;
+}
+
+sub decode_attrs ($)
+{
+    my $rcs_attr = shift;
+    my @attrs;
+    my @rcs_attrs;
+
+    # Unpick the $rcs_attr record.
+    @attrs = split '#', $rcs_attr;
+    while ( $attrs[0] ) {
+        my $n = shift @attrs;
+
+        push @rcs_attrs, substr $attrs[0], 0, $n, '';
+    }
+    return @rcs_attrs;
+}
+
 MAIN:
 {
     my $tree;
     my $allports;
     my %masterslave;
-    my @updaters;
+    my @updates;
     my $counter = 0;
     my %seen;
 
@@ -103,15 +206,15 @@ MAIN:
     while (<>) {
         chomp;
         $seen{$_}++;
-        push @updaters, $_;
+        push @updates, $_;
 
-        push @updaters, grep { !$seen{$_}++ } @{ $masterslave{$_} }
+        push @updates, grep { !$seen{$_}++ } @{ $masterslave{$_} }
           if ( defined $masterslave{$_} );
     }
 
     # Regenerate the FreeBSD::Port objects for all listed ports
 
-    for my $path ( sort @updaters ) {
+    for my $path ( sort @updates ) {
         $counter++;
         print STDERR "$0:$counter: Updating cached data for $path\n"
           if $Config{Verbose};
