@@ -27,18 +27,19 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.2 2004-09-30 11:01:59 matthew Exp $
+# @(#) $Id: Port.pm,v 1.1 2004-09-30 11:01:59 matthew Exp $
 #
 
 #
-# Container for FreeBSD::Ports objects which models the entire ports
-# tree -- mapping port directories 'www/apache2'
+# An object for holding various data used in creating a port -- mostly
+# this is used for generating the ports INDEX.
 #
-package FreeBSD::Ports::Tree;
-$VERSION = 0.01;
+package FreeBSD::Port;
+$VERSION = 0.01;				# Extremely alpha.
 
 use strict;
 use warnings;
+
 
 
 1;
