@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-init,v 1.5 2004-10-19 20:55:08 matthew Exp $
+# @(#) $Id: cache-init,v 1.6 2004-10-21 09:55:16 matthew Exp $
 #
 
 # Build the portindex cache from scratch by scanning through the whole
@@ -72,9 +72,18 @@ MAIN:
 
     read_config( \%Config );
 
-    # First, move aside any pre-existing .db files
+    # Attempt to create the cache dir if it doesn't exist.  The
+    # populate it.  First, move aside any pre-existing .db files.
+    # Delete the old __db.00N files as they only apply to the old
+    # version, and will be automatically recreated as necessary.
+
+    mkdir $Config{CacheDir}, 0755
+      or die "$0: Can't create $Config{CacheDir} -- $!"
+      unless ( -d $Config{CacheDir} );
+
     chdir $Config{CacheDir}
       or die "$0: Can't chdir to ", $Config{CacheDir}, " -- $!";
+    unlink <__db.0??>;
     for my $f (qw( CacheFilename MasterSlaveFilename )) {
         if ( -e $Config{$f} ) {
             rename $Config{$f}, $Config{$f} . ".old"
@@ -198,9 +207,9 @@ The location of the ports tree, almost always F</usr/ports>.
 
 =item B<--cache-dir>=F<dir>
 
-The location of the B<portindex> data caches, by default F</var/tmp>
-at the moment, but probably moving to F</var/db/portindex> once
-version 1.0 is released.
+The location of the B<portindex> data caches, by default
+F</var/tmp/portindex> at the moment, but probably moving to
+F</var/db/portindex> once version 1.0 is released.
 
 =item B<-C> F<file>
 	
@@ -233,7 +242,7 @@ F<portindex-masterslave.db>.
 
 The default ports directory.
 
-=item F</var/tmp>
+=item F</var/tmp/portindex>
 
 The location of the data caches.  Temporary during testing -- the
 default location will probably be F</var/db/portindex>.
@@ -245,6 +254,12 @@ Btree file containing cached C<make describe> output.
 =item F<portindex-masterslave.db>
 
 Btree file containing details of master-slave relationships between ports.
+
+=item F<__db.001>, F<__db.002>, F<__db.003>
+
+Files used as part of the internal workings of BerkeleyDB, for memory
+pool management and DB locking.  Will be recreated automatically if
+deleted.
 
 =item F</usr/local/etc/portindex.cfg>
 
@@ -273,7 +288,6 @@ to transform the B<make> variables into the one line C<make describe>
 output.  That would save having to call B<make> twice per port -- once
 to run C<make describe> and a second time to run C<make -V MASTERDIR>,
 plus avoid B<make> running another B<perl> process internally.
-
 
 =cut
 
