@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.20 2004-10-19 23:07:13 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.21 2004-10-22 15:05:12 matthew Exp $
 #
 
 #
@@ -36,7 +36,7 @@
 # using BerkeleyDB Btree for backing stores.
 #
 package FreeBSD::Ports::Tree;
-our $VERSION = 0.01;
+our $VERSION = 0.1;				# Beta
 
 use strict;
 use warnings;
