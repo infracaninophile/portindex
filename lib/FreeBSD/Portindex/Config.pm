@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.10 2004-10-21 09:55:16 matthew Exp $
+# @(#) $Id: Config.pm,v 1.11 2004-10-22 14:59:57 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -64,7 +64,7 @@ sub read_config ($)
         CacheDir            => "/var/tmp/$::pkgname",
         CacheFilename       => "$::pkgname-cache.db",
         Input               => '-',
-        InputFormat         => 'cvsup-output',
+        Format              => 'cvsup-output',
         MasterSlaveFilename => "$::pkgname-masterslave.db",
         Output              => '-',
         PortsDir            => '/usr/ports',
@@ -82,15 +82,15 @@ sub read_config ($)
     push @optargs, ( 'output=s' => \$config->{Output} )
       if ( $0 eq 'portindex' );
     push @optargs, (
-        'input=s'               => \$config->{Input},
-        'input-format|format=s' => sub {
+        'input|i=s'  => \$config->{Input},
+        'format|f=s' => sub {
             my $optname  = shift;
             my $optvalue = shift;
 
             die "$0: Option --$optname unrecognised argument: $optvalue\n"
               unless $optvalue =~ m@^plain|cvsup-(output|checkouts)\Z@;
 
-            $config->{InputFormat} = $optvalue;
+            $config->{Format} = $optvalue;
         },
         'propagation-delay=i' => \$config->{PropagationDelay},
       )
@@ -133,11 +133,11 @@ Current Configuration:
     CacheFilename ..................... $config->{CacheFilename}
     MasterSlaveFilename ............... $config->{MasterSlaveFilename}
     Input (cache-update) .............. $config->{Input}
-    InputFormat (cache-update) ........ $config->{InputFormat}
+    Format (cache-update) ............. $config->{Format}
     PropagationDelay (cache-update) ... $config->{PropagationDelay}
     Output (portindex) ................ $config->{Output}
     Verbose ........................... $config->{Verbose}
-	
+
 E_O_CONFIG
     return;
 }

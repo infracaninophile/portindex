@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.10 2004-10-21 16:24:59 matthew Exp $
+# @(#) $Id: cache-update,v 1.11 2004-10-22 14:59:57 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -51,11 +51,6 @@
 # The Master/Slave port relationships recorded from a previous run are
 # applied to force an update for all slave ports whenever the master
 # port is updated.
-#
-# TODO:
-#
-# Documentation, documentation, documentation!
-#
 
 use strict;
 use warnings;
@@ -196,11 +191,11 @@ MAIN:
     # Read the list of ports to re-check and update for the
     # appropriate input format
 
-    if ( $Config{InputFormat} eq 'plain' ) {
+    if ( $Config{Format} eq 'plain' ) {
         read_plain( *STDIN, \@updates );
-    } elsif ( $Config{InputFormat} eq 'cvsup-output' ) {
+    } elsif ( $Config{Format} eq 'cvsup-output' ) {
         read_cvsup_output( *STDIN, \@updates );
-    } elsif ( $Config{InputFormat} eq 'cvsup-checkouts' ) {
+    } elsif ( $Config{Format} eq 'cvsup-checkouts' ) {
         my $cutofftime;
 
         $cutofftime = ( stat "$Config{CacheDir}/$Config{CacheFilename}" )[9]
@@ -209,7 +204,7 @@ MAIN:
 
         read_cvsup_checkouts( *STDIN, \@updates, $cutofftime );
     } else {
-        die "$0: InputFormat \'$Config{InputFormat}\' unrecognised";
+        die "$0: Format \'$Config{Format}\' unrecognised";
     }
 
     # If there's nothing to update, exit immediately: otherwise,
@@ -257,28 +252,242 @@ __END__
 =head1 NAME
 
 cache-update -- Incrementally update the portindex cache
-	
+
 =head1 SYNOPSIS
 
-cache-update [options]
-	
+B<cache-update> [B<-hvq>] [B<-c> F<dir>] [B<-C> F<file>] [B<-M> F<file>] [B<-f> I<format>] [B<-p> num] [B<-i> F<file>]
+
+=head1 DESCRIPTION
+
+B<cache-update> processes a list of port origins, regenerating the
+C<make describe> output from each of them, and updating the records
+held in the B<portindex> cache.  If B<cache-update> is passed a port
+origin that no longer exists, it will delete any corresponding records
+from the cache: thus to handle a port that has been moved, it is
+necessary to pass B<cache-update> both the old and the new locations
+of the port for processing.
+
+Similarly B<cache-update> also determines if any of the ports it is
+processing are slave ports, and maintains the table of master-slave
+relationships.
+
+The list of ports to be processed by B<cache-update> may be supplied
+in three formats:
+
+=over 8
+
+=item B<plain>
+
+A list of port origin directories, one per line
+
+=item B<cvsup-output>
+
+The output from using B<cvsup> to update a checked-out copy of the
+ports tree. (Needs B<cvsup> to be run with at least B<-L1> verbosity.)
+
+=item B<cvsup-checkouts>
+
+B<cache-update> can parse the record B<cvsup> keeps of all of the
+files known to B<cvs> within the ports tree.  By comparing the mtime
+file attribute encoded within that file to the mtime of its own cache
+file it can determine which files have been modified since it was last
+run.  When comparing the mtime values, B<cache-update> has to allow
+for the time it takes to propagate updates to the CVS repository to
+the world-wide cvsup servers.  This process is not entirely foolproof
+and can result in occasionally missing some port updates.
+
+=back
+
+Where one of the ports B<cache-update> has to process is recognised to
+be a master port, all known slave ports of that master are
+unconditionally added to the list of ports to reprocess.  This is
+necessary since two of the three input formats work by detecting
+modifications to files within the ports tree.  However the C<make
+describe> output of a slave port may well be quite different after an
+update to its master port, even if none of the files within the slave
+port have been modified.
+
+=head2 Configuration Files
+
+B<cache-init> shares configuration files with B<cache-update> and
+B<portindex>.  Any configuration settings are taken from the following
+locations, where the later items on this list override the former:
+
+=over 8
+
+=item *
+
+Built-in settings from the B<FreeBSD::Portindex> perl module.
+
+=item *
+
+The system wide configuration file F</usr/local/etc/portindex.cfg>
+
+=item *
+
+The per-user configuration file F<${HOME}/.portindexrc>
+
+=item *
+
+The local configuration file, found in the current working directory
+of the B<cache-init> process F<./.portindexrc>
+
+=item *
+
+The program command line.
+
+=back
+
+All of the configuration files are optional.  A summary of the
+resultant configuration options including the effect of any command
+line settings is printed as part of the help text when B<cache-init>
+is invoked with the C<-h> option.
+
 =head1 OPTIONS
 
 =over 8
 
+=item B<-h>
+
 =item B<--help>
 
-Print a brief usage message and exit.
+Print a brief usage message and a summary of the configuration
+settings after command line processing and then exit.
+
+=item B<-v>
 
 =item B<--verbose>
 
-Turn on verbose output printed to STDERR.
+Turn on verbose output printed to C<STDERR>.
+
+=item B<-q>
+
+=item B<--quiet>
+
+=item B<--noverbose>
+
+Turn off verbose output to C<STDERR>.  Using both the B<-v> amd B<-q>
+options together does not make any sense, but neither does it generate
+an error.  The last mentioned of the two options will prevail.
+
+=item B<-c> F<dir>
+
+=item B<--cache-dir>=F<dir>
+
+The location of the B<portindex> data caches, by default
+F</var/tmp/portindex> at the moment, but probably moving to
+F</var/db/portindex> once version 1.0 is released.
+
+=item B<-C> F<file>
+
+=item B<--cache-file>=F<file>
+
+Berkeley DB Btree file containing the cached output of C<make
+describe> for all of the ports in the tree.  This file name will be
+relative to the cache directory (B<-c> option above) unless an
+absolute path is given.  As for the main cache file, the file name is
+relative to the cache directory unless an absolute path is given.
+Defaults to F<portindex-cache.db>.
+
+=item B<-M> F<file>
+
+=item B<--master-slave-file>=F<file>
+
+Berkeley DB Btree file containing the port origins of all slave ports
+referenced to their master ports.  A slave port is defined as one
+where the C<MASTERDIR> B<make> variable does not have a value that
+resolves to the same as the port origin directory. Defaults to
+F<portindex-masterslave.db>.
+
+=item B<-i> F<file>
+
+=item B<--input>=F<file>
+
+Filename to read in order to generate the list of ports for which the
+C<make describe> data needs to be reprocessed.  F<-> means read from
+STDIN, which is the default.  Where the B<-f> format is set to
+I<cvsup-checkouts>, the appropriate file to read is usually
+F</usr/sup/ports-all/checkouts.cvs:.> or
+F</var/db/sup/ports-all/checkouts.cvs:.> depending on the FreeBSD
+version.
+
+=item B<-f> { I<plain> | I<cvsup-output> | I<cvsup-checkouts> }
+
+=item B<--format>={ I<plain> | I<cvsup-output> | I<cvsup-checkouts> }
+
+Which input format B<cache-update> should parse to determine the list
+of ports to reprocess.
+
+=item B<-p> I<num>
+
+=item B<--propagation-delay>=I<num>
+
+When I<cvsup-checkouts> format is in use, assume that any file with a
+modification time no more than I<num> seconds older than the
+B<portindex> cache files, plus all files younger than the caches, were
+updated via B<cvsup> since the previous time B<cache-update> was run.
+Use those file names as the basis on which to determine which ports
+B<cache-update> needs to reprocess.  Note: this does cover files
+deleted from the ports, as the checkouts file keeps a record of those.
+
+Empirically a value of 3600 (1 hour) seems to be a reasonable first
+choice, but this may need to be adjusted depending on how frequently
+your cvsup server updates itself.
 
 =back
-	
-=head1 DESCRIPTION
 
-B<cache-update> makes incremental updates to the B<portindex> cache.
+=head1 FILES
+
+=over 16
+
+=item F</usr/ports>
+
+The default ports directory.
+
+=item F</var/tmp/portindex>
+
+The location of the data caches.  Temporary during testing -- the
+default location will probably be F</var/db/portindex>.
+
+=item F<portindex-cache.db>
+
+Btree file containing cached C<make describe> output.
+
+=item F<portindex-masterslave.db>
+
+Btree file containing details of master-slave relationships between ports.
+
+=item F<__db.001>, F<__db.002>, F<__db.003>
+
+Files used as part of the internal workings of BerkeleyDB, for memory
+pool management and DB locking.  Will be recreated automatically if
+deleted.
+
+=item F</usr/local/etc/portindex.cfg>
+
+System-wide configuration file.
+
+=item F<${HOME}/.portindexrc>
+
+Per-user configuration file
+
+=item F<./.portindexrc>
+
+Local configuration file
+
+=back
+
+=head1 SEE ALSO
+
+L<cache-init(1)>, L<portindex(1)>, L<cvsup(1)>, L<ports(7)>
+
+=head1 BUGS
+
+I<cvsup-checkouts> format mode is not completely accurate.  Choosing the
+correct propagation delay is a matter of guesswork.
+
+Both I<cvsup-checkouts> and I<cvsup-output> format modes currently
+assume that C<PORTSDIR> is F</usr/ports>.  This should be configurable.
 
 =cut
 

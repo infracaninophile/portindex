@@ -1,6 +1,6 @@
 # This file contains -*- perl -*- code
 #
-# @(#) $Id: portindex.cfg.sample,v 1.1 2004-10-19 15:00:47 matthew Exp $
+# @(#) $Id: portindex.cfg.sample,v 1.2 2004-10-22 14:59:57 matthew Exp $
 #
 # Sample configuration file for portindex, cache-init, cache-update
 #
@@ -61,7 +61,7 @@
 ## usually be /usr/sup/ports-all/checkouts.cvs:. under FreeBSD 4.x, or
 ## /var/db/sup/ports-all/checkouts.cvs:. under FreeBSD 5.x
 
-# $::Config{InputFormat} = 'cvsup-output'
+# $::Config{Format} = 'cvsup-output'
 
 ## cache-update (--propagation-delay): A fudge factor to account for
 ## the time required between a change being committed to the FreeBSD
