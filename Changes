@@ -39,3 +39,8 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           cache-update will record any makefile from these lists in
           the cache as a trigger for re-checking any port.
 
+1.3 Fri Jan 21 21:55:00 2005
+
+	- Fix dumb programming error that stopped cache-update's
+          cvsup-checkouts mode working.
+
