@@ -19,3 +19,23 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
         - When run as root, only load the /usr/local/etc/portindex.cfg
           configuration file.
 
+1.2 Sun Jan 16 13:47:00 2005
+
+	- Respect $PORTSDIR, add '-p' or '--ports-dir' option to
+          select PortsDir to cache-update, cache-init and
+          find-updated.  Change cache-update's '-p' (propagation
+          delay) to '-P'.
+
+        - Don't emit the cache-update warnings about /etc/make.conf
+          etc. being updated when in quiet mode.
+
+	- Add '--ubiquitous-makefiles' and '--endemic-makefiles'
+          options: For cache-update, UbiquitousMakefiles contains the
+          list of makefiles to check for updates and suggest that it
+          is time for a new cache-init run.  '--endemic-makefiles' is
+          a similar list, but they don't get any timestamp comparision
+          -- the idea being that changes to the endemic makefiles
+          wouldn't affect the final outcome.  Neither cache-init or
+          cache-update will record any makefile from these lists in
+          the cache as a trigger for re-checking any port.
+
