@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.23 2004-11-01 18:01:16 matthew Exp $
+# @(#) $Id: Config.pm,v 1.24 2004-11-01 23:34:21 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -37,7 +37,7 @@ require Exporter;
 
 our @ISA       = qw(Exporter);
 our @EXPORT_OK = qw(read_config update_timestamp get_timestamp);
-our $VERSION   = '1.0';         # Release
+our $VERSION   = '1.0';                                            # Release
 
 use strict;
 use warnings;
@@ -62,25 +62,23 @@ sub read_config ($)
     my @optargs;
 
     %{$config} = (
-        CacheDir            => "/var/db/$::pkgname",
-        CacheFilename       => "$::pkgname-cache.db",
-        Input               => '-',
-        Format              => 'cvsup-output',
-        MasterSlaveFilename => "$::pkgname-masterslave.db",
-        Output              => '-',
-        PortsDir            => '/usr/ports',
-        PropagationDelay    => 3600,                          # 1 hour
-        TimestampFilename   => "$::pkgname-timestamp",
-        Verbose             => 1,
+        CacheDir          => "/var/db/$::pkgname",
+        CacheFilename     => "$::pkgname-cache.db",
+        Input             => '-',
+        Format            => 'cvsup-output',
+        Output            => '-',
+        PortsDir          => '/usr/ports',
+        PropagationDelay  => 3600,                     # 1 hour
+        TimestampFilename => "$::pkgname-timestamp",
+        Verbose           => 1,
     );
     @optargs = (
-        'cache-dir|c=s'         => \$config->{CacheDir},
-        'cache-file|C=s'        => \$config->{CacheFilename},
-        'help|?'                => \$help,
-        'master-slave-file|M=s' => \$config->{MasterSlaveFilename},
-        'timestamp-file|T=s'    => \$config->{TimestampFilename},
-        'quiet'                 => sub { $config->{Verbose} = 0 },
-        'verbose!'              => \$config->{Verbose},
+        'cache-dir|c=s'      => \$config->{CacheDir},
+        'cache-file|C=s'     => \$config->{CacheFilename},
+        'help|?'             => \$help,
+        'timestamp-file|T=s' => \$config->{TimestampFilename},
+        'quiet'              => sub { $config->{Verbose} = 0 },
+        'verbose!'           => \$config->{Verbose},
     );
     push @optargs, ( 'output=s' => \$config->{Output} )
       if ( $0 eq 'portindex' );
@@ -156,7 +154,6 @@ Current Configuration:
     PortsDir (cache-init) ............. $config->{PortsDir}
     CacheDir .......................... $config->{CacheDir}
     CacheFilename ..................... $config->{CacheFilename}
-    MasterSlaveFilename ............... $config->{MasterSlaveFilename}
     Input (cache-update) .............. $config->{Input}
     Format (cache-update) ............. $config->{Format}
     PropagationDelay (cache-update) ... $config->{PropagationDelay}

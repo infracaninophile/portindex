@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.17 2004-10-31 11:45:17 matthew Exp $
+# @(#) $Id: cache-update,v 1.18 2004-11-01 23:34:21 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -42,15 +42,19 @@
 # Running the make_describe method on a candidate port will chdir to
 # that path and run 'make describe' in the given directory, process
 # that output into a FreeBSD::Port object, and save a frozen version
-# into the ports cache.  It will also run 'make -V MASTERDIR' and
-# record that output in the masterslave file if MASTERDIR is not the
-# same as CWD.  Failing to run 'make describe' successfully results in
-# that port data being removed from the cache -- which is how
-# deletions and port moves are handled.
+# into the ports cache.  It will also run 'make -V MASTERDIR -V
+# .MAKEFILE_LIST' and record that output in the cache file (MASTERDIR
+# only if it is not the same as CWD, and only MAKEFILE_LIST items
+# within the ports tree).  Failing to run 'make describe' successfully
+# results in that port data being removed from the cache -- which is
+# how deletions and port moves are handled.
 #
 # The Master/Slave port relationships recorded from a previous run are
 # applied to force an update for all slave ports whenever the master
-# port is updated.
+# port is updated.  Ditto if an included Makefile is updated -- all
+# ports including it are added to the list of update candidates.  (If
+# it happens that /usr/ports/Mk/bsd.port.mk is updated, that means do
+# every port)
 
 use strict;
 use warnings;
@@ -218,7 +222,6 @@ MAIN:
     $tree = FreeBSD::Portindex::Tree->new(
         -Env           => { -Home => $Config{CacheDir}, },
         -CacheFilename => $Config{CacheFilename},
-        -MasterSlaveFilename => $Config{MasterSlaveFilename},
     );
 
     # If one of the ports given in the @updaters list is the master of
@@ -256,21 +259,18 @@ cache-update -- Incrementally update the portindex cache
 
 =head1 SYNOPSIS
 
-B<cache-update> [B<-hvq>] [B<-c> F<dir>] [B<-C> F<file>] [B<-M> F<file>] [B<-T> F<file>] [B<-f> I<format>] [B<-p> num] [B<-i> F<file>]
+B<cache-update> [B<-hvq>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-f> I<format>] [B<-p> num] [B<-i> F<file>]
 
 =head1 DESCRIPTION
 
 B<cache-update> processes a list of port origins, regenerating the
-C<make describe> output from each of them, and updating the records
-held in the B<portindex> cache.  If B<cache-update> is passed a port
-origin that no longer exists, it will delete any corresponding records
-from the cache: thus to handle a port that has been moved, it is
-necessary to pass B<cache-update> both the old and the new locations
-of the port for processing.
-
-Similarly B<cache-update> also determines if any of the ports it is
-processing are slave ports, and maintains the table of master-slave
-relationships.
+C<make describe> and C<make -V MASTERDIR -V .MAKEFILE_LIST> output
+from each of them, and updating the records held in the B<portindex>
+cache.  If B<cache-update> is passed a port origin that no longer
+exists, it will delete any corresponding records from the cache: thus
+to handle a port that has been moved, it is necessary to pass
+B<cache-update> both the old and the new locations of the port for
+processing.
 
 The list of ports to be processed by B<cache-update> may be supplied
 in three formats:
@@ -281,7 +281,8 @@ in three formats:
 
 A list of port origin directories, one per line.  B<find-updated> may
 be used to generate a list in this format of all ports containing
-files modified after a given date and time.
+files modified after a given date and time, including slave ports or
+ports that include a Makefile modified after the given date and time.
 
 =item B<cvsup-output>
 
@@ -310,6 +311,14 @@ modifications to files within the ports tree.  However the C<make
 describe> output of a slave port may well be quite different after an
 update to its master port, even if none of the files within the slave
 port have been modified.
+
+Similarly where an update to a Makefile is detected, all ports where
+that Makefile is included will be added to the list of ports to
+reprocess, and for much the same reasons.  Only Makefiles included
+from within the ports tree (ie. under F</usr/ports>) are considered.
+in certain circumstances it may be more advantageous to run
+B<cache-init> rather than B<cache-update>; for instance whenever
+F</usr/ports/Mk/bsd.port.mk> is modified.
 
 =head2 Configuration Files
 
@@ -379,7 +388,7 @@ an error.  The last mentioned of the two options will prevail.
 
 =item B<--cache-dir>=F<dir>
 
-The location of the B<portindex> data caches, by default
+The location of the B<portindex> data cache, by default
 F</var/db/portindex>.
 
 =item B<-C> F<file>
@@ -387,21 +396,10 @@ F</var/db/portindex>.
 =item B<--cache-file>=F<file>
 
 Berkeley DB Btree file containing the cached output of C<make
-describe> for all of the ports in the tree.  This file name will be
-relative to the cache directory (B<-c> option above) unless an
-absolute path is given.  As for the main cache file, the file name is
-relative to the cache directory unless an absolute path is given.
+describe> and C<make -V MASTERDIR -V .MAKEFILE_LIST> for all of the
+ports in the tree.  This file name will be relative to the cache
+directory (B<-c> option above) unless an absolute path is given.
 Defaults to F<portindex-cache.db>.
-
-=item B<-M> F<file>
-
-=item B<--master-slave-file>=F<file>
-
-Berkeley DB Btree file containing the port origins of all slave ports
-referenced to their master ports.  A slave port is defined as one
-where the C<MASTERDIR> B<make> variable does not have a value that
-resolves to the same as the port origin directory. Defaults to
-F<portindex-masterslave.db>.
 
 =item B<-T> F<file>
 
@@ -436,7 +434,7 @@ of ports to reprocess.
 When I<cvsup-checkouts> format is in use, assume that any file with a
 modification time no more than I<num> seconds older than the
 F<portindex-timestamp> cache file, plus all files younger than the
-caches, were updated via B<cvsup> since the previous time
+cache, were updated via B<cvsup> since the previous time
 B<cache-update> was run.  Use those file names as the basis on which
 to determine which ports B<cache-update> needs to reprocess.  Note:
 this does cover files deleted from the ports, as the checkouts file
@@ -462,11 +460,7 @@ The location of the data caches.
 
 =item F<portindex-cache.db>
 
-Btree file containing cached C<make describe> output.
-
-=item F<portindex-masterslave.db>
-
-Btree file containing details of master-slave relationships between ports.
+Btree file containing cached C<make describe> and other output.
 
 =item F<portindex-timestamp>
 

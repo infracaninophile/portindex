@@ -2,7 +2,7 @@
 FreeBSD-Portindex version 1.0
 =============================
 
-$Id: README,v 1.5 2004-11-01 18:01:16 matthew Exp $
+$Id: README,v 1.6 2004-11-01 23:34:21 matthew Exp $
 
    portindex, cache-init, cache-update and find-updated are a set of perl
    scripts built around the common core of the FreeBSD::Portindex perl
@@ -19,7 +19,7 @@ $Id: README,v 1.5 2004-11-01 18:01:16 matthew Exp $
    in a few seconds, and an up to date INDEX file produced in a couple
    more.
 
-   The cache-update process can either take the output of running [2]cvsup
+   The cache-update process can either take the output of running cvsup
    over the ports-all collection, or it can read cvsup's checkouts file
    (usually /usr/sup/ports-all/checkouts.cvs:.) to work out which ports
    have been modified or deleted recently, and so need their cached
@@ -59,16 +59,15 @@ QUICK START
 
    This is a slow step (slower than make index) but it only needs to be
    done once.
+
         # mkdir /var/db/portindex
         # chown user:group /var/db/portindex
         % cache-init
 
-
-   That creates the portsindex cache file (about 8.5Mb currently) and a
-   separate table listing all of the slave ports and the master ports they
-   belong to (about 72kb currently). Nb. while you can run any of the
-   FreeBSD::Portindex programs as root safely enough, on general
-   principles I recommend using a non-privileged user account instead.
+   That creates the portsindex cache file (about 11.4MiB currently)
+   Nb. while you can run any of the FreeBSD::Portindex programs as
+   root safely enough, on general principles I recommend using a
+   non-privileged user account instead.
 
 Then, for day to day use:
 
@@ -78,6 +77,7 @@ Then, for day to day use:
    with the details of any recently updated ports. The recommended way to
    do this is by parsing the output of cvsup. See the POD pages for
    cache-update and find-updated for other possibilities.
+
        # script /tmp/cvsup.out \
             cvsup -g -L2 -h cvsupN.XX.freebsd.org \
             /usr/share/examples/cvsup/ports-supfile
@@ -90,9 +90,9 @@ Then, for day to day use:
 
        # portindex -o /usr/ports/INDEX
 
-   Steps (iii) and (iv) together should take a minute or less: very much
-   faster than building the INDEX file from scratch each time you update
-   your ports.
+   Steps (iii) and (iv) together should usually take a minute or less:
+   very much faster than building the INDEX file from scratch each
+   time you update your ports.
 
 
 BUGS

@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.30 2004-11-01 18:01:16 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.31 2004-11-01 23:34:21 matthew Exp $
 #
 
 #
@@ -41,7 +41,7 @@ our $VERSION = '1.0';    # Release
 use strict;
 use warnings;
 use Carp;
-use BerkeleyDB;        # BDB version 2, 3, 4, 41, 42
+use BerkeleyDB;          # BDB version 2, 3, 4, 41, 42
 use Storable qw(freeze thaw);
 
 use FreeBSD::Portindex::Port;
@@ -52,8 +52,7 @@ sub new ($@)
     my $class  = ref($caller) || $caller;
     my %args   = @_;
     my $self;
-    my $portscachefile  = $::Config{CacheFilename};
-    my $masterslavefile = $::Config{MasterSlaveFilename};
+    my $portscachefile = $::Config{CacheFilename};
 
     # Make sure that the certain defaults are set.
 
@@ -62,20 +61,12 @@ sub new ($@)
         delete $args{-CacheFilename};
     }
 
-    if ( defined $args{-MasterSlaveFilename} ) {
-        $masterslavefile = $args{-MasterSlaveFilename};
-        delete $args{-MasterSlaveFilename};
-    }
-
     $args{-Mode} = 0640
       unless defined $args{-Mode};
     $args{-Flags} = 0
       unless defined $args{-Flags};
 
-    $self = {
-        PORTS        => {},
-        MASTER_SLAVE => {},
-    };
+    $self = { PORTS => {}, };
 
     # Must turn on the DB locking system if we're storing more than
     # one DB per file.
@@ -86,9 +77,9 @@ sub new ($@)
       %{ $args{-Env} };
     delete $args{-Env};
 
-    # Tie the PORTS and MASTER_SLAVE hashes to our cache file -- a DB
-    # btree file.  Keep to DBs in this cache -- the PORTS data, plus
-    # the data about master/slave relationships.
+    # Tie the PORTS hashes to our cache file -- a DB btree file.  Keep
+    # to DBs in this cache -- the PORTS data, plus the data about
+    # master/slave relationships and the MAKEFILE_LIST stuff.
 
     tie %{ $self->{PORTS} }, 'BerkeleyDB::Btree',
       -Env => $self->{ENV},
@@ -96,13 +87,6 @@ sub new ($@)
       -Filename => $portscachefile
       or croak __PACKAGE__,
       "::new(): Can't access $portscachefile -- $! $BerkeleyDB::Error";
-
-    tie %{ $self->{MASTERSLAVE} }, 'BerkeleyDB::Btree',
-      -Env => $self->{ENV},
-      %args,
-      -Filename => $masterslavefile
-      or croak __PACKAGE__,
-      "::new(): Can't access $masterslavefile -- $! $BerkeleyDB::Error";
 
     return bless $self, $class;
 }
@@ -112,7 +96,6 @@ sub DESTROY
     my $self = shift;
 
     untie $self->{PORTS};
-    untie $self->{MASTERSLAVE};
     undef $self;
 }
 
@@ -161,30 +144,6 @@ sub get ($$)
     return $port;
 }
 
-# Declare that $slave origin uses $master as it's MASTERDIR.  Just an
-# assignment to a hash; hardly worth wrapping in a function really.
-sub enslave ($$$)
-{
-    my $self   = shift;
-    my $master = shift;
-    my $slave  = shift;
-
-    $self->{MASTERSLAVE}->{$slave} = $master;
-    return $self;
-}
-
-# Remove the given $slave origin as a slave of any MASTERDIR.  Again,
-# just deleting an entry from a hash; hardly worth wrapping in a
-# function really.
-sub manumit ($$)
-{
-    my $self  = shift;
-    my $slave = shift;
-
-    delete $self->{MASTERSLAVE}->{$slave};
-    return $self;
-}
-
 # Build the tree structure by scanning through the Makefiles of the
 # ports tree.  This is equivalent to the first part of 'make index' #
 # Recurse through all of the Makefiles -- expand the SUBDIR argument
@@ -229,7 +188,7 @@ sub _scan_makefiles($$;$)
         # then make sure anything corresponding to $path is deleted
         # from the cache.
 
-        if ( $self->manumit($path)->delete($path) ) {
+        if ( $self->delete($path) ) {
             carp __PACKAGE__, "::_scan_makefiles():$path: deleted from cache";
         } else {
             carp __PACKAGE__,
@@ -274,12 +233,14 @@ sub make_describe($$;$)
     my $counter = shift;
     my $desc;
     my $masterdir;
+    my $makefile_list;
+    my $port;
 
     chdir $path
       or do {
 
         # Make sure old cruft is deleted
-        if ( $self->manumit($path)->delete($path) ) {
+        if ( $self->delete($path) ) {
             carp __PACKAGE__, "::make_describe():$path -- deleted from cache";
         } else {
             carp __PACKAGE__, "::make_describe():$path: can't chdir() -- $!";
@@ -296,7 +257,7 @@ sub make_describe($$;$)
       or do {
 
         # There's a Makefile, but it's not a valid port.
-        if ( $? && $self->manumit($path)->delete($path) ) {
+        if ( $? && $self->delete($path) ) {
             carp __PACKAGE__, "::make_describe():$path -- deleted from cache";
         } else {
             carp __PACKAGE__, "::make_describe():$path: ",
@@ -314,39 +275,57 @@ sub make_describe($$;$)
         }
     }
 
-    $self->insert( $path,
-        FreeBSD::Portindex::Port->new_from_description($desc) );
+    $port = FreeBSD::Portindex::Port->new_from_description($desc);
 
-    # Now do almost the same again, to extract the MASTERDIR value so
-    # we can tell if this is a slave port or not.
+    # Now do almost the same again, to extract the MASTERDIR value (so
+    # we can tell if this is a slave port or not) and the .MAKEFILE_LIST value
+    # so we can trigger an update if an included Makefile is modified.
 
-    open MAKE, '/usr/bin/make -V MASTERDIR|'
+    open MAKE, '/usr/bin/make -V MASTERDIR -V .MAKEFILE_LIST|'
       or do {
         carp __PACKAGE__, "::make_describe():$path: can't run make again -- $!";
         return $self;
       };
-    $masterdir = <MAKE>;
+    $masterdir     = <MAKE>;
+    $makefile_list = <MAKE>;
     close MAKE
       or do {
         carp __PACKAGE__, "::make_describe():$path: ",
           ( $! ? "close failed -- $!" : "make: bad exit status -- $?" );
       };
 
-    # Clean up various objectionable constructs -- see
-    # FreeBSD::Portindex::Port::_clean_depends() where the same thing
-    # is done to port dependencies as well.
-
-    chomp($masterdir);
-    $masterdir =~ s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
-    $masterdir =~ s@/\w[^/]+/\.\./@/@g;
-    $masterdir =~ s@/\Z@@g;
+    $masterdir = _clean_path($masterdir);
 
     if ( $masterdir ne $path ) {
-        $self->enslave( $masterdir, $path );
+        $port->MASTERDIR($masterdir);
     } else {
-        $self->manumit($path);
+        $port->MASTERDIR(undef);
     }
+
+    $port->MAKEFILE_LIST(
+        [
+            map { _clean_path($_) }
+              grep { m@^/usr/ports@ } split( ' ', $makefile_list )
+        ]
+    );
+    $self->insert( $path, $port );
+
     return $self;
+}
+
+# Clean up various objectionable constructs -- see
+# FreeBSD::Portindex::Port::_clean_depends() where virtually the same
+# thing is done to port dependencies as well.
+sub _clean_path ($)
+{
+    my $path = shift;
+
+    chomp($path);
+    $path =~ s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
+    $path =~ s@/\w[^/]+/\.\./@/@g;
+    $path =~ s@/\Z@@g;
+
+    return $path;
 }
 
 # Unpack all of the frozen FreeBSD::Portindex::Ports objects from the
@@ -385,14 +364,17 @@ sub masterslave($$)
     my $self        = shift;
     my $masterslave = shift;
 
-    while ( my ( $slave, $master ) = each %{ $self->{MASTERSLAVE} } ) {
+    while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
+        $port = thaw($port);
+
+        next unless $port->MASTERDIR();
 
         #print STDERR "Slave: $slave  Master: $master\n"
         #    if $::Config{Verbose};
 
-        $masterslave->{$master} = []
-          unless defined $masterslave->{$master};
-        push @{ $masterslave->{$master} }, $slave;
+        $masterslave->{ $port->MASTERDIR() } = []
+          unless defined $masterslave->{ $port->MASTERDIR() };
+        push @{ $masterslave->{ $port->MASTERDIR() } }, $origin;
     }
     return $masterslave;
 }

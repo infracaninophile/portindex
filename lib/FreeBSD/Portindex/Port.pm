@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.23 2004-11-01 18:01:16 matthew Exp $
+# @(#) $Id: Port.pm,v 1.24 2004-11-01 23:34:21 matthew Exp $
 #
 
 #
@@ -154,7 +154,8 @@ sub _clean_depends ($)
 # Bulk creation of accessor methods.
 for my $slot (
     qw(PKGNAME ORIGIN STUFF BUILD_DEPENDS RUN_DEPENDS WWW
-    EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS DEPENDENCIES_ACCUMULATED )
+    EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS DEPENDENCIES_ACCUMULATED
+    MASTERDIR MAKEFILE_LIST)
   )
 {
     no strict qw(refs);

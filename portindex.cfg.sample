@@ -1,6 +1,6 @@
 # This file contains -*- perl -*- code
 #
-# @(#) $Id: portindex.cfg.sample,v 1.6 2004-10-31 11:45:17 matthew Exp $
+# @(#) $Id: portindex.cfg.sample,v 1.7 2004-11-01 23:34:21 matthew Exp $
 #
 # Sample configuration file for portindex, cache-init, cache-update
 #
@@ -30,11 +30,6 @@
 ## containing the cached 'make describe' output.
 
 # $::Config{CacheFilename} = 'portindex-cache.db';
-
-## all (-M, --master-slave-file): BDB btree file within the CacheDir
-## containg a record of master/slave relationships between ports
-
-# $::Config{MasterSlaveFilename} = 'portindex-masterslave.db';
 
 ## all (-v, -q, --verbose, --noverbose, --quiet): Boolean -- turn on
 ## verbose output if true, turn off if false or undef
