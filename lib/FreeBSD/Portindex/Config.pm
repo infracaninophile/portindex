@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.24 2004-11-01 23:34:21 matthew Exp $
+# @(#) $Id: Config.pm,v 1.25 2004-11-02 11:58:13 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -120,8 +120,11 @@ sub read_config ($)
 
     for my $cf (
         "/usr/local/etc/${main::pkgname}.cfg",
-        "$ENV{HOME}/.${main::pkgname}rc",
-        "./.${main::pkgname}rc"
+        (
+            $> == 0				# Don't let root be trojanned
+            ? ()
+            : ( "$ENV{HOME}/.${main::pkgname}rc", "./.${main::pkgname}rc" )
+        )
       )
     {
         do $cf;

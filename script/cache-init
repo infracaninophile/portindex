@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-init,v 1.14 2004-11-01 23:34:21 matthew Exp $
+# @(#) $Id: cache-init,v 1.15 2004-11-02 11:58:13 matthew Exp $
 #
 
 # Build the portindex cache from scratch by scanning through the whole
@@ -143,12 +143,14 @@ The system wide configuration file F</usr/local/etc/portindex.cfg>
 
 =item *
 
-The per-user configuration file F<${HOME}/.portindexrc>
+The per-user configuration file F<${HOME}/.portindexrc>. This file is
+ignored if the process is run as root.
 
 =item *
 
 The local configuration file, found in the current working directory
-of the B<cache-init> process F<./.portindexrc>
+of the B<cache-init> process F<./.portindexrc>.  This file is ignored
+if the process is run as root.
 
 =item *
 

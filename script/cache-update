@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.18 2004-11-01 23:34:21 matthew Exp $
+# @(#) $Id: cache-update,v 1.19 2004-11-02 11:58:13 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -339,12 +339,14 @@ The system wide configuration file F</usr/local/etc/portindex.cfg>
 
 =item *
 
-The per-user configuration file F<${HOME}/.portindexrc>
+The per-user configuration file F<${HOME}/.portindexrc>. This file is
+ignored if the process is run as root.
 
 =item *
 
 The local configuration file, found in the current working directory
-of the B<cache-init> process F<./.portindexrc>
+of the B<cache-init> process F<./.portindexrc>.  This file is ignored
+if the process is run as root.
 
 =item *
 
