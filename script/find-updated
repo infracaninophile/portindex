@@ -1,0 +1,395 @@
+#!/usr/bin/perl -w
+
+# Copyright (c) 2004 Matthew Seaman. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+#    1.  Redistributions of source code must retain the above
+#        copyright notice, this list of conditions and the following
+#        disclaimer.
+#
+#    2.  Redistributions in binary form must reproduce the above
+#        copyright notice, this list of conditions and the following
+#        disclaimer in the documentation and/or other materials
+#        provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+# USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+# OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+
+# @(#) $Id: find-updated,v 1.1 2004-10-29 10:55:20 matthew Exp $
+#
+
+# Scan through the ports tree, and pick out all ports containing files
+# updated after the date given on the command line.  Optionally print
+# names of any ports in the cache that no-longer exist in the tree.  This
+# program doesn't modify the cache at all, but it produces output that
+# cache-update can use.
+
+use strict;
+use warnings;
+use BerkeleyDB;
+use File::Find;
+
+use FreeBSD::Portindex::Config qw(read_config);
+use FreeBSD::Portindex::Port;
+use FreeBSD::Portindex::Tree;
+
+our %Config;
+our $pkgname = 'portindex';
+
+$0 =~ s@.*/@@;    # Script name for error messages
+
+# Given a port origin, check for files with a more recent modification
+# time than the reference time. Return as soon as one recently updated
+# file is found, or once all files have been checked.  Don't check
+# ./work or other WRKDIR type directories, and ignore README.html as
+# those are generated files.
+sub look_for_updated_files ($$)
+{
+    my $path       = shift;
+    my $refmtime   = shift;
+    my $is_updated = 0;
+
+    File::Find::find(
+        {
+            preprocess => sub {
+                return grep { !/^(work|README\.html)/ } @_;
+            },
+            wanted => sub {
+                my ($mtime) = ( lstat($_) )[9];
+                if ( -f _ && $mtime > $refmtime ) {
+                    $File::Find::prune = 1;
+                    $is_updated        = 1;
+                    print STDERR "$0: found updated file: $File::Find::name\n"
+                      if $::Config{Verbose};
+                }
+              }
+        },
+        $path
+    );
+    return $is_updated;
+}
+
+# Scan through the port directories by reading the SUBDIR variables
+# out of port Makefiles.  Remarkably sumilar to
+# FreeBSD::Portindex::Tree::_scan_makefiles() -- that function and
+# this one should be amalgamated somehow.
+sub scan_makefiles ($$$)
+{
+    my $path     = shift;
+    my $refmtime = shift;
+    my $updaters = shift;
+    my @subdirs;
+
+    # Hmmm... Using make(1) to print out the value of the variable
+    # (make -V SUBDIRS) takes about 200 times as long as just scanning
+    # the Makefiles for definitions of the SUBDIR variable.  Be picky
+    # about the format of the SUBDIR assignment lines: SUBDIR is used
+    # in some of the leaf Makefiles, but in a different style.
+
+    open( MAKEFILE, '<', "${path}/Makefile" )
+      or do {
+
+        # If $path does not exist, or if there's no Makefile there,
+        # then something has gone horribly wrong.  Give up trying to
+        # recurse at this directory level.
+
+        warn "$0: scan_makefiles(): Can't open Makefile in $path -- $!";
+        return;    # Leave out this directory.
+      };
+    while (<MAKEFILE>) {
+        push @subdirs, "${path}/${1}"
+          if (m/^\s*SUBDIR\s+\+=\s+(\S+)\s*(#.*)?$/);
+    }
+    close MAKEFILE
+      or do {
+
+        # Even if the close() errors out, we've got this far, so
+        # might as well carry on and try and process any output.
+
+        warn "$0: scan_makefiles(): $path/Makefile: close failed -- $!";
+      };
+    if (@subdirs) {
+        for my $subdir (@subdirs) {
+
+            # Recursion means never having to obey a function
+            # prototype.
+
+            &scan_makefiles( $subdir, $refmtime, $updaters );
+        }
+    } else {
+
+        # This is a real port directory, not a subdir.
+
+        push @{$updaters}, $path
+          if look_for_updated_files( $path, $refmtime );
+    }
+    return;
+}
+
+MAIN:
+{
+    my $tree;
+    my @updaters;
+    my $reference_date;
+
+    read_config( \%Config );
+
+    $tree = FreeBSD::Portindex::Tree->new(
+        -Env           => { -Home => $Config{CacheDir}, },
+        -CacheFilename => $Config{CacheFilename},
+        -MasterSlaveFilename => $Config{MasterSlaveFilename},
+    );
+
+    $reference_date = time() - 3 * 60 * 60;
+
+    # Redirect STDOUT if required
+    if ( $Config{Output} ne '-' ) {
+        open STDOUT, '>', $Config{Output}
+          or die "$0: Can't open output $Config{Output} -- $!\n";
+    }
+
+    # Scan through all ports, looking for files newer than the cut-off
+    # date.
+
+    scan_makefiles( $Config{PortsDir}, $reference_date, \@updaters );
+
+    print join( "\n", @updaters ), "\n";
+}
+
+__END__
+
+
+=head1 NAME
+
+find-updated -- generate a list of those ports whose files have been
+modified since the given date/time.
+
+=head1 SYNOPSIS
+
+B<find-updated> [B<-hvq>] [B<-c> F<dir>] [B<-C> F<file>] [B<-M> F<file>] [B<-o> F<file>] date
+
+=head1 DESCRIPTION
+
+B<portindex> processes the cached port description data into the
+F<INDEX> or F<INDEX-5> files used by the ports system.  The cache
+contains a record of the one-line description of all ports generated by
+C<make describe>, indexed by the port origin directory.  It also
+contains a record of the master-slave relationship between some ports,
+but that is not used by B<portindex>.
+
+The processing done by B<portindex> consists of two phases.  In the
+first phase the various direct dependencies listed in the raw C<make
+describe> output (FETCH_DEPENDS, EXTRACT_DEPENDS, PATCH_DEPENDS,
+BUILD_DEPENDS, RUN_DEPENDS) are accumulated with the (previously
+accumulated) RUN_DEPENDS list for each dependency target.  Thus, for
+example, the final BUILD_DEPENDS dependency list will contain
+everything that the port depends on directly to build itself, plus all
+of the dependencies required for those build tools to run.
+
+In the second phase the accumulated dependencies are converted from
+lists of port origins to lists of package names, including version
+numbers. The data is already sorted, by virtue of the way the Btree
+cache files operate, so all that remains is to format it tidily and
+print it out.
+
+=head2 Configuration Files
+
+B<portindex> shares configuration files with B<cache-init> and
+B<cache-update>.  Any configuration settings are taken from the
+following locations, where the later items on this list override the
+former:
+
+=over 8
+
+=item *
+
+Built-in settings from the B<FreeBSD::Portindex::Config> perl module.
+
+=item *
+
+The system wide configuration file F</usr/local/etc/portindex.cfg>
+
+=item *
+
+The per-user configuration file F<${HOME}/.portindexrc>
+
+=item *
+
+The local configuration file, found in the current working directory
+of the B<cache-init> process F<./.portindexrc>
+
+=item *
+
+The program command line.
+
+=back
+
+All of the configuration files are optional.  A summary of the
+resultant configuration options including the effect of any command
+line settings is printed as part of the help text when B<portindex> is
+invoked with the C<-h> option.
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<-h>
+
+=item B<--help>
+
+Print a brief usage message and a summary of the configuration
+settings after command line processing and then exit.
+
+=item B<-v>
+
+=item B<--verbose>
+
+Turn on verbose output printed to C<STDERR>.
+
+=item B<-q>
+
+=item B<--quiet>
+
+=item B<--noverbose>
+
+Turn off verbose output to C<STDERR>.  Using both the B<-v> amd B<-q>
+options together does not make any sense, but neither does it generate
+an error.  The last mentioned of the two options will prevail.
+
+=item B<-c> F<dir>
+
+=item B<--cache-dir>=F<dir>
+
+The location of the B<portindex> data caches, by default
+F</var/tmp/portindex> at the moment, but probably moving to
+F</var/db/portindex> once version 1.0 is released.
+
+=item B<-C> F<file>
+
+=item B<--cache-file>=F<file>
+
+Berkeley DB Btree file containing the cached output of C<make
+describe> for all of the ports in the tree.  This file name will be
+relative to the cache directory (B<-c> option above) unless an
+absolute path is given.  As for the main cache file, the file name is
+relative to the cache directory unless an absolute path is given.
+Defaults to F<portindex-cache.db>.
+
+=item B<-M> F<file>
+
+=item B<--master-slave-file>=F<file>
+
+Berkeley DB Btree file containing the port origins of all slave ports
+referenced to their master ports.  A slave port is defined as one
+where the C<MASTERDIR> B<make> variable does not have a value that
+resolves to the same as the port origin directory. Defaults to
+F<portindex-masterslave.db>.
+
+=item B<-T> F<file>
+
+=item B<--timestamp-file>=F<file>
+
+A file within the cache directory whose modification time marks the
+last time that data was modified in or added to the cache.  =back
+
+=item B<-o> F<file>
+
+=item B<--output>=F<file>
+
+Filename to write the generated ports INDEX file to.  Setting this to
+F<-> means output to STDOUT, which is the default.
+
+=back
+
+=head1 FILES
+
+=over 16
+
+=item F</usr/ports>
+
+The default ports directory.
+
+=item F</var/tmp/portindex>
+
+The location of the data caches.  Temporary during testing -- the
+default location will probably be F</var/db/portindex>.
+
+=item F<portindex-cache.db>
+
+Btree file containing cached C<make describe> output.
+
+=item F<portindex-masterslave.db>
+
+Btree file containing details of master-slave relationships between ports.
+
+=item F<__db.001>, F<__db.002>, F<__db.003>
+
+Files used as part of the internal workings of BerkeleyDB, for memory
+pool management and DB locking.  Will be recreated automatically if
+deleted.
+
+=item F<portindex-timestamp>
+
+This file contains the last time and date that the cache was updated
+or modified.
+
+=item F</usr/local/etc/portindex.cfg>
+
+System-wide configuration file.
+
+=item F<${HOME}/.portindexrc>
+
+Per-user configuration file
+
+=item F<./.portindexrc>
+
+Local configuration file
+
+=back
+
+=head1 SEE ALSO
+
+L<cache-init(1)>, L<cache-update(1)>, L<cvsup(1)>, L<ports(7)>
+
+=head1 BUGS
+
+The F<INDEX> file produced by B<portindex> will not be identical to
+the result of running C<make index> from the same ports tree.
+However, the differences are mostly cosmetic and seem to have no
+practical impact.
+
+The sort order of the entries in the generated F<INDEX> file is
+generated as a side effect of the way that BDB Btree files work.  It
+is not eactly the same as produced by the sorting methods used in
+C<make index>.  For example, in B<portindex>, C<x11-clocks>,
+C<x11-fm>, C<x11-themes>, C<x11-toolkits> and C<x11-wm> will all sort
+before C<x11>, whereas usually they would sort after.
+
+B<portindex> uses the port origin as its unique key in the data cache.
+C<make index> uses the package name.  Since certain ports modify their
+package name depending on the local settings and conditions, this can
+lead to package name collisions. Such collisions are weeded out of the
+generated INDEX file by C<make index>, but not by B<portindex>.
+
+B<portindex> extracts the C<COMMENT> lines from the C<make describe>
+output exactly as shown.  C<make index> collapses multiple spaces to
+single.
+
+=cut
+
+#
+# That's All Folks!
+#
