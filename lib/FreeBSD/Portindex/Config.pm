@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.18 2004-10-30 22:29:06 matthew Exp $
+# @(#) $Id: Config.pm,v 1.19 2004-10-31 11:15:56 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -129,6 +129,9 @@ sub read_config ($)
         do $cf;
     }
     GetOptions(@optargs) or pod2usage(2);
+    if ( $0 eq 'find-updated' && !exists $::Config{ReferenceTime} ) {
+        pod2usage(2);
+    }
     if ($help) {
         pod2usage( -exitval => 'NOEXIT', -verbose => 1 );
         show_config($config);
