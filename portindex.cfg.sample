@@ -1,6 +1,6 @@
 # This file contains -*- perl -*- code
 #
-# @(#) $Id: portindex.cfg.sample,v 1.2 2004-10-22 14:59:57 matthew Exp $
+# @(#) $Id: portindex.cfg.sample,v 1.3 2004-10-23 17:26:50 matthew Exp $
 #
 # Sample configuration file for portindex, cache-init, cache-update
 #
@@ -16,37 +16,38 @@
 ## shown, commented out.  All options can be overriden from the
 ## command line.
 
-## cache-init (--ports-dir): Base directory of the ports tree, same as
-## the PORTSDIR environment variable.
+## cache-init (-p, --ports-dir): Base directory of the ports tree,
+## same as the PORTSDIR environment variable.
 
 # $::Config{PortsDir} = '/usr/ports';
 
-## all (--cache-dir): Directory where BDB btree files containing the
-## cache and master-slave relationships are stored.
+## all (-c, --cache-dir): Directory where BDB btree files containing
+## the cache and master-slave relationships are stored.
 
 # $::Config{CacheDir} = '/var/tmp';
 
-## all (--cache-file): BDB btree file within the CacheDir containing
-## the cached 'make describe' output.
+## all (-C, --cache-file): BDB btree file within the CacheDir
+## containing the cached 'make describe' output.
 
 # $::Config{CacheFilename} = 'portindex-cache.db';
 
-## all (--master-slave-file): BDB btree file within the CacheDir
+## all (-M, --master-slave-file): BDB btree file within the CacheDir
 ## containg a record of master/slave relationships between ports
 
 # $::Config{MasterSlaveFilename} = 'portindex-masterslave.db';
 
-## all (--verbose, --noverbose, --quiet): Boolean -- turn on verbose
-## output if true, turn off if false or undef
+## all (-v, -q, --verbose, --noverbose, --quiet): Boolean -- turn on
+## verbose output if true, turn off if false or undef
 
 # $::Config{Verbose} = 1;
 
-## cache-update (--input): Filename to read input from, '-' for STDIN
+## cache-update (-i, --input): Filename to read input from, '-' for
+## STDIN
 
 # $::Config{Input} = '-';
 
-## portindex (--output): Filename to write the INDEX data out to, '-'
-## for STDOUT
+## portindex (-o, --output): Filename to write the INDEX data out to,
+## '-' for STDOUT
 
 # $::Config{Output} = '-';
 
@@ -63,12 +64,12 @@
 
 # $::Config{Format} = 'cvsup-output'
 
-## cache-update (--propagation-delay): A fudge factor to account for
-## the time required between a change being committed to the FreeBSD
-## CVS repository, and when that change gets propagated out to the
-## local cvsup(1) server -- how many seconds older than the last time
-## cache-update was run can the mtime of files checked out in the tree
-## be and have them still considered newly updated?  About 3600
+## cache-update (-p, --propagation-delay): A fudge factor to account
+## for the time required between a change being committed to the
+## FreeBSD CVS repository, and when that change gets propagated out to
+## the local cvsup(1) server -- how many seconds older than the last
+## time cache-update was run can the mtime of files checked out in the
+## tree be and have them still considered newly updated?  About 3600
 ## seconds (1 hour) seems to be a good value.
 
 # $::Config{PropagationDelay} = 60 * 60;
