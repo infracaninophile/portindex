@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.12 2004-10-23 21:37:21 matthew Exp $
+# @(#) $Id: cache-update,v 1.13 2004-10-26 17:05:20 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -55,7 +55,7 @@
 use strict;
 use warnings;
 
-use FreeBSD::Portindex::Config qw(read_config);
+use FreeBSD::Portindex::Config qw(read_config update_timestamp get_timestamp);
 use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::Tree;
 
@@ -198,10 +198,7 @@ MAIN:
     } elsif ( $Config{Format} eq 'cvsup-checkouts' ) {
         my $cutofftime;
 
-        $cutofftime = ( stat "$Config{CacheDir}/$Config{CacheFilename}" )[9]
-          or die "$0: can't stat $Config{CacheFilename} -- $!";
-        $cutofftime -= $Config{PropagationDelay};
-
+        $cutofftime = get_timestamp() - $Config{PropagationDelay};
         read_cvsup_checkouts( *STDIN, \@updates, $cutofftime );
     } else {
         die "$0: Format \'$Config{Format}\' unrecognised";
@@ -236,6 +233,10 @@ MAIN:
 
     @updates = grep { !$seen{$_}++ } @updates,
       map { @{ $masterslave{$_} || [] } } @updates;
+
+    # Mark the time at which the updates start
+
+    update_timestamp();
 
     # Regenerate the FreeBSD::Port objects for all listed ports
 
@@ -398,6 +399,13 @@ referenced to their master ports.  A slave port is defined as one
 where the C<MASTERDIR> B<make> variable does not have a value that
 resolves to the same as the port origin directory. Defaults to
 F<portindex-masterslave.db>.
+
+=item B<-T> F<file>
+
+=item B<--timestamp-file>=F<file>
+
+A file within the cache directory whose modification time marks the
+last time that data was modified in or added to the cache.  =back
 
 =item B<-i> F<file>
 

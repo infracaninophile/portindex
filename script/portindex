@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: portindex,v 1.25 2004-10-23 21:37:21 matthew Exp $
+# @(#) $Id: portindex,v 1.26 2004-10-26 17:05:20 matthew Exp $
 #
 # Process the cached 'make describe' output to produce an INDEX file
 # Should be a lot quicker than 'make index'.
@@ -199,6 +199,13 @@ referenced to their master ports.  A slave port is defined as one
 where the C<MASTERDIR> B<make> variable does not have a value that
 resolves to the same as the port origin directory. Defaults to
 F<portindex-masterslave.db>.
+
+=item B<-T> F<file>
+
+=item B<--timestamp-file>=F<file>
+
+A file within the cache directory whose modification time marks the
+last time that data was modified in or added to the cache.  =back
 
 =item B<-o> F<file>
 

@@ -1,6 +1,6 @@
 # This file contains -*- perl -*- code
 #
-# @(#) $Id: portindex.cfg.sample,v 1.3 2004-10-23 17:26:50 matthew Exp $
+# @(#) $Id: portindex.cfg.sample,v 1.4 2004-10-26 17:05:20 matthew Exp $
 #
 # Sample configuration file for portindex, cache-init, cache-update
 #
@@ -9,7 +9,7 @@
 ## ${HOME}/.portindexrc or ./.portindexrc (ie. the CWD where any of
 ## the portindex processes are run), and edit the configuration
 ## settings to taste, to set the appropriate entries in the global
-## %Config hash.
+## %::Config hash.
 
 ## Available configuration and command line options are listed,
 ## indicating which programs they affect.  The default values are
@@ -62,7 +62,7 @@
 ## usually be /usr/sup/ports-all/checkouts.cvs:. under FreeBSD 4.x, or
 ## /var/db/sup/ports-all/checkouts.cvs:. under FreeBSD 5.x
 
-# $::Config{Format} = 'cvsup-output'
+# $::Config{Format} = 'cvsup-output';
 
 ## cache-update (-p, --propagation-delay): A fudge factor to account
 ## for the time required between a change being committed to the
@@ -73,6 +73,11 @@
 ## seconds (1 hour) seems to be a good value.
 
 # $::Config{PropagationDelay} = 60 * 60;
+
+## all (-T, --timestamp-file): Filename within CacheDir used to mark
+## the last time any updates to the cache were made.
+
+# $::Config{TimestampFile} = 'portindex-timestamp';
 
 ##
 ## That's All Folks!

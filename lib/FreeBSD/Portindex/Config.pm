@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.14 2004-10-23 21:37:22 matthew Exp $
+# @(#) $Id: Config.pm,v 1.15 2004-10-26 17:05:20 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -69,6 +69,7 @@ sub read_config ($)
         Output              => '-',
         PortsDir            => '/usr/ports',
         PropagationDelay    => 3600,                          # 1 hour
+        TimestampFilename   => "$::pkgname-timestamp",
         Verbose             => 1,
     );
     @optargs = (
@@ -76,6 +77,7 @@ sub read_config ($)
         'cache-file|C=s'        => \$config->{CacheFilename},
         'help|?'                => \$help,
         'master-slave-file|M=s' => \$config->{MasterSlaveFilename},
+        'timestamp-file|T=s'    => \$config->{TimestampFilename},
         'quiet'                 => sub { $config->{Verbose} = 0 },
         'verbose!'              => \$config->{Verbose},
     );
@@ -136,10 +138,31 @@ Current Configuration:
     Format (cache-update) ............. $config->{Format}
     PropagationDelay (cache-update) ... $config->{PropagationDelay}
     Output (portindex) ................ $config->{Output}
+    TimestampFilename ................. $config->{TimestampFilename}
     Verbose ........................... $config->{Verbose}
 
 E_O_CONFIG
     return;
+}
+
+# Update the timestamp file -- write the current time into the
+# TimeStamp file.  This is the time of the start of any session when
+# data is written to the cache.  Only needed because a read-only
+# access to the cache updates the mtimes of all of the files.
+sub update_timestamp ()
+{
+    open TSTMP, '>', "$::Config{CacheDir}/$::Config{TimestampFilename}"
+      or die "$0: Can't update timestamp file -- $!";
+    print TSTMP scalar localtime(), "\n";
+    close TSTMP;
+    return;
+}
+
+# Return the mtime of the timestamp file
+sub get_timestamp ()
+{
+    return ( stat "$Config{CacheDir}/$Config{TimestampFilename}" )[9]
+      or die "$0: can't stat $Config{TimestampFilename} -- $!";
 }
 
 1;

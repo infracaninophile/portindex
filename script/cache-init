@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-init,v 1.8 2004-10-23 21:37:21 matthew Exp $
+# @(#) $Id: cache-init,v 1.9 2004-10-26 17:05:20 matthew Exp $
 #
 
 # Build the portindex cache from scratch by scanning through the whole
@@ -40,7 +40,7 @@ use strict;
 use warnings;
 use BerkeleyDB;
 
-use FreeBSD::Portindex::Config qw(read_config);
+use FreeBSD::Portindex::Config qw(read_config update_timestamp);
 use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::Tree;
 
@@ -83,6 +83,10 @@ MAIN:
         -CacheFilename       => $Config{CacheFilename},
         -MasterSlaveFilename => $Config{MasterSlaveFilename},
     );
+
+    # Mark the time that the session starts
+
+    update_timestamp();
 
     # Regenerate the FreeBSD::Portindex::Port objects for all listed
     # ports (or the whole tree beneath some directory).
@@ -217,7 +221,12 @@ where the C<MASTERDIR> B<make> variable does not have a value that
 resolves to the same as the port origin directory. Defaults to
 F<portindex-masterslave.db>.
 
-=back
+=item B<-T> F<file>
+
+=item B<--timestamp-file>=F<file>
+
+A file within the cache directory whose modification time marks the
+last time that data was modified in or added to the cache.  =back
 
 =head1 FILES
 
