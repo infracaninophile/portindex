@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.17 2004-10-22 15:05:12 matthew Exp $
+# @(#) $Id: Port.pm,v 1.18 2004-10-23 11:01:09 matthew Exp $
 #
 
 #
@@ -35,7 +35,7 @@
 # this is used for generating the ports INDEX.
 #
 package FreeBSD::Port;
-our $VERSION = 0.1;    # Beta
+our $VERSION = 0.2;    # Beta
 
 use strict;
 use warnings;
@@ -179,7 +179,7 @@ sub accumulate_dependencies ($$;$)
     my $counter  = shift;
 
     unless ( $self->DEPENDENCIES_ACCUMULATED() ) {
-        for my $whatdep (
+      DEPEND: for my $whatdep (
             qw( EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS
             BUILD_DEPENDS RUN_DEPENDS )
           )
@@ -190,9 +190,11 @@ sub accumulate_dependencies ($$;$)
                 if ( defined $allports->{$dep} ) {
                     $allports->{$dep}->accumulate_dependencies($allports);
                 } else {
-                    carp __PACKAGE__, "::accumulate_dependencies: ",
-                      $self->PKGNAME(), " claims to have a dependency on $dep,",
+                    carp "\n", __PACKAGE__, "::accumulate_dependencies: ",
+                      $self->PKGNAME(), " (", $self->ORIGIN(),
+                      ") claims to have a $whatdep dependency on $dep,",
                       " but no such port is known";
+                    next DEPEND;
                 }
             }
 
@@ -257,7 +259,7 @@ sub _chase_deps($$$)
         if ( defined $allports->{$origin} ) {
             push @dependencies, $allports->{$origin}->PKGNAME();
         } else {
-            carp __PACKAGE__, "::_chase_deps():", $self->PKGNAME(),
+            carp "\n", __PACKAGE__, "::_chase_deps():", $self->PKGNAME(),
               " No PKGNAME found for ($dep) $origin";
         }
     }

@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.21 2004-10-22 15:05:12 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.22 2004-10-23 11:01:09 matthew Exp $
 #
 
 #
@@ -36,12 +36,12 @@
 # using BerkeleyDB Btree for backing stores.
 #
 package FreeBSD::Ports::Tree;
-our $VERSION = 0.1;				# Beta
+our $VERSION = 0.2;    # Beta
 
 use strict;
 use warnings;
 use Carp;
-use BerkeleyDB;    # BDB version 2, 3, 4, 41, 42
+use BerkeleyDB;        # BDB version 2, 3, 4, 41, 42
 use Storable qw(freeze thaw);
 
 use FreeBSD::Port;
@@ -224,8 +224,6 @@ sub _scan_makefiles($$;$)
 
     open( MAKEFILE, '<', "${path}/Makefile" )
       or do {
-        carp __PACKAGE__,
-          "::_scan_makefiles(): Can't open Makefile in $path -- $!";
 
         # If $path does not exist, or if there's no Makefile there,
         # then make sure anything corresponding to $path is deleted
@@ -233,6 +231,9 @@ sub _scan_makefiles($$;$)
 
         if ( $self->manumit($path)->delete($path) ) {
             carp __PACKAGE__, "::_scan_makefiles():$path: deleted from cache";
+        } else {
+            carp __PACKAGE__,
+              "::_scan_makefiles(): Can't open Makefile in $path -- $!";
         }
         return $self;    # Leave out this directory.
       };
@@ -276,11 +277,12 @@ sub make_describe($$;$)
 
     chdir $path
       or do {
-        carp __PACKAGE__, "::make_describe():$path: can't chdir() -- $!";
 
         # Make sure old cruft is deleted
         if ( $self->manumit($path)->delete($path) ) {
             carp __PACKAGE__, "::make_describe():$path -- deleted from cache";
+        } else {
+            carp __PACKAGE__, "::make_describe():$path: can't chdir() -- $!";
         }
         return $self;
       };
@@ -292,12 +294,13 @@ sub make_describe($$;$)
     $desc = <MAKE>;
     close MAKE
       or do {
-        carp __PACKAGE__, "::make_describe():$path: ",
-          ( $! ? "close failed -- $!" : "make: bad exit status -- $?" );
 
         # There's a Makefile, but it's not a valid port.
         if ( $? && $self->manumit($path)->delete($path) ) {
             carp __PACKAGE__, "::make_describe():$path -- deleted from cache";
+        } else {
+            carp __PACKAGE__, "::make_describe():$path: ",
+              ( $! ? "close failed -- $!" : "make: bad exit status -- $?" );
         }
         return $self;
       };
