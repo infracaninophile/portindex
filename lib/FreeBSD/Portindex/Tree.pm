@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.5 2004-10-04 14:24:58 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.6 2004-10-07 09:56:26 matthew Exp $
 #
 
 #
@@ -142,23 +142,21 @@ sub read_index($$)
     my $filehandle = shift;
     my $port;
 
+    print STDERR "Reading INDEX file: " if ($::verbose);
     while (<$filehandle>) {
         $port = FreeBSD::Port->new_from_indexline($_);
         $self->insert( $port->ORIGIN(), $port );
+
+        if ($::verbose) {
+            if ( $. % 1000 == 0 ) {
+                print STDERR "[$.]";
+            } elsif ( $. % 100 == 0 ) {
+                print STDERR '.';
+            }
+        }
     }
+    print STDERR "<$.>\n" if ($::verbose);
 
-    # # Only construct the inverse dependency links once the whole
-    # # structure has been initialised
-
-    # foreach $port ( values %{$index} ) {
-
-    #     # Construct the inverse links -- from the dependency to us
-    #     $port->invert_dependencies('BUILD_DEPENDS');
-    #     $port->invert_dependencies('RUN_DEPENDS');
-    #     $port->invert_dependencies('EXTRACT_DEPENDS');
-    #     $port->invert_dependencies('PATCH_DEPENDS');
-    #     $port->invert_dependencies('FETCH_DEPENDS');
-    # }
     return $self;
 }
 
@@ -166,12 +164,31 @@ sub read_index($$)
 # recurse through directory levels.  Elements are either
 # FreeBSD::Ports::Tree or FreeBSD::Port objects -- just call the print
 # method for each object, sorting in order of port name.
-sub print($)
+sub print_index($$)
 {
-    my $self = shift;
+    my $self    = shift;
+    my $fh      = shift;
+    my $counter = 1;
+
+    print STDERR "Writing INDEX file: " if ($::verbose);
+
+    $self->print( $fh, \$counter );
+
+    print STDERR "<${counter}>\n" if ($::verbose);
+
+    return $self;
+}
+
+# The print method for a FreeBSD::Ports::Tree object just calls the
+# print method for all of the objects it contains.
+sub print($$;$)
+{
+    my $self    = shift;
+    my $fh      = shift;
+    my $counter = shift;
 
     for my $q ( sort keys %{$self} ) {
-        $self->{$q}->print();
+        $self->{$q}->print( $fh, $counter );
     }
     return $self;
 }

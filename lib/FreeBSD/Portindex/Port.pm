@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.5 2004-10-04 14:24:58 matthew Exp $
+# @(#) $Id: Port.pm,v 1.6 2004-10-07 09:56:26 matthew Exp $
 #
 
 #
@@ -65,11 +65,13 @@ sub new ($@)
 
     $self->{ORIGIN} = [ split '/', $self->{ORIGIN} ]
       if defined $self->{ORIGIN} && !ref $self->{ORIGIN};
+
     for my $dep (
-        qw(BUILD_DEPENDS RUN_DEPENDS EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS )
+        qw( EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS BUILD_DEPENDS
+        RUN_DEPENDS )
       )
     {
-        $self->{$dep} = $self->_get_index_links( $self->{$dep} )
+        $self->{$dep} = [ split / /, $self->{$dep} ]
           if defined $self->{$dep} && !ref $self->{$dep};
     }
     return $self;
@@ -86,10 +88,9 @@ sub DESTROY ($)
 
 # Take the string returned by 'make describe' or read as one line out
 # of INDEX and use it to populate a pkg object
-sub new_from_indexline($)
+sub new_from_indexline($$)
 {
     my $caller = shift;
-    my $class  = ref($caller) || $caller;
     my $desc   = shift;
     my $self;
 
@@ -130,38 +131,124 @@ sub new_from_indexline($)
         PKGNAME         => $pkgname,
         ORIGIN          => $origin,
         STUFF           => $stuff,
+        EXTRACT_DEPENDS => $extract_depends,
+        PATCH_DEPENDS   => $patch_depends,
+        FETCH_DEPENDS   => $fetch_depends,
         BUILD_DEPENDS   => $build_depends,
         RUN_DEPENDS     => $run_depends,
         WWW             => $www,
-        EXTRACT_DEPENDS => $extract_depends,
-        PATCH_DEPENDS   => $patch_depends,
-        FETCH_DEPENDS   => $fetch_depends
     );
+
+    # Chase the dependency linkages
+
+    for my $dep (
+        qw( EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS BUILD_DEPENDS
+        RUN_DEPENDS )
+      )
+    {
+        $self->_get_index_links($dep);
+    }
+
     return $self;
 }
 
-# Take a list of pkgnames (separated by spaces), and convert it into a
-# list of hash references to entries in the temporary %index hash --
-# creating empty entries as required.
+# Take a list of pkgnames (separated by spaces) as seen in
+# /usr/ports/INDEX, and convert it into a list of hash references to
+# entries in the temporary %index hash -- creating empty entries as
+# required.
 sub _get_index_links ($$)
 {
-    my $self   = shift;
-    my $list   = shift;
-    my @return = ();
+    my $self = shift;
+    my $dep  = shift;
 
-    foreach my $entry ( split( / /, $list ) ) {
+    # Don't re-process entry if it's already a ref
+    @{ $self->{$dep} } =
+      map { $self->new( PKGNAME => $_ ) unless ref $_; } @{ $self->{$dep} };
+    return $self;
+}
 
-        # Created only if doesn't already exist...
-        push @return, $self->new( PKGNAME => $entry );
-    }
-    return \@return;
+# This is very similar to new_from_indexline, except it uses the
+# output from 'make describe'.  Format is very similar to an index
+# line, except that the fields are in a different (more sendsible)
+# order, and the dependencies are given using the port ORIGIN, rather
+# than PKGNAME.  Only the immediate dependencies of any port are
+# given, not the cumulative dependencies of the port and all of its
+# dependencies, etc.  Transforming the ORIGIN lines into the usual form
+# has to wait until all the port objects have been created.
+sub new_from_makedescribe($$)
+{
+    my $caller = shift;
+    my $desc   = shift;
+    my $self;
+
+    my $pkgname;
+    my $origin;
+    my $stuff;
+    my $build_depends;
+    my $run_depends;
+    my $extract_depends;
+    my $patch_depends;
+    my $fetch_depends;
+    my $www;
+
+    chomp($desc);
+
+    (
+        $pkgname,         $origin,        $stuff,
+        $extract_depends, $patch_depends, $fetch_depends,
+        $build_depends,   $run_depends,   $www
+      )
+      = (
+        $desc =~ m{
+             ^([^|]+)\|          # PKGNAME
+              ([^|]+)\|          # ORIGIN
+              ((?:[^|]*\|){4}[^|]*)\|
+                                 # PREFIX,COMMENT,DESCR,MAINTAINER,CATEGORIES
+              ([^|]*)\|          # EXTRACT_DEPENDS
+              ([^|]*)\|          # PATCH_DEPENDS
+              ([^|]*)\|          # FETCH_DEPENDS
+              ([^|]*)\|          # BUILD_DEPENDS
+              ([^|]*)\|          # RUN_DEPENDS
+              ([^|]*)$           # WWW
+          }x
+      )
+      or croak __PACKAGE__, "::new_from_makedescribe: -- incorrect format";
+
+    $self = $caller->new(
+        PKGNAME         => $pkgname,
+        ORIGIN          => $origin,
+        STUFF           => $stuff,
+        EXTRACT_DEPENDS => $extract_depends,
+        PATCH_DEPENDS   => $patch_depends,
+        FETCH_DEPENDS   => $fetch_depends,
+        BUILD_DEPENDS   => $build_depends,
+        RUN_DEPENDS     => $run_depends,
+        WWW             => $www,
+    );
+
+    return $self;
+}
+
+# Take a list of port origins (separated by spaces) as seen in 'make
+# describe' output, and convert it into a list of hash references to
+# entries in the %tree hash-of-hashes.  Missing entries are an error:
+# there should always be corresponding directories in the ports tree.
+sub _get_describe_links ($$$)
+{
+    my $self = shift;
+    my $tree = shift;
+    my $dep  = shift;
+
+    @{ $self->{$dep} } =
+      map { $tree->get($_) unless ref $_; } @{ $self->{$dep} };
+    return $self;
 }
 
 # Bulk creation of accessor methods.
 for my $slot (
     qw(PKGNAME ORIGIN STUFF BUILD_DEPENDS RUN_DEPENDS WWW
-    EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS
-    BUILD_INVERSE RUN_INVERSE EXTRACT_INVERSE PATCH_INVERSE FETCH_INVERSE )
+    EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS BUILD_INVERSE
+    RUN_INVERSE EXTRACT_INVERSE PATCH_INVERSE FETCH_INVERSE )
   )
 {
     no strict qw(refs);
@@ -175,20 +262,30 @@ for my $slot (
 }
 
 # Print out one line of the INDEX file
-sub print ($)
+sub print ($$;$)
 {
-    my $self = shift;
+    my $self    = shift;
+    my $fh      = shift;
+    my $counter = shift;
 
-    print $self->PKGNAME(), '|';
-    print join( '/', @{ $self->ORIGIN() } ), '|';
-    print $self->STUFF(), '|';
-    print join( ' ', $self->_chase_links('BUILD_DEPENDS') ), '|';
-    print join( ' ', $self->_chase_links('RUN_DEPENDS') ),   '|';
-    print $self->WWW(), '|';
-    print join( ' ', $self->_chase_links('EXTRACT_DEPENDS') ), '|';
-    print join( ' ', $self->_chase_links('PATCH_DEPENDS') ),   '|';
-    print join( ' ', $self->_chase_links('FETCH_DEPENDS') ),   "\n";
+    print $fh $self->PKGNAME(), '|';
+    print $fh join( '/', @{ $self->ORIGIN() } ), '|';
+    print $fh $self->STUFF(), '|';
+    print $fh join( ' ', $self->_chase_links('BUILD_DEPENDS') ), '|';
+    print $fh join( ' ', $self->_chase_links('RUN_DEPENDS') ),   '|';
+    print $fh $self->WWW(), '|';
+    print $fh join( ' ', $self->_chase_links('EXTRACT_DEPENDS') ), '|';
+    print $fh join( ' ', $self->_chase_links('PATCH_DEPENDS') ),   '|';
+    print $fh join( ' ', $self->_chase_links('FETCH_DEPENDS') ),   "\n";
 
+    if ( $::verbose && defined $counter ) {
+        if ( $$counter % 1000 == 0 ) {
+            print STDERR "[$$counter]";
+        } elsif ( $$counter % 100 == 0 ) {
+            print STDERR '.';
+        }
+        $$counter++;
+    }
     return $self;
 }
 
