@@ -27,13 +27,13 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.14 2004-10-12 22:11:53 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.15 2004-10-13 16:02:51 matthew Exp $
 #
 
 #
 # Container for FreeBSD::Ports objects which models the entire ports
-# tree -- mapping port directories '/usr/ports/www/apache2', or any
-# subdirectory thereof.
+# tree -- indexed by port directories.  Persistence is supplied by
+# using BerkeleyDB Btree for backing stores.
 #
 package FreeBSD::Ports::Tree;
 $VERSION = 0.01;
@@ -52,14 +52,24 @@ sub new ($@)
     my $class  = ref($caller) || $caller;
     my %args   = @_;
     my $self;
+    my $portscachefile  = "/var/tmp/portindex-cache.db";
+    my $masterslavefile = "/var/tmp/portindex-masterslave.db";
 
     # Make sure that the certain defaults are set.
 
-    $args{-Filename} = "/var/tmp/portindex-cache.db"
-      unless defined $args{-Filename};
+    if ( defined $args{-CacheFilename} ) {
+        $portscachefile = $args{-CacheFilename};
+        delete $args{-CacheFilename};
+    }
+
+    if ( defined $args{-MasterSlaveFilename} ) {
+        $masterslavefile = $args{-MasterSlaveFilename};
+        delete $args{-MasterSlaveFilename};
+    }
+
     $args{-Mode} = 0640
       unless defined $args{-Mode};
-    $args{-Flags} = DB_CREATE
+    $args{-Flags} = 0
       unless defined $args{-Flags};
 
     $self = {
@@ -67,17 +77,32 @@ sub new ($@)
         MASTER_SLAVE => {},
     };
 
+    # Must turn on the DB locking system if we're storing more than
+    # one DB per file.
+
+    $self->{ENV} = new BerkeleyDB::Env
+      -Flags      => DB_CREATE | DB_INIT_LOCK | DB_INIT_MPOOL,
+      -LockDetect => DB_LOCK_DEFAULT,
+      %{ $args{-Env} };
+    delete $args{-Env};
+
     # Tie the PORTS and MASTER_SLAVE hashes to our cache file -- a DB
     # btree file.  Keep to DBs in this cache -- the PORTS data, plus
     # the data about master/slave relationships.
 
     tie %{ $self->{PORTS} }, 'BerkeleyDB::Btree',
-      -Subname => "PORTS",
-      %args;
+      -Env => $self->{ENV},
+      %args,
+      -Filename => $portscachefile
+      or croak __PACKAGE__,
+      "::new(): Can't access $portscachefile -- $!";
 
-    tie %{ $self->{MASTER_SLAVE} }, 'BerkeleyDB::Btree',
-      -Subname => "MASTER_SLAVE",
-      %args;
+    tie %{ $self->{MASTERSLAVE} }, 'BerkeleyDB::Btree',
+      -Env => $self->{ENV},
+      %args,
+      -Filename => $masterslavefile
+      or croak __PACKAGE__,
+      "::new(): Can't access $masterslavefile -- $!";
 
     return bless $self, $class;
 }
@@ -136,7 +161,7 @@ sub enslave ($$$)
     my $master = shift;
     my $slave  = shift;
 
-    $self->{MASTER_SLAVE}->{$slave} = $master;
+    $self->{MASTERSLAVE}->{$slave} = $master;
     return $self;
 }
 
@@ -148,7 +173,7 @@ sub manumit ($$)
     my $self  = shift;
     my $slave = shift;
 
-    delete $self->{MASTER_SLAVE}->{$slave};
+    delete $self->{MASTERSLAVE}->{$slave};
     return $self;
 }
 
@@ -168,7 +193,7 @@ sub scan_makefiles($@)
     print STDERR "Processing 'make describe' output",
       @paths == 1 ? " for path \"$paths[0]\": " : ": "
       if ($::verbose);
-    foreach my $path (@paths) {
+    for my $path (@paths) {
         $self->_scan_makefiles( $path, \$counter );
     }
     print STDERR "<$counter>\n"
@@ -299,6 +324,7 @@ sub make_describe($$;$)
     # FreeBSD::Port::_clean_depends() where the same thing is done to
     # port dependencies as well.
 
+    chomp($masterdir);
     $masterdir =~ s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
     $masterdir =~ s@/\w[^/]+/\.\./@/@g;
     $masterdir =~ s@/\Z@@g;
@@ -306,22 +332,22 @@ sub make_describe($$;$)
     if ( $masterdir ne $path ) {
         $self->enslave( $masterdir, $path );
     } else {
-        $self->manumit( $path );
+        $self->manumit($path);
     }
     return $self;
 }
 
 # Unpack all of the frozen FreeBSD::Ports objects from the btree
 # storage.  Return a reference to a hash containing refs to all port
-# objects.
+# objects. (Note: 'each' passes values by reference (implicitly) --
+# modifying the returned value will affect the underlying hash)
 sub springtime($)
 {
     my $self = shift;
     my %allports;
 
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
-        $port = thaw($port);
-        $allports{$origin} = $port;
+        $allports{$origin} = thaw($port);
     }
     return \%allports;
 }
@@ -334,7 +360,7 @@ sub masterslave($)
     my $self = shift;
     my %masterslave;
 
-    while ( my ( $slave, $master ) = each %{ $self->{MASTER_SLAVE} } ) {
+    while ( my ( $slave, $master ) = each %{ $self->{MASTERSLAVE} } ) {
         $masterslave{$master} = []
           unless defined $masterslave{$master};
         push @{ $masterslave{$master} }, $slave;

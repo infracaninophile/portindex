@@ -1,0 +1,107 @@
+#!/usr/bin/perl -w
+
+# Copyright (c) 2004 Matthew Seaman. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+#    1.  Redistributions of source code must retain the above
+#        copyright notice, this list of conditions and the following
+#        disclaimer.
+#
+#    2.  Redistributions in binary form must reproduce the above
+#        copyright notice, this list of conditions and the following
+#        disclaimer in the documentation and/or other materials
+#        provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+# USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+# OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+
+# @(#) $Id: cache-init,v 1.1 2004-10-13 16:02:49 matthew Exp $
+#
+
+# Build the portindex cache from scratch by scanning through the whole
+# ports tree.  This only needs to be done once (or at infrequent
+# intervals), which is a good thing, because this implementation is
+# significantly slower than 'make index'.
+#
+# TODO:
+#
+# Documentation, documentation, documentation!
+#
+# Command line option parsing / config file
+#
+# Run multiple 'make describe' processes in parallel as 'make index' does.
+#
+# Handle STDERR of make process better
+#
+# Logging
+#
+# Instead of running 'make index' explicitly, run 'make -V ...' to
+# print out the values of LIB_DEPENDS, BUILD_DEPENDS, etc. directly
+# and process them ourselves -- means we don't have to run make again
+# in each port to extract the value of MASTERDIR.
+#
+# Lock out cache-update, portindex while cache-init is running.
+
+use strict;
+use warnings;
+use BerkeleyDB;
+
+use FreeBSD::Port;
+use FreeBSD::Ports::Tree;
+
+our $verbose;
+
+$0 =~ s@.*/@@;    # Script name for error messages
+$::verbose = 1;   # Be garrulous.
+
+MAIN:
+{
+    my $tree;
+    my $home            = '/var/tmp';
+    my $portscachefile  = 'portindex-cache.db';
+    my $masterslavefile = 'portindex-masterslave.db';
+
+    # First, move aside any pre-existing .db files
+    chdir $home
+      or die "$0: Can't chdir to $home -- $!";
+    if ( -e $portscachefile ) {
+        rename $portscachefile, "${portscachefile}.old"
+          or die "$0: Can't make backup of $portscachefile -- $!";
+    }
+    if ( -e $masterslavefile ) {
+        rename $masterslavefile, "${masterslavefile}.old"
+          or die "$0: Can't make backup of $masterslavefile -- $!";
+    }
+
+    $tree = FreeBSD::Ports::Tree->new(
+        -Env => {
+            -Home => $home,
+            -Mode => 0644,
+        },
+        -Flags               => DB_CREATE,
+        -CacheFilename       => $portscachefile,
+        -MasterSlaveFilename => $masterslavefile,
+    );
+
+    # Regenerate the FreeBSD::Port objects for all listed ports (or
+    # the whole tree beneath some directory).
+
+    $tree->scan_makefiles('/usr/ports');
+}
+
+#
+# That's All Folks!
+#

@@ -28,19 +28,19 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: portindex,v 1.18 2004-10-12 22:02:57 matthew Exp $
+# @(#) $Id: portindex,v 1.19 2004-10-13 16:00:16 matthew Exp $
 #
+# Process the cached 'make describe' output to produce an INDEX file
+# Should be a lot quicker than 'make index'.
+#
+# TODO:
+#
+# Documentation, documentation, documentation.
+#
+# Command line option parsing / config file:
 
-# Scan through the ports tree (or parts thereof) running 'make
-# describe' for each port, and caching the results.  Then combine the
-# cached descriptions into the INDEX file used by the ports system.
-# Obtaining all of the port descriptions is equivalent to running
-# 'make index'.  Incremental updates (via just updating the
-# descriptions of modified ports) will be much faster than rebuilding
-# the whole thing from scratch.
 use strict;
 use warnings;
-use POSIX qw(strftime);
 
 use FreeBSD::Port;
 use FreeBSD::Ports::Tree;
@@ -54,35 +54,12 @@ MAIN:
 {
     my $tree;
     my $allports;
-    my $masterslave;
-    my @updaters;
 
-    $tree =
-      FreeBSD::Ports::Tree->new( -Filename => '/var/tmp/portindex-cache.db' );
-
-    # If one of the ports given in the @updaters list is the master of
-    # several slave ports, add all of those slave ports to the
-    # @updaters list, unconditionally.  This only works if the cache
-    # is largely complete -- it's a null op when building the cache
-    # from scratch.
-
-    $masterslave = $tree->masterslave();
-
-    # Update the entries for the ports read from STDIN, plus the
-    # slaves of any masters listed.
-
-    while (<>) {
-        chomp;
-        push @updaters, $_;
-
-        push @updaters, @{ $masterslave->{$_} }
-          if ( defined $masterslave->{$_} );
-    }
-
-    # Regenerate the FreeBSD::Port objects for all listed ports (or
-    # the whole tree beneath some directory).
-
-    $tree->scan_makefiles(@updaters);
+    $tree = FreeBSD::Ports::Tree->new(
+        -Env                 => { -Home => '/var/tmp', },
+        -CacheFilename       => 'portindex-cache.db',
+        -MasterSlaveFilename => 'portindex-masterslave.db',
+    );
 
     # Unfreeze the cached ports data
 
