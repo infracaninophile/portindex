@@ -2,7 +2,7 @@
 FreeBSD-Portindex version 1.0
 =============================
 
-$Id: README,v 1.6 2004-11-01 23:34:21 matthew Exp $
+$Id: README,v 1.7 2004-11-03 21:59:53 matthew Exp $
 
    portindex, cache-init, cache-update and find-updated are a set of perl
    scripts built around the common core of the FreeBSD::Portindex perl
@@ -64,7 +64,7 @@ QUICK START
         # chown user:group /var/db/portindex
         % cache-init
 
-   That creates the portsindex cache file (about 11.4MiB currently)
+   That creates the portsindex cache file (about 10.25MiB currently)
    Nb. while you can run any of the FreeBSD::Portindex programs as
    root safely enough, on general principles I recommend using a
    non-privileged user account instead.

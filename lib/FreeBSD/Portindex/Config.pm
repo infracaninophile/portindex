@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.27 2004-11-03 09:56:34 matthew Exp $
+# @(#) $Id: Config.pm,v 1.28 2004-11-03 21:59:53 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -37,7 +37,8 @@ require Exporter;
 
 our @ISA       = qw(Exporter);
 our @EXPORT_OK =
-  qw(read_config update_timestamp get_timestamp scrub_environment);
+  qw(read_config update_timestamp get_timestamp compare_timestamp
+  scrub_environment );
 our $VERSION = '1.0';    # Release
 
 use strict;
@@ -185,7 +186,7 @@ sub update_timestamp ($)
     my $config = shift;
 
     open TSTMP, '>', "$config->{CacheDir}/$config->{TimestampFilename}"
-      or die "$0: Can't update timestamp $config->{TimestampFilename} -- $!";
+      or die "$0: Can't update timestamp $config->{TimestampFilename} -- $!\n";
     print TSTMP scalar localtime(), "\n";
     close TSTMP;
     return;
@@ -197,7 +198,27 @@ sub get_timestamp ($)
     my $config = shift;
 
     return ( stat "$config->{CacheDir}/$config->{TimestampFilename}" )[9]
-      or die "$0: can't stat $config->{TimestampFilename} -- $!";
+      or die "$0: can't stat $config->{TimestampFilename} -- $!\n";
+}
+
+# Return true if the portindex timestamp is *newer* than the file
+# timestamp, false otherwise -- in which case, it's probably time to
+# re-run cache-init.
+sub compare_timestamp ($$)
+{
+    my $config = shift;
+    my $file   = shift;
+
+    my $p_mtime;
+    my $f_mtime;
+
+    $p_mtime = get_timestamp($config);
+    $f_mtime = ( stat $file )[9]
+      or warn "$0: can't stat $file -- $!\n";
+    warn "$0: WARNING: $file more recently modified than last cache update",
+      " -- time for cache-init again?\n"
+      if ( !defined $f_mtime || $f_mtime > $p_mtime );
+    return ( $p_mtime > $f_mtime );
 }
 
 # Clear everything out of the environment except for some standard

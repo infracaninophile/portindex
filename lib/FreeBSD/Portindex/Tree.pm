@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.31 2004-11-01 23:34:21 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.32 2004-11-03 21:59:53 matthew Exp $
 #
 
 #
@@ -302,10 +302,23 @@ sub make_describe($$;$)
         $port->MASTERDIR(undef);
     }
 
+    # List all of the makefiles under /usr/ports which affect the
+    # compilation of a port.  Don't include /usr/ports/Mk/bsd.port.mk,
+    # because that affects *everything*, nor include
+    # /usr/ports/Mk/bsd.sites.mk since that has no material effect on
+    # the resulting port/package.
+
+    # Hmmm... what about /var/db/ports/${LATEST_LINK}/options ?
+    my %seen = ();
+
     $port->MAKEFILE_LIST(
         [
-            map { _clean_path($_) }
-              grep { m@^/usr/ports@ } split( ' ', $makefile_list )
+            map    { _clean_path($_) }
+              grep {
+                m@^(/var/db|/usr)/ports(?!/Mk/bsd\.(port|sites)\.mk)@
+                  && !$seen{$_}++
+              }
+              split( ' ', $makefile_list )
         ]
     );
     $self->insert( $path, $port );
@@ -377,6 +390,26 @@ sub masterslave($$)
         push @{ $masterslave->{ $port->MASTERDIR() } }, $origin;
     }
     return $masterslave;
+}
+
+# Another form of inversion: invert the .MAKEFILE_LIST data, returning
+# a hash with keys being the various Makefiles and targets being an
+# array of port origins depending on those Makefiles.
+sub makefile_list ($$)
+{
+    my $self          = shift;
+    my $makefile_list = shift;
+
+    while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
+        $port = thaw($port);
+
+        for my $makefile ( @{ $port->MAKEFILE_LIST() } ) {
+            $makefile_list->{$makefile} = []
+              unless defined $makefile_list->{$makefile};
+            push @{ $makefile_list->{$makefile} }, $origin;
+        }
+    }
+    return $makefile_list;
 }
 
 # For all of the known ports, accumulate the various dependencies as

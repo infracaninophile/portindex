@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.21 2004-11-02 15:24:02 matthew Exp $
+# @(#) $Id: cache-update,v 1.22 2004-11-03 21:59:53 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -60,7 +60,7 @@ use strict;
 use warnings;
 
 use FreeBSD::Portindex::Config qw(read_config update_timestamp get_timestamp
-  scrub_environment);
+  compare_timestamp scrub_environment);
 use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::Tree;
 
@@ -186,6 +186,19 @@ MAIN:
     my %seen;
 
     read_config( \%Config );
+
+    # Some Makefiles affect the compilation of all ports.  When those
+    # are changed, then it is a good idea to re-initialise the cache
+    # from scratch.  Note: the list of Makefiles included on every
+    # invocation of make(1) is longer than this, but the /usr/sys/Mk
+    # and other stuff doesn't generally affect the contents of the
+    # resulting INDEX. Run 'make -V .MAKEFILE_LIST | tr \ \\n' in some
+    # port directories to see the full story.
+
+    for my $important_makefile (qw( /usr/ports/Mk/bsd.port.mk /etc/make.conf ))
+    {
+        compare_timestamp( \%Config, $important_makefile );
+    }
 
     scrub_environment( \%Config )
       if $Config{ScrubEnvironment};
