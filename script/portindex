@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: portindex,v 1.10 2004-10-07 09:56:26 matthew Exp $
+# @(#) $Id: portindex,v 1.11 2004-10-08 11:14:22 matthew Exp $
 #
 # Read the ports index file and parse it into a series of
 # objects. Scan the ports tree for updates since the last index was
@@ -49,70 +49,6 @@ $0 =~ s@.*/@@;    # Script name for error messages
 $::verbose = 1;   # Be garrulous.
 
 #-------------------------------------------------------------------------
-
-# Recurse through all of the Makefiles -- expand the SUBDIR argument
-# from each Makefile, and all of the Makefiles in the referenced
-# directories.  If no SUBDIRs are found, this is a leaf directory, in
-# which case investigate the port more thoroughly to determine if it
-# has been updated since the INDEX was last generated.
-#
-# As the leaf directories are checked, delete them from the
-# %{$oldports} structure and insert them into %{$newports}: this will
-# strip outmoved or deleted ports.
-
-sub scan_makefiles($$$$)
-{
-    my $dir      = shift;
-    my $oldports = shift;
-    my $newports = shift;
-    my $pkg      = shift;
-    my $subdirs;
-
-    $subdirs = get_subdirs($dir);
-
-    if ( @{$subdirs} ) {
-
-        # Regenerate the subdir structure
-        insert_pkg( $newports, {}, $dir );
-
-        for my $subd ( @{$subdirs} ) {
-
-            # Use & to suppress prototype check...
-            &scan_makefiles( $subd, $oldports, $newports, $pkg->{$subd} );
-        }
-    } else {
-        process_pkg( $oldports, $newports, $dir, $pkg );
-    }
-    return;
-}
-
-# Read out the value of the SUBDIR variable in the Makefile in the
-# directory in the argument.
-sub get_subdirs($)
-{
-    my $dir = shift;
-    my @subdirs;
-
-    # Hmmm... Using make(1) to print out the value of the variable
-    # (make -V SUBDIRS) takes about 200 times as long as just scanning
-    # the Makefiles for definitions of the SUBDIR variable.  Be picky
-    # about the format of the SUBDIR assignment lines: SUBDIR is used
-    # in some of the leaf Makefiles, but in a different style.
-
-    open( MAKEFILE, '<', "${base}/${dir}/Makefile" )
-      or do {
-        warn "$0: Can't open Makefile in $dir -- $!\n";
-        return \@subdirs;    # Leave empty.
-      };
-    while (<MAKEFILE>) {
-
-        # Return the path relative to $::base
-        push @subdirs, ( $dir ? "$dir/$1" : $1 )
-          if (m/^\s*SUBDIR\s+\+=\s+(\S+)\s*$/);
-    }
-    close MAKEFILE;
-    return \@subdirs;
-}
 
 # Compare version of the pkg data read from the INDEX ($pkg) with
 # what's on disk ($dir), moving the leaf entries from $oldports to
@@ -148,7 +84,9 @@ MAIN:
 
     $tree = FreeBSD::Ports::Tree->new();
 
-    $tree->read_index(*STDIN);
+    # $tree->read_index(*STDIN);
+
+    $tree->scan_makefiles('/usr/ports');
 
     # Scan through the Makefiles in the ports tree looking for ports
     # which have files updated more recently than the current ports

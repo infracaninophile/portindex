@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.6 2004-10-07 09:56:26 matthew Exp $
+# @(#) $Id: Port.pm,v 1.7 2004-10-08 11:14:22 matthew Exp $
 #
 
 #
@@ -141,13 +141,10 @@ sub new_from_indexline($$)
 
     # Chase the dependency linkages
 
-    for my $dep (
-        qw( EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS BUILD_DEPENDS
-        RUN_DEPENDS )
-      )
-    {
-        $self->_get_index_links($dep);
-    }
+    $self->_get_index_links(
+        qw( EXTRACT_DEPENDS PATCH_DEPENDS
+          FETCH_DEPENDS BUILD_DEPENDS RUN_DEPENDS )
+    );
 
     return $self;
 }
@@ -156,14 +153,16 @@ sub new_from_indexline($$)
 # /usr/ports/INDEX, and convert it into a list of hash references to
 # entries in the temporary %index hash -- creating empty entries as
 # required.
-sub _get_index_links ($$)
+sub _get_index_links ($@)
 {
     my $self = shift;
-    my $dep  = shift;
+    my @deps = @_;
 
     # Don't re-process entry if it's already a ref
-    @{ $self->{$dep} } =
-      map { $self->new( PKGNAME => $_ ) unless ref $_; } @{ $self->{$dep} };
+    for my $dep (@deps) {
+        @{ $self->{$dep} } =
+          map { $self->new( PKGNAME => $_ ) unless ref $_; } @{ $self->{$dep} };
+    }
     return $self;
 }
 
@@ -175,7 +174,7 @@ sub _get_index_links ($$)
 # given, not the cumulative dependencies of the port and all of its
 # dependencies, etc.  Transforming the ORIGIN lines into the usual form
 # has to wait until all the port objects have been created.
-sub new_from_makedescribe($$)
+sub new_from_description($$)
 {
     my $caller = shift;
     my $desc   = shift;
@@ -229,19 +228,44 @@ sub new_from_makedescribe($$)
     return $self;
 }
 
-# Take a list of port origins (separated by spaces) as seen in 'make
+# Take a list of port origins as seen in 'make
 # describe' output, and convert it into a list of hash references to
 # entries in the %tree hash-of-hashes.  Missing entries are an error:
 # there should always be corresponding directories in the ports tree.
-sub _get_describe_links ($$$)
+sub _get_describe_links ($$@)
 {
     my $self = shift;
     my $tree = shift;
-    my $dep  = shift;
+    my @deps = @_;
 
-    @{ $self->{$dep} } =
-      map { $tree->get($_) unless ref $_; } @{ $self->{$dep} };
+    for my $dep (@deps) {
+        @{ $self->{$dep} } =
+          map { $tree->get($_) unless ref $_; } @{ $self->{$dep} };
+    }
     return $self;
+}
+
+# Another variant using 'make describe' -- this one takes the port
+# directory as an argument, and runs make sescribe in it.  Changes
+# current working directory of the process: croaks if no such
+# directory.
+sub new_from_make_describe($$)
+{
+    my $caller = shift;
+    my $path   = shift;
+    my $self;
+    my $desc;
+
+    chdir $path
+      or croak __PACKAGE__, "::new_from_make_describe(): can't chdir() -- $!";
+    open MAKE, '/usr/bin/make describe|'
+      or croak __PACKAGE__, "::new_from_make_describe(): can't run make -- $!";
+    $desc = <MAKE>;
+    close MAKE
+      or croak __PACKAGE__, "::new_from_make_describe(): ",
+      ( $! ? "close failed -- $!" : "make: bad exit status -- $?" );
+
+    return $caller->new_from_description($desc);
 }
 
 # Bulk creation of accessor methods.
@@ -262,7 +286,7 @@ for my $slot (
 }
 
 # Print out one line of the INDEX file
-sub print ($$;$)
+sub print ($*;$)
 {
     my $self    = shift;
     my $fh      = shift;

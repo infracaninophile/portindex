@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.6 2004-10-07 09:56:26 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.7 2004-10-08 11:14:22 matthew Exp $
 #
 
 #
@@ -136,7 +136,7 @@ sub get ($$)
 
 # Read in the /usr/ports/INDEX file from STDIN converting to an array
 # of hashes with links to the entries for dependencies.
-sub read_index($$)
+sub read_index($*)
 {
     my $self       = shift;
     my $filehandle = shift;
@@ -160,11 +160,97 @@ sub read_index($$)
     return $self;
 }
 
+#----------------------------------------------------------------
+
+# Build the tree structure by scanning through the Makefiles of the
+# ports tree.  This is equivalent to the first part of 'make index'
+#
+# Recurse through all of the Makefiles -- expand the SUBDIR argument
+# from each Makefile, and all of the Makefiles in the referenced
+# directories.  If no SUBDIRs are found, this is a leaf directory, in
+# which case use 'make describe' to instantiate a new FreeBSD::Port
+# object.
+
+sub scan_makefiles($@)
+{
+    my $self  = shift;
+    my @paths = @_;
+
+    foreach my $path (@paths) {
+        $self->_scan_makefiles($path);
+
+        $self->_get_describe_links(
+            $self, qw( EXTRACT_DEPENDS
+              PATCH_DEPENDS FETCH_DEPENDS BUILD_DEPENDS RUN_DEPENDS )
+        );
+    }
+    return $self;
+}
+
+sub _scan_makefiles($$)
+{
+    my $self = shift;
+    my $path = shift;
+    my @subdirs;
+
+    # Hmmm... Using make(1) to print out the value of the variable
+    # (make -V SUBDIRS) takes about 200 times as long as just scanning
+    # the Makefiles for definitions of the SUBDIR variable.  Be picky
+    # about the format of the SUBDIR assignment lines: SUBDIR is used
+    # in some of the leaf Makefiles, but in a different style.
+
+    open( MAKEFILE, '<', "${path}/Makefile" )
+      or do {
+        carp __PACKAGE__,
+          "::_scan_makefiles(): Can't open Makefile in $path -- $!";
+        return $self;    # Leave out this directory.
+      };
+    while (<MAKEFILE>) {
+
+        # Return the path relative to $::base
+        push @subdirs, "${path}/${1}"
+          if (m/^\s*SUBDIR\s+\+=\s+(\S+)\s*$/);
+    }
+    close MAKEFILE;
+
+    if (@subdirs) {
+        $self->insert($path);
+
+        for my $subdir (@subdirs) {
+            $self->_scan_makefiles($subdir);
+        }
+    } else {
+
+        # This is a real port directory, not a subdir.
+        my $port = FreeBSD::Port->new_from_make_describe($path);
+
+        $self->insert( $path, $port );
+
+        print STDERR "$path --> ", $port->PKGNAME(), "\n"
+          if $::verbose;
+    }
+    return $self;
+}
+
+# Scan through the whole tree: this method does useful things for the
+# FreeBSD::Port object.
+sub _get_describe_links ($$@)
+{
+    my $self = shift;
+    my $tree = shift;
+    my @deps = @_;
+
+    for my $q ( keys %{$self} ) {
+        $self->{$q}->_get_describe_links( $tree, @deps );
+    }
+    return $self;
+}
+
 # Print out whole INDEX file sorted by origin using %ports hash:
 # recurse through directory levels.  Elements are either
 # FreeBSD::Ports::Tree or FreeBSD::Port objects -- just call the print
 # method for each object, sorting in order of port name.
-sub print_index($$)
+sub print_index($*)
 {
     my $self    = shift;
     my $fh      = shift;
@@ -181,7 +267,7 @@ sub print_index($$)
 
 # The print method for a FreeBSD::Ports::Tree object just calls the
 # print method for all of the objects it contains.
-sub print($$;$)
+sub print($*;$)
 {
     my $self    = shift;
     my $fh      = shift;
