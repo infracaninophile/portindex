@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.8 2004-10-19 16:01:11 matthew Exp $
+# @(#) $Id: Config.pm,v 1.9 2004-10-19 20:55:08 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -42,7 +42,7 @@ our $VERSION   = 0.01;              # Extremely alpha.
 use strict;
 use warnings;
 use Carp;
-use Getopt::Long;
+use Getopt::Long qw(:config no_ignore_case);
 use Pod::Usage;
 
 # Config file and command line option handling.  The config data is
@@ -61,23 +61,23 @@ sub read_config ($)
     my @optargs;
 
     %{$config} = (
-        PortsDir            => '/usr/ports',
         CacheDir            => '/var/tmp',
         CacheFilename       => "$::pkgname-cache.db",
-        MasterSlaveFilename => "$::pkgname-masterslave.db",
-        Verbose             => 1,
         Input               => '-',
-        Output              => '-',
         InputFormat         => 'cvsup-output',
+        MasterSlaveFilename => "$::pkgname-masterslave.db",
+        Output              => '-',
+        PortsDir            => '/usr/ports',
         PropagationDelay    => 3600,                          # 1 hour
+        Verbose             => 1,
     );
     @optargs = (
-        'help|?'              => \$help,
-        'verbose!'            => \$config->{Verbose},
-        'quiet'               => sub { $config->{Verbose} = 0 },
-        'cache-dir=s'         => \$config->{CacheDir},
-        'cache-file=s'        => \$config->{CacheFilename},
-        'master-slave-file=s' => \$config->{MasterSlaveFilename},
+        'cache-dir|c=s'         => \$config->{CacheDir},
+        'cache-file|C=s'        => \$config->{CacheFilename},
+        'help|?'                => \$help,
+        'master-slave-file|M=s' => \$config->{MasterSlaveFilename},
+        'quiet'                 => sub { $config->{Verbose} = 0 },
+        'verbose!'              => \$config->{Verbose},
     );
     push @optargs, ( 'output=s' => \$config->{Output} )
       if ( $0 eq 'portindex' );
@@ -107,9 +107,39 @@ sub read_config ($)
         do $cf;
     }
     GetOptions(@optargs) or pod2usage(2);
-    pod2usage(1)
-      if $help;
+    if ($help) {
+        pod2usage( -exitval => 'NOEXIT', -verbose => 1 );
+        show_config($config);
+        exit(1);
+    }
     return $config;
+}
+
+# Print out the current configuration settings after config file and
+# command line have been processed.
+sub show_config ($)
+{
+    my $config = shift;
+
+    print <<"E_O_CONFIG";
+
+Current Configuration:
+
+    Settings after reading all configuration files and parsing the
+    command line.  They apply to all programs, except as marked.
+
+    PortsDir (cache-init) ............. $config->{PortsDir}
+    CacheDir .......................... $config->{CacheDir}
+    CacheFilename ..................... $config->{CacheFilename}
+    MasterSlaveFilename ............... $config->{MasterSlaveFilename}
+    Input (cache-update) .............. $config->{Input}
+    InputFormat (cache-update) ........ $config->{InputFormat}
+    PropagationDelay (cache-update) ... $config->{PropagationDelay}
+    Output (portindex) ................ $config->{Output}
+    Verbose ........................... $config->{Verbose}
+	
+E_O_CONFIG
+    return;
 }
 
 1;
