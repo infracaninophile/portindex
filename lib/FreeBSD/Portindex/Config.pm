@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.6 2004-10-19 11:23:27 matthew Exp $
+# @(#) $Id: Config.pm,v 1.7 2004-10-19 12:51:31 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -72,11 +72,17 @@ sub read_config ($)
         PropagationDelay    => 3600,                          # 1 hour
     );
     @optargs = (
-        'help|?'   => \$help,
-        'verbose!' => \$config->{Verbose},
-        'quiet'    => sub { $config->{Verbose} = 0 },
-        'input=s'  => \$config->{Input},
-        'output=s' => \$config->{Output},
+        'help|?'              => \$help,
+        'verbose!'            => \$config->{Verbose},
+        'quiet'               => sub { $config->{Verbose} = 0 },
+        'cache-dir=s'         => \$config->{CacheDir},
+        'cache-file=s'        => \$config->{CacheFilename},
+        'master-slave-file=s' => \$config->{MasterSlaveFilename},
+    );
+    push @optargs, ( 'output=s' => \$config->{Output} )
+      if ( $0 eq 'portindex' );
+    push @optargs, (
+        'input=s'               => \$config->{Input},
         'input-format|format=s' => sub {
             my $optname  = shift;
             my $optvalue = shift;
@@ -87,7 +93,8 @@ sub read_config ($)
             $config->{InputFormat} = $optvalue;
         },
         'propagation-delay=i' => \$config->{PropagationDelay},
-    );
+      )
+      if ( $0 eq 'cache-update' );
 
     for my $cf (
         "/usr/local/etc/${main::pkgname}.cfg",

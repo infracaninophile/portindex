@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: portindex,v 1.22 2004-10-19 11:26:57 matthew Exp $
+# @(#) $Id: portindex,v 1.23 2004-10-19 12:51:31 matthew Exp $
 #
 # Process the cached 'make describe' output to produce an INDEX file
 # Should be a lot quicker than 'make index'.
@@ -61,6 +61,12 @@ MAIN:
         -CacheFilename => $Config{CacheFilename},
         -MasterSlaveFilename => $Config{MasterSlaveFilename},
     );
+
+    # Redirect STDOUT if required
+    if ( $Config{Output} ne '-' ) {
+        open STDOUT, '>', $Config{Output}
+          or die "$0: Can't open output $Config{Output} -- $!\n";
+    }
 
     # Unfreeze the cached ports data
 
