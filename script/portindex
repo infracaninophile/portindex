@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: portindex,v 1.15 2004-10-11 12:55:07 matthew Exp $
+# @(#) $Id: portindex,v 1.16 2004-10-11 13:09:27 matthew Exp $
 #
 
 # Scan through the ports tree (or parts thereof) running 'make
@@ -59,7 +59,7 @@ MAIN:
     $tree =
       FreeBSD::Ports::Tree->new( -Filename => '/var/tmp/portindex-cache.db' );
 
-    $tree->scan_makefiles('/usr/ports');
+    #$tree->scan_makefiles('/usr/ports');
 
     # Unfreeze the cached ports data
     $allports = $tree->springtime();

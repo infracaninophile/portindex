@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.11 2004-10-11 12:55:07 matthew Exp $
+# @(#) $Id: Port.pm,v 1.12 2004-10-11 13:09:27 matthew Exp $
 #
 
 #
@@ -178,15 +178,16 @@ sub accumulate_dependencies ($$)
     my $allports = shift;
 
     unless ( $self->DEPENDENCIES_ACCUMULATED() ) {
-        for my $dep ( @{ $self->RUN_DEPENDS() } ) {
-            $allports->{$dep}->accumulate_dependencies($allports);
-        }
         for my $whatdep (
             qw( EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS
             BUILD_DEPENDS RUN_DEPENDS )
           )
         {
             my %seen = ();
+
+            for my $dep ( @{ $self->$whatdep() } ) {
+                $allports->{$dep}->accumulate_dependencies($allports);
+            }
 
             grep { $seen{$_}++ } @{ $self->$whatdep() };
             for my $dep ( @{ $self->$whatdep() } ) {
