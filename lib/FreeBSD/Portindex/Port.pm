@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.3 2004-10-01 19:11:37 matthew Exp $
+# @(#) $Id: Port.pm,v 1.4 2004-10-01 19:14:09 matthew Exp $
 #
 
 #
@@ -139,8 +139,8 @@ sub new_from_description($$)
 # Bulk creation of accessor methods.
 for my $slot (
     qw(PKGNAME ORIGIN PREFIX COMMENT DESCR MAINTAINER
-    CATEGORIES E_DEPS P_DEPS F_DEPS B_DEPS F_DEPS
-    E_UPD P_UPD F_UPD B_UPD F_UPD )
+    CATEGORIES B_DEPS R_DEPS E_DEPS P_DEPS F_DEPS
+    B_UPD R_UPD E_UPD P_UPD F_UPD )
   )
 {
     no strict qw(refs);
