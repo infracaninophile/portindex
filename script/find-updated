@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: find-updated,v 1.6 2004-11-02 15:24:02 matthew Exp $
+# @(#) $Id: find-updated,v 1.7 2004-11-05 14:32:09 matthew Exp $
 #
 
 # Scan through the ports tree, and pick out all ports containing files
@@ -53,15 +53,18 @@ our $pkgname = 'portindex';
 $0 =~ s@.*/@@;    # Script name for error messages
 
 # Given a port origin, check for files with a more recent modification
-# time than the reference time. Return as soon as one recently updated
-# file is found, or once all files have been checked.  Don't check
-# ./work or other WRKDIR type directories, and ignore README.html as
-# those are generated files.
-sub look_for_updated_files ($$)
+# time than the reference time. If one is found, add this path to the
+# list of paths to pass to cache-update.  Also add any ports that
+# include an updated Makefile.  Return once all files have been
+# checked.  Don't check ./work or other WRKDIR type directories, and
+# ignore README.html as those are generated files.
+sub look_for_updated_files ($$$$)
 {
-    my $path       = shift;
-    my $refmtime   = shift;
-    my $is_updated = 0;
+    my $path          = shift;
+    my $refmtime      = shift;
+    my $updaters      = shift;
+    my $makefile_list = shift;
+    my $is_updated    = 0;
 
     File::Find::find(
         {
@@ -71,8 +74,11 @@ sub look_for_updated_files ($$)
             wanted => sub {
                 my ($mtime) = ( lstat($_) )[9];
                 if ( -f _ && $mtime > $refmtime ) {
-                    $File::Find::prune = 1;
-                    $is_updated        = 1;
+                    $is_updated++;
+                    map { $updaters->{$_}++ }
+                      @{ $makefile_list->{$File::Find::name} }
+                      if ( defined $makefile_list->{$File::Find::name} );
+
                     print STDERR "$0: ",
                       strftime( '%Y.%m.%d.%H.%M.%S', localtime($mtime) ),
                       " $File::Find::name\n"
@@ -89,12 +95,13 @@ sub look_for_updated_files ($$)
 # out of port Makefiles.  Remarkably sumilar to
 # FreeBSD::Portindex::Tree::_scan_makefiles() -- that function and
 # this one should be amalgamated somehow.
-sub scan_makefiles ($$$$)
+sub scan_makefiles ($$$$$)
 {
-    my $path     = shift;
-    my $refmtime = shift;
-    my $updaters = shift;
-    my $allports = shift;
+    my $path          = shift;
+    my $refmtime      = shift;
+    my $updaters      = shift;
+    my $allports      = shift;
+    my $makefile_list = shift;
     my @subdirs;
 
     # Hmmm... Using make(1) to print out the value of the variable
@@ -131,7 +138,8 @@ sub scan_makefiles ($$$$)
             # Recursion means never having to obey a function
             # prototype.
 
-            &scan_makefiles( $subdir, $refmtime, $updaters, $allports );
+            &scan_makefiles( $subdir, $refmtime, $updaters, $allports,
+                $makefile_list );
         }
     } else {
 
@@ -146,8 +154,9 @@ sub scan_makefiles ($$$$)
 
         # This is a real port directory, not a subdir.
 
-        push @{$updaters}, $path
-          if look_for_updated_files( $path, $refmtime );
+        $updaters->{$path}++
+          if look_for_updated_files( $path, $refmtime, $updaters,
+            $makefile_list );
     }
     return;
 }
@@ -155,11 +164,12 @@ sub scan_makefiles ($$$$)
 # Add all of the port origins known in the cache, but not visited
 # during scan_makefiles() to the list updated stuff (on the basis that
 # those must be ports that have been deleted)
-sub deleted_ports($$$)
+sub deleted_ports($$$$)
 {
-    my $updaters = shift;
-    my $allports = shift;
-    my $refmtime = shift;
+    my $updaters      = shift;
+    my $allports      = shift;
+    my $makefile_list = shift;
+    my $refmtime      = shift;
 
     for my $origin ( keys %{$allports} ) {
         if ( $allports->{$origin} == 0 ) {
@@ -174,11 +184,16 @@ sub deleted_ports($$$)
             # cache.
 
             if ( !-d $origin ) {
-                push @{$updaters}, $origin;
+                $updaters->{$origin}++;
                 print STDERR "$0: $origin has been deleted\n"
                   if $::Config{Verbose};
-            } elsif ( look_for_updated_files( $origin, $refmtime ) ) {
-                push @{$updaters}, $origin;
+            } elsif (
+                look_for_updated_files(
+                    $origin, $refmtime, $updaters, $makefile_list
+                )
+              )
+            {
+                $updaters->{$origin}++;
                 print STDERR
                   "$0: $origin was updated but not connected to ports tree\n"
                   if $::Config{Verbose};
@@ -191,9 +206,10 @@ sub deleted_ports($$$)
 MAIN:
 {
     my $tree;
-    my @updaters;
+    my %updaters;
     my $reference_date;
     my %allports;
+    my %makefile_list;
 
     read_config( \%Config );
 
@@ -209,19 +225,29 @@ MAIN:
     }
 
     $tree->port_origins( \%allports );
+    $tree->makefile_list( \%makefile_list );
+
+    # Check the standard ports makefiles in /usr/ports/Mk -- updates
+    # to these generally affect a lot of ports.
+
+    look_for_updated_files(
+        '/usr/ports/Mk', $Config{ReferenceTime},
+        \%updaters,      \%makefile_list
+    );
 
     # Scan through all ports, looking for files newer than the cut-off
     # date.
 
-    scan_makefiles( $Config{PortsDir}, $Config{ReferenceTime}, \@updaters,
-        \%allports );
+    scan_makefiles( $Config{PortsDir}, $Config{ReferenceTime}, \%updaters,
+        \%allports, \%makefile_list );
 
     # Add all of the deleted ports to the list of stuff to update
 
-    deleted_ports( \@updaters, \%allports, $Config{ReferenceTime} );
+    deleted_ports( \%updaters, \%allports, \%makefile_list,
+        $Config{ReferenceTime} );
 
-    print join( "\n", @updaters ), "\n"
-      if @updaters;
+    print join( "\n", sort keys %updaters ), "\n"
+      if %updaters;
 }
 
 __END__
@@ -241,10 +267,11 @@ B<find-updated> [B<-hvq>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-o> 
 B<find-updated> scans through the whole ports tree and checks each
 port origin and the F</usr/ports/Mk> directory for files modified
 after the date given on the command line.  The output consists of a
-list of modified ports, printed one per line suitable for feeding into
+list of modified ports, printed one per line suitably for feeding into
 the input of B<cache-update> using plain format.  The generated list
 of updated ports takes into account any master-slave relationships
-between ports, plus any ports that include an updated Makefile.
+between ports, and any ports that include a Makefile modified in the
+given period.
 
 Only file modification times are checked, not directories.  Files
 named F<README.html> or any F<work> subdirectories are ignored.

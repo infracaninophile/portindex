@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.22 2004-11-03 21:59:53 matthew Exp $
+# @(#) $Id: cache-update,v 1.23 2004-11-05 14:32:09 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -78,7 +78,7 @@ sub read_plain (*$)
 
     while (<$FH>) {
         chomp;
-        push @{$updates}, $_;
+        $updates->{$_}++;
     }
     return $updates;
 }
@@ -87,21 +87,27 @@ sub read_plain (*$)
 # the output of cvsup(1) [ need atleast -L 1 verbosity ].  Pick out
 # the names of updated files, then convert that into a list of port
 # origins to process for updates.
-sub read_cvsup_output (*$)
+sub read_cvsup_output (*$$)
 {
-    my $FH      = shift;
-    my $updates = shift;
-    my %ports;
+    my $FH            = shift;
+    my $updates       = shift;
+    my $makefile_list = shift;
+    my $name;
 
     while (<$FH>) {
         chomp;
-        if ( my ($p) = m@(ports/[^/]+/[^/]+)/@g ) {
-            $ports{$p}++
-              unless $p =~ m@/(Mk|Templates|Tools|distfiles|packages)/@;
+
+        next
+          unless m@\s(ports/\S+)@;
+
+        $name = "/usr/$1";
+        if ( $name =~ m@^(/usr/ports/[^/]+/[^/]+)/@ ) {
+            $updates->{$1}++
+              unless $name =~
+              m@^/usr/ports/(?:Mk|Templates|Tools|distfiles|packages)@;
         }
-    }
-    for my $p ( keys %ports ) {
-        push @{$updates}, "/usr/$p";
+        map { $updates->{$_}++ } @{ $makefile_list->{$name} }
+          if defined $makefile_list->{$name};
     }
     return $updates;
 }
@@ -112,12 +118,12 @@ sub read_cvsup_output (*$)
 # cutoff point should be about 1 hour earlier than the last time
 # cache-update or cache-init was run, as determined by the mtime of
 # the DB cache files.
-sub read_cvsup_checkouts (*$$)
+sub read_cvsup_checkouts (*$$$)
 {
-    my $FH         = shift;
-    my $updates    = shift;
-    my $cutofftime = shift;
-    my %seen;
+    my $FH            = shift;
+    my $updates       = shift;
+    my $makefile_list = shift;
+    my $cutofftime    = shift;
 
     while (<$FH>) {
         my $name;
@@ -135,26 +141,27 @@ sub read_cvsup_checkouts (*$$)
 
         ( undef, $name, undef, undef, $rcs_attr, undef ) = split ' ', $_, 6;
 
-        # If we've already marked this port for checking, or it's part
-        # of the infrastructure rather than an actual port, there's no
-        # point repeating all of the expensive manipulations in the
-        # rest of the loop.
+        # Can't short-circuit this checking -- any file could be a
+        # Makefile from the .MAKEFILE_LIST output.  However, limit the
+        # checks to just files (strip the ',v' suffix due to CVS
 
         next
-          unless ( $name =~ m@(ports/[^/]+/[^/]+)/@g
-            && $name !~ m@/(Mk|Templates|Tools|distfiles|packages)/@ );
+          unless ( $name =~ m@(ports/\S+),v@g );
 
-        $name = $1;
-
-        next if ( $seen{$name} );
+        $name = "/usr/$1";
 
         # Unpick the $rcs_attr record.
 
         @rcs_attrs = decode_attrs($rcs_attr);
 
         if ( $rcs_attrs[2] > $cutofftime ) {
-            push @{$updates}, "/usr/$name";
-            $seen{$name}++;
+            if ( $name =~ m@^(/usr/ports/[^/]+/[^/]+)/@ ) {
+                $updates->{$1}++
+                  unless $name =~
+                  m@^/usr/ports/(?:Mk|Templates|Tools|distfiles|packages)@;
+            }
+            map { $updates->{$_}++ } @{ $makefile_list->{$name} }
+              if defined $makefile_list->{$name};
         }
     }
     return $updates;
@@ -181,9 +188,8 @@ MAIN:
     my $tree;
     my $allports;
     my %masterslave;
-    my @updates;
+    my %updates;
     my $counter = 0;
-    my %seen;
 
     read_config( \%Config );
 
@@ -209,18 +215,30 @@ MAIN:
           or die "$0: Can't open input $Config{Input} -- $!\n";
     }
 
+    # tie to the stored description, etc. data
+
+    $tree = FreeBSD::Portindex::Tree->new(
+        -Env           => { -Home => $Config{CacheDir}, },
+        -CacheFilename => $Config{CacheFilename},
+    );
+
     # Read the list of ports to re-check and update for the
     # appropriate input format
 
     if ( $Config{Format} eq 'plain' ) {
-        read_plain( *STDIN, \@updates );
+        read_plain( *STDIN, \%updates );
     } elsif ( $Config{Format} eq 'cvsup-output' ) {
-        read_cvsup_output( *STDIN, \@updates );
+        my %makefile_list;
+
+        $tree->makefile_list( \%makefile_list );
+        read_cvsup_output( *STDIN, \%updates, \%makefile_list );
     } elsif ( $Config{Format} eq 'cvsup-checkouts' ) {
         my $cutofftime;
+        my %makefile_list;
 
         $cutofftime = get_timestamp( \%Config ) - $Config{PropagationDelay};
-        read_cvsup_checkouts( *STDIN, \@updates, $cutofftime );
+        $tree->makefile_list( \%makefile_list );
+        read_cvsup_checkouts( *STDIN, \%updates, \%makefile_list, $cutofftime );
     } else {
         die "$0: Format \'$Config{Format}\' unrecognised";
     }
@@ -230,16 +248,11 @@ MAIN:
     # cache files, and we don't want to do that unless we're going to
     # modify the data.
 
-    unless (@updates) {
+    unless (%updates) {
         print STDERR "$0: Nothing to do!\n"
           if $Config{Verbose};
         exit 0;
     }
-
-    $tree = FreeBSD::Portindex::Tree->new(
-        -Env           => { -Home => $Config{CacheDir}, },
-        -CacheFilename => $Config{CacheFilename},
-    );
 
     # If one of the ports given in the @updaters list is the master of
     # several slave ports, add all of those slave ports to the
@@ -251,8 +264,7 @@ MAIN:
     # Update the entries for the ports read from STDIN, plus the
     # slaves of any masters listed.
 
-    @updates = grep { !$seen{$_}++ } @updates,
-      map { @{ $masterslave{$_} || [] } } @updates;
+    map { $updates{$_}++ } map { @{ $masterslave{$_} || [] } } keys %updates;
 
     # Mark the time at which the updates start
 
@@ -260,7 +272,7 @@ MAIN:
 
     # Regenerate the FreeBSD::Port objects for all listed ports
 
-    for my $path ( sort @updates ) {
+    for my $path ( sort keys %updates ) {
         $counter++;
         print STDERR "$0:$counter: Updating cached data for $path\n"
           if $Config{Verbose};
@@ -298,8 +310,9 @@ in three formats:
 
 A list of port origin directories, one per line.  B<find-updated> may
 be used to generate a list in this format of all ports containing
-files modified after a given date and time, including slave ports or
-ports that include a Makefile modified after the given date and time.
+files modified after a given date and time, including deleted ports,
+slave ports or ports that include a Makefile modified after the given
+date and time.
 
 =item B<cvsup-output>
 
@@ -314,9 +327,9 @@ file attribute encoded within that file to the mtime of the
 F<portindex-timestamp> file in the cache it can determine which files
 have been modified since it was last run.  When comparing the mtime
 values, B<cache-update> has to allow for the time it takes to
-propagate updates to the CVS repository to the world-wide cvsup
-servers.  This process is not entirely foolproof and can occasionally
-result in missing some port updates.
+propagate updates from the master CVS repository to the world-wide
+cvsup servers.  This process is not entirely foolproof and can
+occasionally result in missing some port updates.
 
 =back
 
@@ -329,9 +342,9 @@ describe> output of a slave port may well be quite different after an
 update to its master port, even if none of the files within the slave
 port have been modified.
 
-Similarly where an update to a Makefile is detected, all ports where
-that Makefile is included will be added to the list of ports to
-reprocess, and for much the same reasons.  Only Makefiles included
+Similarly for input formats other than plain, where an update to a
+Makefile is detected, all ports where that Makefile is included will
+be added to the list of ports to reprocess.  Only Makefiles included
 from within the ports tree (ie. under F</usr/ports>) are considered.
 in certain circumstances it may be more advantageous to run
 B<cache-init> rather than B<cache-update>; for instance whenever
@@ -344,7 +357,7 @@ can inevitably produce minor inconsistencies and an F<INDEX> file that
 diverges slowly from equivalence to what C<make index> would produce.
 For best results it will occasionally be necessary to re-run
 B<cache-init> and rebuild the cache from scratch.  Certain changes to
-your system should act as warning flags as to when this needs to be
+your system should act as warning flags that this needs to be
 considered.
 
 =over 8
@@ -355,10 +368,11 @@ Modifications to ubiquitously included makefiles such as
 F</etc/make.conf> or F</usr/ports/Mk/bsd.port.mk>.  B<cache-update>
 will compare timestamps on these files with the cache timestamp and
 attempt to warn you when a re-initialisation might be a good idea.
-Technically there are several other makefiles which will be included
-any time B<make> is invoked within the ports system, but no warnings
-will be generated for those files. They rarely change, and when they
-do, the changes are unlikely to have any material effect on the ports.
+Technically there are several other makefiles which will always be
+included any time B<make> is invoked within the ports system, but no
+warnings will be generated for those files. They rarely change, and
+when they do, the changes are unlikely to have any material effect on
+the ports F<INDEX>.
 
 =item *
 
@@ -368,29 +382,32 @@ using F</etc/make.conf> would generally be a better idea.  There are
 two things that can be done to prevent this causing problems.
 Firstly, the configuration file can contain live I<Perl> code: you can
 modify the environment of the processes by manipulating the global
-C<%ENV> hash from within it.  Secondly both B<cache-init> and
-B<cache-update> obey a C<--scrub-environment> command line flag,
-and the equivalent C<ScrubEnvironment> configuration file setting,
-which deletes everything from the environment except for certain
-standard variables.  As command line options generally override
-configuration files, C<--scrub-environment> will trump modifying
-C<%ENV>.
+C<%ENV> hash from within the configuration file.  Secondly both
+B<cache-init> and B<cache-update> obey a C<--scrub-environment>
+command line flag, and the equivalent C<ScrubEnvironment>
+configuration file setting, which deletes everything from the
+environment except for certain standard variables.  As command line
+options generally override configuration files, C<--scrub-environment>
+will trump modifying C<%ENV>.
 
 =item *
 
-Installing certain software packages.  For instance, the simple
-presence of the Gnome libraries on the system will cause many packages
-to add a C<-gnome> suffix to their names.  The F<editors/vim> port is
-a good example of this behaviour.  Unfortunately it is practically
-impossible to detect such changes and automatically update affected
-ports.  Automatic linking againt the Gnome libraries is not the only
-example of such mutable configuration.
+Installing or updating certain software packages.  For instance, the
+simple presence of the Gnome libraries on the system will cause many
+packages to add a C<-gnome> suffix to their names.  The F<editors/vim>
+port is a good example of this behaviour.  Ports containing Linux
+software run under emulation will automatically detect which version
+of the F<linux-base> ports you have installed: changing to a different
+F<linux-base> port will affect the dependency lists for all Linux
+software ports.  Unfortunately it is practically impossible to detect
+such changes and automatically update affected ports.  These are not
+the only two examples of such behaviour.
 
 =back
 
 =head2 Configuration Files
 
-B<cache-init> shares configuration files with B<cache-update>,
+B<cache-update> shares configuration files with B<cache-init>,
 B<find-updated> and B<portindex>.  Any configuration settings are
 taken from the following locations, where the later items on this list
 override the former:
@@ -584,6 +601,13 @@ correct propagation delay is a matter of guesswork.
 
 Both I<cvsup-checkouts> and I<cvsup-output> format modes currently
 assume that C<PORTSDIR> is F</usr/ports>.  This should be configurable.
+
+B<cache-update> should deal with changes to the Makefile C<OPTIONS>
+data stored under F</var/db/ports>.
+
+B<cache-update> should optionally parse the contents of
+B</usr/local/etc/pkgtools.conf> and apply settings from the
+C<MAKE_ENV> array.
 
 =cut
 
