@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: portindex,v 1.21 2004-10-16 19:55:15 matthew Exp $
+# @(#) $Id: portindex,v 1.22 2004-10-19 11:26:57 matthew Exp $
 #
 # Process the cached 'make describe' output to produce an INDEX file
 # Should be a lot quicker than 'make index'.
@@ -36,8 +36,6 @@
 # TODO:
 #
 # Documentation, documentation, documentation.
-#
-# Command line option parsing / config file:
 
 use strict;
 use warnings;

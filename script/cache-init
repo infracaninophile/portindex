@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-init,v 1.3 2004-10-16 19:55:15 matthew Exp $
+# @(#) $Id: cache-init,v 1.4 2004-10-19 11:26:57 matthew Exp $
 #
 
 # Build the portindex cache from scratch by scanning through the whole
@@ -39,8 +39,6 @@
 # TODO:
 #
 # Documentation, documentation, documentation!
-#
-# Command line option parsing / config file
 #
 # Run multiple 'make describe' processes in parallel as 'make index' does.
 #
