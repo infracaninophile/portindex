@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.15 2004-10-26 18:21:06 matthew Exp $
+# @(#) $Id: cache-update,v 1.16 2004-10-30 22:25:25 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -256,7 +256,7 @@ cache-update -- Incrementally update the portindex cache
 
 =head1 SYNOPSIS
 
-B<cache-update> [B<-hvq>] [B<-c> F<dir>] [B<-C> F<file>] [B<-M> F<file>] [B<-f> I<format>] [B<-p> num] [B<-i> F<file>]
+B<cache-update> [B<-hvq>] [B<-c> F<dir>] [B<-C> F<file>] [B<-M> F<file>] [B<-T> F<file>] [B<-f> I<format>] [B<-p> num] [B<-i> F<file>]
 
 =head1 DESCRIPTION
 
@@ -279,7 +279,9 @@ in three formats:
 
 =item B<plain>
 
-A list of port origin directories, one per line
+A list of port origin directories, one per line.  B<find-updated> may
+be used to generate a list in this format of all ports containing
+files modified after a given date and time.
 
 =item B<cvsup-output>
 
@@ -290,12 +292,13 @@ ports tree. (Needs B<cvsup> to be run with at least B<-L1> verbosity.)
 
 B<cache-update> can parse the record B<cvsup> keeps of all of the
 files known to B<cvs> within the ports tree.  By comparing the mtime
-file attribute encoded within that file to the mtime of its own cache
-file it can determine which files have been modified since it was last
-run.  When comparing the mtime values, B<cache-update> has to allow
-for the time it takes to propagate updates to the CVS repository to
-the world-wide cvsup servers.  This process is not entirely foolproof
-and can result in occasionally missing some port updates.
+file attribute encoded within that file to the mtime of the
+F<portindex-timestamp> file in the cache it can determine which files
+have been modified since it was last run.  When comparing the mtime
+values, B<cache-update> has to allow for the time it takes to
+propagate updates to the CVS repository to the world-wide cvsup
+servers.  This process is not entirely foolproof and can occasionally
+result in missing some port updates.
 
 =back
 
@@ -310,9 +313,10 @@ port have been modified.
 
 =head2 Configuration Files
 
-B<cache-init> shares configuration files with B<cache-update> and
-B<portindex>.  Any configuration settings are taken from the following
-locations, where the later items on this list override the former:
+B<cache-init> shares configuration files with B<cache-update>,
+B<find-updated> and B<portindex>.  Any configuration settings are
+taken from the following locations, where the later items on this list
+override the former:
 
 =over 8
 
@@ -432,11 +436,12 @@ of ports to reprocess.
 
 When I<cvsup-checkouts> format is in use, assume that any file with a
 modification time no more than I<num> seconds older than the
-B<portindex> cache files, plus all files younger than the caches, were
-updated via B<cvsup> since the previous time B<cache-update> was run.
-Use those file names as the basis on which to determine which ports
-B<cache-update> needs to reprocess.  Note: this does cover files
-deleted from the ports, as the checkouts file keeps a record of those.
+F<portindex-timestamp> cache file, plus all files younger than the
+caches, were updated via B<cvsup> since the previous time
+B<cache-update> was run.  Use those file names as the basis on which
+to determine which ports B<cache-update> needs to reprocess.  Note:
+this does cover files deleted from the ports, as the checkouts file
+keeps a record of those.
 
 Empirically a value of 3600 (1 hour) seems to be a reasonable first
 choice, but this may need to be adjusted depending on how frequently
@@ -492,7 +497,8 @@ Local configuration file
 
 =head1 SEE ALSO
 
-L<cache-init(1)>, L<portindex(1)>, L<cvsup(1)>, L<ports(7)>
+L<cache-init(1)>, L<portindex(1)>, L<find-updated(1)>, L<cvsup(1)>,
+L<ports(7)>
 
 =head1 BUGS
 

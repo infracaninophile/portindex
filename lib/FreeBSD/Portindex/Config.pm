@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.16 2004-10-26 17:18:32 matthew Exp $
+# @(#) $Id: Config.pm,v 1.17 2004-10-30 22:25:25 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -37,13 +37,14 @@ require Exporter;
 
 our @ISA       = qw(Exporter);
 our @EXPORT_OK = qw(read_config update_timestamp get_timestamp);
-our $VERSION   = 0.2;               # Beta
+our $VERSION   = 0.2;                                              # Beta
 
 use strict;
 use warnings;
 use Carp;
 use Getopt::Long qw(:config no_ignore_case);
 use Pod::Usage;
+use POSIX qw(strftime);
 
 # Config file and command line option handling.  The config data is
 # loaded from (in order): defaults built into this function, the
@@ -99,6 +100,25 @@ sub read_config ($)
       if ( $0 eq 'cache-update' );
     push @optargs, ( 'ports-dir=s' => \$config->{PortsDir}, )
       if ( $0 eq 'cache-init' );
+    push @optargs, (
+        '<>' => sub {
+            my $optval = shift;
+            my @date;
+
+            die "$0: Incorrect time specification $optval\n"
+              unless $optval =~
+              m@^(\d\d\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\Z@;
+            $date[5] = $1 - 1900;    # Year
+            $date[4] = $2 - 1;       # Month
+            $date[3] = $3;           # Day
+            $date[2] = $4;           # Hour
+            $date[1] = $5;           # Minute
+            $date[0] = $6;           # Second
+
+            $::Config{ReferenceTime} = strftime '%s', @date;    # Localtime
+        },
+      )
+      if ( $0 eq 'find-updated' );
 
     for my $cf (
         "/usr/local/etc/${main::pkgname}.cfg",
@@ -137,7 +157,7 @@ Current Configuration:
     Input (cache-update) .............. $config->{Input}
     Format (cache-update) ............. $config->{Format}
     PropagationDelay (cache-update) ... $config->{PropagationDelay}
-    Output (portindex) ................ $config->{Output}
+    Output (portindex, find-updated) .. $config->{Output}
     TimestampFilename ................. $config->{TimestampFilename}
     Verbose ........................... $config->{Verbose}
 
@@ -151,8 +171,8 @@ E_O_CONFIG
 # access to the cache updates the mtimes of all of the files.
 sub update_timestamp ($)
 {
-	my $config = shift;
-	
+    my $config = shift;
+
     open TSTMP, '>', "$config->{CacheDir}/$config->{TimestampFilename}"
       or die "$0: Can't update timestamp $config->{TimestampFilename} -- $!";
     print TSTMP scalar localtime(), "\n";
@@ -163,8 +183,8 @@ sub update_timestamp ($)
 # Return the mtime of the timestamp file
 sub get_timestamp ($)
 {
-	my $config = shift;
-	
+    my $config = shift;
+
     return ( stat "$config->{CacheDir}/$config->{TimestampFilename}" )[9]
       or die "$0: can't stat $config->{TimestampFilename} -- $!";
 }

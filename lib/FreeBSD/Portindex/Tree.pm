@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.25 2004-10-24 10:38:57 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.26 2004-10-30 22:25:25 matthew Exp $
 #
 
 #
@@ -360,6 +360,19 @@ sub springtime($$)
 
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
         $allports->{$origin} = thaw($port);
+    }
+    return $allports;
+}
+
+# Fill in the referenced hash with a list of all known ports (as keys)
+# and zero as values.
+sub port_origins($$)
+{
+    my $self     = shift;
+    my $allports = shift;
+
+    while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
+        $allports->{$origin} = 0;
     }
     return $allports;
 }

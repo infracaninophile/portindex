@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: find-updated,v 1.1 2004-10-29 10:55:20 matthew Exp $
+# @(#) $Id: find-updated,v 1.2 2004-10-30 22:25:25 matthew Exp $
 #
 
 # Scan through the ports tree, and pick out all ports containing files
@@ -41,6 +41,7 @@ use strict;
 use warnings;
 use BerkeleyDB;
 use File::Find;
+use POSIX qw(strftime);
 
 use FreeBSD::Portindex::Config qw(read_config);
 use FreeBSD::Portindex::Port;
@@ -72,7 +73,9 @@ sub look_for_updated_files ($$)
                 if ( -f _ && $mtime > $refmtime ) {
                     $File::Find::prune = 1;
                     $is_updated        = 1;
-                    print STDERR "$0: found updated file: $File::Find::name\n"
+                    print STDERR "$0: ",
+                      strftime( '%Y.%m.%d.%H.%M.%S', localtime($mtime) ),
+                      " $File::Find::name\n"
                       if $::Config{Verbose};
                 }
               }
@@ -86,11 +89,12 @@ sub look_for_updated_files ($$)
 # out of port Makefiles.  Remarkably sumilar to
 # FreeBSD::Portindex::Tree::_scan_makefiles() -- that function and
 # this one should be amalgamated somehow.
-sub scan_makefiles ($$$)
+sub scan_makefiles ($$$$)
 {
     my $path     = shift;
     my $refmtime = shift;
     my $updaters = shift;
+    my $allports = shift;
     my @subdirs;
 
     # Hmmm... Using make(1) to print out the value of the variable
@@ -127,9 +131,18 @@ sub scan_makefiles ($$$)
             # Recursion means never having to obey a function
             # prototype.
 
-            &scan_makefiles( $subdir, $refmtime, $updaters );
+            &scan_makefiles( $subdir, $refmtime, $updaters, $allports );
         }
     } else {
+
+        # Keep track of which ports we've seen: anything we don't see
+        # but that is known in the cache must be a deleted or
+        # disconnected port.  Anything we do see, but that isn't known
+        # in the cache must be a new port.
+
+        print STDERR "$0: $path -- new port\n"
+          if ( $::Config{Verbose} && !exists $allports->{$path} );
+        $allports->{$path}++;
 
         # This is a real port directory, not a subdir.
 
@@ -139,11 +152,48 @@ sub scan_makefiles ($$$)
     return;
 }
 
+# Add all of the port origins known in the cache, but not visited
+# during scan_makefiles() to the list updated stuff (on the basis that
+# those must be ports that have been deleted)
+sub deleted_ports($$$)
+{
+    my $updaters = shift;
+    my $allports = shift;
+    my $refmtime = shift;
+
+    for my $origin ( keys %{$allports} ) {
+        if ( $allports->{$origin} == 0 ) {
+
+            # A port can be unhooked up from the ports system, but the
+            # directory left in the tree.  This means the cache will
+            # still contain the port data -- don't pass the name to
+            # cache-update to recheck unless that directory contains
+            # modified files.  On the other hand, the port directory
+            # can be removed completely, and cache-update should look
+            # at that directory so that it will similarly modify the
+            # cache.
+
+            if ( !-d $origin ) {
+                push @{$updaters}, $origin;
+                print STDERR "$0: $origin has been deleted\n"
+                  if $::Config{Verbose};
+            } elsif ( look_for_updated_files( $origin, $refmtime ) ) {
+                push @{$updaters}, $origin;
+                print STDERR
+                  "$0: $origin was updated but not connected to ports tree\n"
+                  if $::Config{Verbose};
+            }
+        }
+    }
+    return;
+}
+
 MAIN:
 {
     my $tree;
     my @updaters;
     my $reference_date;
+    my %allports;
 
     read_config( \%Config );
 
@@ -153,20 +203,26 @@ MAIN:
         -MasterSlaveFilename => $Config{MasterSlaveFilename},
     );
 
-    $reference_date = time() - 3 * 60 * 60;
-
     # Redirect STDOUT if required
     if ( $Config{Output} ne '-' ) {
         open STDOUT, '>', $Config{Output}
           or die "$0: Can't open output $Config{Output} -- $!\n";
     }
 
+    $tree->port_origins( \%allports );
+
     # Scan through all ports, looking for files newer than the cut-off
     # date.
 
-    scan_makefiles( $Config{PortsDir}, $reference_date, \@updaters );
+    scan_makefiles( $Config{PortsDir}, $Config{ReferenceTime}, \@updaters,
+        \%allports );
 
-    print join( "\n", @updaters ), "\n";
+    # Add all of the deleted ports to the list of stuff to update
+
+    deleted_ports( \@updaters, \%allports, $Config{ReferenceTime} );
+
+    print join( "\n", @updaters ), "\n"
+      if @updaters;
 }
 
 __END__
@@ -179,38 +235,41 @@ modified since the given date/time.
 
 =head1 SYNOPSIS
 
-B<find-updated> [B<-hvq>] [B<-c> F<dir>] [B<-C> F<file>] [B<-M> F<file>] [B<-o> F<file>] date
+B<find-updated> [B<-hvq>] [B<-c> F<dir>] [B<-C> F<file>] [B<-M> F<file>] [B<-T> F<file>] [B<-o> F<file>] date
 
 =head1 DESCRIPTION
 
-B<portindex> processes the cached port description data into the
-F<INDEX> or F<INDEX-5> files used by the ports system.  The cache
-contains a record of the one-line description of all ports generated by
-C<make describe>, indexed by the port origin directory.  It also
-contains a record of the master-slave relationship between some ports,
-but that is not used by B<portindex>.
+B<find-updated> scans through the whole ports tree and checks each
+port origin for files modified after the date given on the command
+line.  The output consists of a list of modified ports, printed one
+per line suitable for feeding into the input of B<cache-update> using
+plain format.
 
-The processing done by B<portindex> consists of two phases.  In the
-first phase the various direct dependencies listed in the raw C<make
-describe> output (FETCH_DEPENDS, EXTRACT_DEPENDS, PATCH_DEPENDS,
-BUILD_DEPENDS, RUN_DEPENDS) are accumulated with the (previously
-accumulated) RUN_DEPENDS list for each dependency target.  Thus, for
-example, the final BUILD_DEPENDS dependency list will contain
-everything that the port depends on directly to build itself, plus all
-of the dependencies required for those build tools to run.
+Only file modification times are checked, not directories.  Files
+named F<README.html> or any F<work> subdirectories are ignored.
 
-In the second phase the accumulated dependencies are converted from
-lists of port origins to lists of package names, including version
-numbers. The data is already sorted, by virtue of the way the Btree
-cache files operate, so all that remains is to format it tidily and
-print it out.
+The date specification must be given strictly in the B<cvsup>-style of
+I<yyyy.mm.dd.HH.MM.SS> with four digits for the year, and two each for
+the month, day of the month, hour (24 hour clock), minutes and
+seconds.  The local timezone is assumed.  To print out a date in the
+required format, use:
+	
+	date +%Y.%m.%d.%H.%M.%S
+
+B<find-update> does a further level of checking by comparing the list
+of port origins obtained from the cache with all of the ports it scans
+for modifications.  Any ports listed in the cache, but either not
+present in the ports tree on disk, or not referenced from the
+F<Makefile>s in the ports tree, but containing modified files will be
+added to the output.  B<cache-update> will recognise if the port has
+been deleted or not and modify the cache accordingly.
 
 =head2 Configuration Files
 
-B<portindex> shares configuration files with B<cache-init> and
-B<cache-update>.  Any configuration settings are taken from the
-following locations, where the later items on this list override the
-former:
+B<find-updated> shares configuration files with B<portindex>,
+B<cache-init> and B<cache-update>.  Any configuration settings are
+taken from the following locations, where the later items on this list
+override the former:
 
 =over 8
 
@@ -303,13 +362,13 @@ F<portindex-masterslave.db>.
 =item B<--timestamp-file>=F<file>
 
 A file within the cache directory whose modification time marks the
-last time that data was modified in or added to the cache.  =back
+last time that data was modified in or added to the cache.
 
 =item B<-o> F<file>
 
 =item B<--output>=F<file>
 
-Filename to write the generated ports INDEX file to.  Setting this to
+Filename to write the generated list of updated ports to.  Setting this to
 F<-> means output to STDOUT, which is the default.
 
 =back
@@ -362,31 +421,16 @@ Local configuration file
 
 =head1 SEE ALSO
 
-L<cache-init(1)>, L<cache-update(1)>, L<cvsup(1)>, L<ports(7)>
+L<portindex(1)>, L<cache-init(1)>, L<cache-update(1)>, L<cvsup(1)>,
+L<ports(7)>
 
 =head1 BUGS
 
-The F<INDEX> file produced by B<portindex> will not be identical to
-the result of running C<make index> from the same ports tree.
-However, the differences are mostly cosmetic and seem to have no
-practical impact.
-
-The sort order of the entries in the generated F<INDEX> file is
-generated as a side effect of the way that BDB Btree files work.  It
-is not eactly the same as produced by the sorting methods used in
-C<make index>.  For example, in B<portindex>, C<x11-clocks>,
-C<x11-fm>, C<x11-themes>, C<x11-toolkits> and C<x11-wm> will all sort
-before C<x11>, whereas usually they would sort after.
-
-B<portindex> uses the port origin as its unique key in the data cache.
-C<make index> uses the package name.  Since certain ports modify their
-package name depending on the local settings and conditions, this can
-lead to package name collisions. Such collisions are weeded out of the
-generated INDEX file by C<make index>, but not by B<portindex>.
-
-B<portindex> extracts the C<COMMENT> lines from the C<make describe>
-output exactly as shown.  C<make index> collapses multiple spaces to
-single.
+Any port which is disconnected from the ports tree rather than being
+deleted will remain listed in the cache, and so will still result in
+an entry in the F<INDEX> file.  B<find-updated> will check any known
+but disconnected ports for updates.  The only way to purge the cache
+of disconnected ports is by starting afresh using B<cache-init>.
 
 =cut
 

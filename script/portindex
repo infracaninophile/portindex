@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: portindex,v 1.27 2004-10-26 18:21:06 matthew Exp $
+# @(#) $Id: portindex,v 1.28 2004-10-30 22:25:25 matthew Exp $
 #
 # Process the cached 'make describe' output to produce an INDEX file
 # Should be a lot quicker than 'make index'.
@@ -81,7 +81,7 @@ portindex -- generate an INDEX file from cached data
 
 =head1 SYNOPSIS
 
-B<portindex> [B<-hvq>] [B<-c> F<dir>] [B<-C> F<file>] [B<-M> F<file>] [B<-o> F<file>]
+B<portindex> [B<-hvq>] [B<-c> F<dir>] [B<-C> F<file>] [B<-M> F<file>] [B<-T> F<file>] [B<-o> F<file>]
 
 =head1 DESCRIPTION
 
@@ -109,10 +109,10 @@ print it out.
 
 =head2 Configuration Files
 
-B<portindex> shares configuration files with B<cache-init> and
-B<cache-update>.  Any configuration settings are taken from the
-following locations, where the later items on this list override the
-former:
+B<portindex> shares configuration files with B<cache-init>,
+B<cache-update> and B<find-updated>.  Any configuration settings are
+taken from the following locations, where the later items on this list
+override the former:
 
 =over 8
 
@@ -264,7 +264,8 @@ Local configuration file
 
 =head1 SEE ALSO
 
-L<cache-init(1)>, L<cache-update(1)>, L<cvsup(1)>, L<ports(7)>
+L<cache-init(1)>, L<cache-update(1)>, L<find-updated(1)>, L<cvsup(1)>,
+L<ports(7)>
 
 =head1 BUGS
 
