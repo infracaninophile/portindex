@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.9 2004-10-10 20:37:18 matthew Exp $
+# @(#) $Id: Port.pm,v 1.10 2004-10-11 08:03:39 matthew Exp $
 #
 
 #
@@ -184,7 +184,8 @@ sub _chase_deps($$$)
         if ( defined $o2pn->{$origin} ) {
             push @dependencies, $o2pn->{$origin};
         } else {
-            carp __PACKAGE__, "::_chase_deps(): No PKGNAME found for $origin";
+            carp __PACKAGE__, "::_chase_deps():", $self->PKGNAME(),
+			" No PKGNAME found for ($dep) $origin";
         }
     }
     return join ' ', sort @dependencies;

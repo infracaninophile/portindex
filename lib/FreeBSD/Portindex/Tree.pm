@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.9 2004-10-10 20:37:18 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.10 2004-10-11 08:03:39 matthew Exp $
 #
 
 #
@@ -172,7 +172,8 @@ sub _scan_makefiles($$;$)
 
 # Run 'make describe' -- takes the port directory as an argument, and
 # runs make describe in it.  Changes current working directory of the
-# process: croaks if no such directory.
+# process: bails out without updating tree if no such directory or
+# other problems.
 sub make_describe($$;$)
 {
     my $self  = shift;
@@ -181,13 +182,24 @@ sub make_describe($$;$)
     my $desc;
 
     chdir $path
-      or croak __PACKAGE__, "::make_describe(): can't chdir() -- $!";
+		or do {
+			carp __PACKAGE__,
+			"::make_describe():$path: can't chdir() -- $!";
+			return $self;
+		};
     open MAKE, '/usr/bin/make describe|'
-      or croak __PACKAGE__, "::make_describe(): can't run make -- $!";
+		or do {
+			carp __PACKAGE__,
+			"::make_describe():$path: can't run make -- $!";
+			return $self;
+		};
     $desc = <MAKE>;
     close MAKE
-      or croak __PACKAGE__, "::make_describe(): ",
-      ( $! ? "close failed -- $!" : "make: bad exit status -- $?" );
+		or do {
+			carp __PACKAGE__, "::make_describe():$path: ",
+			( $! ? "close failed -- $!" : "make: bad exit status -- $?" );
+			return $self;
+		};
 
     if ( $::verbose && ref $count ) {
         if ( $$count % 1000 == 0 ) {
@@ -208,13 +220,13 @@ sub make_describe($$;$)
     #  /usr/ports/foo/bar/ -> /usr/ports/foo/bar
 
     chomp($desc);
-    if ( $desc =~ m@\.\.|/(: |\|)@ ) {
+    if ( $desc =~ m@\.\.|/( |\|)@ ) {
         my @desc = split '\|', $desc, -1;    # Don't eat trailing null fields
         for my $i ( 7 .. 11 ) {
             if ( $desc[$i] ) {
                 $desc[$i] =~ s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
                 $desc[$i] =~ s@/\w[^/]+/\.\./@/@g;
-                $desc[$i] =~ s@/(?=( |\Z))@@g;
+                $desc[$i] =~ s@/( |\Z)@$1@g;
             }
         }
         $desc = join '|', @desc;
