@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.34 2005-01-16 10:21:47 matthew Exp $
+# @(#) $Id: Config.pm,v 1.35 2005-01-16 13:43:14 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -165,15 +165,15 @@ sub read_config ($)
         do $cf;
     }
     GetOptions(@optargs) or pod2usage(2);
-    if ( $0 eq 'find-updated' && !exists $::Config{ReferenceTime} ) {
-        pod2usage(2);
-    }
     map { $_ = "$::Config{PortsDir}/$_" unless m@^/@ }
       @{ $::Config{UbiquitousMakefiles} }, @{ $::Config{EndemicMakefiles} };
     if ($help) {
         pod2usage( -exitval => 'NOEXIT', -verbose => 1 );
         show_config($config);
         exit(1);
+    }
+    if ( $0 eq 'find-updated' && !exists $::Config{ReferenceTime} ) {
+        pod2usage(2);
     }
     return $config;
 }
