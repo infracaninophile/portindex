@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.26 2004-11-02 15:10:11 matthew Exp $
+# @(#) $Id: Config.pm,v 1.27 2004-11-03 09:56:34 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -205,7 +205,7 @@ sub get_timestamp ($)
 sub scrub_environment ($)
 {
     my $config      = shift;
-    my $allowed_end = qr{^(USER|HOME|PATH|SHELL|TERM|TERMCAP)\Z};
+    my $allowed_env = qr{^(USER|HOME|PATH|SHELL|TERM|TERMCAP)\Z};
 
     for my $var ( keys %ENV ) {
         delete $ENV{$var}
