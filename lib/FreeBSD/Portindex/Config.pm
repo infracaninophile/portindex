@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.29 2004-11-05 14:40:03 matthew Exp $
+# @(#) $Id: Config.pm,v 1.30 2005-01-10 20:45:25 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -217,7 +217,7 @@ sub compare_timestamp ($$)
       or warn "$0: can't stat $file -- $!\n";
     warn "$0: WARNING: $file more recently modified than last cache update",
       " -- time for cache-init again?\n"
-      if ( !defined $f_mtime || $f_mtime > $p_mtime );
+      if ( $config->{Verbose} && ( !defined $f_mtime || $f_mtime > $p_mtime ) );
     return ( $p_mtime > $f_mtime );
 }
 
