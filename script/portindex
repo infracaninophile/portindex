@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: portindex,v 1.17 2004-10-12 13:35:36 matthew Exp $
+# @(#) $Id: portindex,v 1.18 2004-10-12 22:02:57 matthew Exp $
 #
 
 # Scan through the ports tree (or parts thereof) running 'make
@@ -41,7 +41,6 @@
 use strict;
 use warnings;
 use POSIX qw(strftime);
-use File::Find;
 
 use FreeBSD::Port;
 use FreeBSD::Ports::Tree;
@@ -55,22 +54,38 @@ MAIN:
 {
     my $tree;
     my $allports;
+    my $masterslave;
     my @updaters;
 
     $tree =
       FreeBSD::Ports::Tree->new( -Filename => '/var/tmp/portindex-cache.db' );
 
-    # Testing -- update the entries for the ports
-    # read from STDIN
+    # If one of the ports given in the @updaters list is the master of
+    # several slave ports, add all of those slave ports to the
+    # @updaters list, unconditionally.  This only works if the cache
+    # is largely complete -- it's a null op when building the cache
+    # from scratch.
+
+    $masterslave = $tree->masterslave();
+
+    # Update the entries for the ports read from STDIN, plus the
+    # slaves of any masters listed.
 
     while (<>) {
         chomp;
         push @updaters, $_;
+
+        push @updaters, @{ $masterslave->{$_} }
+          if ( defined $masterslave->{$_} );
     }
+
+    # Regenerate the FreeBSD::Port objects for all listed ports (or
+    # the whole tree beneath some directory).
 
     $tree->scan_makefiles(@updaters);
 
     # Unfreeze the cached ports data
+
     $allports = $tree->springtime();
 
     $tree->accumulate_dependencies($allports);

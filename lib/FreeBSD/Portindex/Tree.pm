@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.12 2004-10-12 13:35:36 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.13 2004-10-12 22:02:57 matthew Exp $
 #
 
 #
@@ -46,8 +46,6 @@ use Storable qw(freeze thaw);
 
 use FreeBSD::Port;
 
-our @ISA = qw(BerkeleyDB::Btree);
-
 sub new ($@)
 {
     my $caller = shift;
@@ -64,10 +62,24 @@ sub new ($@)
     $args{-Flags} = DB_CREATE
       unless defined $args{-Flags};
 
-    # Tie the hash to our cache file -- a DB btree file.
-    $self = $class->SUPER::new(%args);
+    $self = {
+        PORTS        => {},
+        MASTER_SLAVE => {},
+    };
 
-    return $self;
+    # Tie the PORTS and MASTER_SLAVE hashes to our cache file -- a DB
+    # btree file.  Keep to DBs in this cache -- the PORTS data, plus
+    # the data about master/slave relationships.
+
+    tie %{ $self->{PORTS} }, 'BerkeleyDB::Btree',
+      -Subname => "PORTS",
+      %args;
+
+    tie %{ $self->{MASTER_SLAVE} }, 'BerkeleyDB::Btree',
+      -Subname => "MASTER_SLAVE",
+      %args;
+
+    return bless $self, $class;
 }
 
 # Insert FreeBSD::Port object (ie. from 'make describe' output) into
@@ -80,7 +92,7 @@ sub insert ($$$)
     my $port   = shift;
 
     $port = freeze($port);
-    $self->db_put( $origin, $port );
+    $self->{PORTS}->{$origin} = $port;
 
     return $self;
 }
@@ -92,11 +104,11 @@ sub delete ($$)
 {
     my $self   = shift;
     my $origin = shift;
-    my $port   = '';
+    my $port;
 
-    $self->db_get( $origin, $port );
+    $port = $self->{PORTS}->{$origin};
     if ( defined $port ) {
-        $self->db_del($origin);
+        delete $self->{PORTS}->{$origin};
         $port = thaw($port);
     }
     return $port;
@@ -108,12 +120,36 @@ sub get ($$)
 {
     my $self   = shift;
     my $origin = shift;
-    my $port   = '';
+    my $port;
 
-    $self->db_get( $origin, $port );
+    $port = $self->{PORTS}->{$origin};
     $port = thaw($port)
       if ( defined $port );
     return $port;
+}
+
+# Declare that $slave origin uses $master as it's MASTERDIR.  Just an
+# assignment to a hash; hardly worth wrapping in a function really.
+sub enslave ($$$)
+{
+    my $self   = shift;
+    my $master = shift;
+    my $slave  = shift;
+
+    $self->{MASTER_SLAVE}->{$slave} = $master;
+    return $self;
+}
+
+# Remove the given $slave origin as a slave of any MASTERDIR.  Again,
+# just deleting an entry from a hash; hardly worth wrapping in a
+# function really.
+sub manumit ($$)
+{
+    my $self  = shift;
+    my $slave = shift;
+
+    delete $self->{MASTER_SLAVE}->{$slave};
+    return $self;
 }
 
 # Build the tree structure by scanning through the Makefiles of the
@@ -130,7 +166,7 @@ sub scan_makefiles($@)
     my $counter = 0;
 
     print STDERR "Processing 'make describe' output",
-      @paths == 1 ? "for path \"$path[0]\": " : ": "
+      @paths == 1 ? " for path \"$paths[0]\": " : ": "
       if ($::verbose);
     foreach my $path (@paths) {
         $self->_scan_makefiles( $path, \$counter );
@@ -162,7 +198,7 @@ sub _scan_makefiles($$;$)
         # then make sure anything corresponding to $path is deleted
         # from the cache.
 
-        if ( $self->delete($path) ) {
+        if ( $self->manumit($path)->delete($path) ) {
             carp __PACKAGE__, "::_scan_makefiles():$path: deleted from cache";
         }
         return $self;    # Leave out this directory.
@@ -203,11 +239,14 @@ sub make_describe($$;$)
     my $path    = shift;
     my $counter = shift;
     my $desc;
+    my $masterdir;
 
     chdir $path
       or do {
         carp __PACKAGE__, "::make_describe():$path: can't chdir() -- $!";
-        if ( $self->delete($path) ) {    # Make sure old cruft is deleted
+
+        # Make sure old cruft is deleted
+        if ( $self->manumit($path)->delete($path) ) {
             carp __PACKAGE__, "::make_describe():$path -- deleted from cache";
         }
         return $self;
@@ -224,7 +263,7 @@ sub make_describe($$;$)
           ( $! ? "close failed -- $!" : "make: bad exit status -- $?" );
 
         # There's a Makefile, but it's not a valid port.
-        if ( $? && $self->delete($path) ) {
+        if ( $? && $self->manumit($path)->delete($path) ) {
             carp __PACKAGE__, "::make_describe():$path -- deleted from cache";
         }
         return $self;
@@ -241,6 +280,32 @@ sub make_describe($$;$)
 
     $self->insert( $path, FreeBSD::Port->new_from_description($desc) );
 
+    # Now do almost the same again, to extract the MASTERDIR value so
+    # we can tell if this is a slave port or not.
+
+    open MAKE, '/usr/bin/make -V MASTERDIR|'
+      or do {
+        carp __PACKAGE__, "::make_describe():$path: can't run make again -- $!";
+        return $self;
+      };
+    $masterdir = <MAKE>;
+    close MAKE
+      or do {
+        carp __PACKAGE__, "::make_describe():$path: ",
+          ( $! ? "close failed -- $!" : "make: bad exit status -- $?" );
+      };
+
+    # Clean up various objectionable constructs -- see
+    # FreeBSD::Port::_clean_depends() where the same thing is done to
+    # port dependencies as well.
+
+    $masterdir =~ s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
+    $masterdir =~ s@/\w[^/]+/\.\./@/@g;
+    $masterdir =~ s@/\Z@@g;
+
+    $self->enslave( $masterdir, $path )
+      if ( $masterdir ne $path );
+
     return $self;
 }
 
@@ -251,16 +316,28 @@ sub springtime($)
 {
     my $self = shift;
     my %allports;
-    my $cursor;
-    my $origin = "";
-    my $port   = "";
 
-    $cursor = $self->db_cursor();
-    while ( $cursor->c_get( $origin, $port, DB_NEXT ) == 0 ) {
+    while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
         $port = thaw($port);
         $allports{$origin} = $port;
     }
     return \%allports;
+}
+
+# Invert all of the slave => master hash relationships, returning a
+# reference to a hash whose keys are the master port origins, and
+# whose values are refs to arrays of slave port origins.
+sub masterslave($)
+{
+    my $self = shift;
+    my %masterslave;
+
+    while ( my ( $slave, $master ) = each %{ $self->{MASTER_SLAVE} } ) {
+        $masterslave{$master} = []
+          unless defined $masterslave{$master};
+        push @{ $masterslave{$master} }, $slave;
+    }
+    return \%masterslave;
 }
 
 # For all of the known ports, accumulate the various dependencies as
@@ -299,14 +376,9 @@ sub print_index($$*)
     my $fh       = shift;
     my $counter  = 0;
 
-    my $cursor;
-    my $origin = "";
-    my $port   = "";
-
     print STDERR "Writing INDEX file: " if ($::verbose);
 
-    $cursor = $self->db_cursor();
-    while ( $cursor->c_get( $origin, $port, DB_NEXT ) == 0 ) {
+    while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
         $allports->{$origin}->print( $fh, $allports, \$counter );
     }
     print STDERR "<${counter}>\n" if ($::verbose);
