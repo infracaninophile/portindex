@@ -28,14 +28,16 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: portindex,v 1.13 2004-10-10 20:37:18 matthew Exp $
+# @(#) $Id: portindex,v 1.14 2004-10-10 20:46:39 matthew Exp $
 #
-# Read the ports index file and parse it into a series of
-# objects. Scan the ports tree for updates since the last index was
-# built, run 'make describe' for those ports, integrate the results
-# with the rest of the INDEX data, plus delete the data for any ports
-# deleted from the tree.  Print out an updated INDEX file.
 
+# Scan through the ports tree (or parts thereof) running 'make
+# describe' for each port, and caching the results.  Then combine the
+# cached descriptions into the INDEX file used by the ports system.
+# Obtaining all of the port descriptions is equivalent to running
+# 'make index'.  Incremental updates (via just updating the
+# descriptions of modified ports) will be much faster than rebuilding
+# the whole thing from scratch.
 use strict;
 use warnings;
 use POSIX qw(strftime);
@@ -55,12 +57,8 @@ MAIN:
 
     $tree =
       FreeBSD::Ports::Tree->new( -Filename => '/var/tmp/portindex-cache.db' );
-    $tree->scan_makefiles('/usr/ports');
 
-    # Scan through the Makefiles in the ports tree looking for ports
-    # which have files updated more recently than the current ports
-    # INDEX.  Compare the 'SUBDIR' links in the Makefiles with the
-    # port origins to find added or deleted ports
+    $tree->scan_makefiles('/usr/ports');
 
     $tree->print_index(*STDOUT);
 }
