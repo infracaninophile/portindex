@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-init,v 1.9 2004-10-26 17:05:20 matthew Exp $
+# @(#) $Id: cache-init,v 1.10 2004-10-26 17:18:32 matthew Exp $
 #
 
 # Build the portindex cache from scratch by scanning through the whole
@@ -86,7 +86,7 @@ MAIN:
 
     # Mark the time that the session starts
 
-    update_timestamp();
+    update_timestamp( \%Config );
 
     # Regenerate the FreeBSD::Portindex::Port objects for all listed
     # ports (or the whole tree beneath some directory).

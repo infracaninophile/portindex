@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.15 2004-10-26 17:05:20 matthew Exp $
+# @(#) $Id: Config.pm,v 1.16 2004-10-26 17:18:32 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -36,7 +36,7 @@ package FreeBSD::Portindex::Config;
 require Exporter;
 
 our @ISA       = qw(Exporter);
-our @EXPORT_OK = qw(read_config);
+our @EXPORT_OK = qw(read_config update_timestamp get_timestamp);
 our $VERSION   = 0.2;               # Beta
 
 use strict;
@@ -149,20 +149,24 @@ E_O_CONFIG
 # TimeStamp file.  This is the time of the start of any session when
 # data is written to the cache.  Only needed because a read-only
 # access to the cache updates the mtimes of all of the files.
-sub update_timestamp ()
+sub update_timestamp ($)
 {
-    open TSTMP, '>', "$::Config{CacheDir}/$::Config{TimestampFilename}"
-      or die "$0: Can't update timestamp file -- $!";
+	my $config = shift;
+	
+    open TSTMP, '>', "$config->{CacheDir}/$config->{TimestampFilename}"
+      or die "$0: Can't update timestamp $config->{TimestampFilename} -- $!";
     print TSTMP scalar localtime(), "\n";
     close TSTMP;
     return;
 }
 
 # Return the mtime of the timestamp file
-sub get_timestamp ()
+sub get_timestamp ($)
 {
-    return ( stat "$Config{CacheDir}/$Config{TimestampFilename}" )[9]
-      or die "$0: can't stat $Config{TimestampFilename} -- $!";
+	my $config = shift;
+	
+    return ( stat "$config->{CacheDir}/$config->{TimestampFilename}" )[9]
+      or die "$0: can't stat $config->{TimestampFilename} -- $!";
 }
 
 1;
