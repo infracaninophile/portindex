@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.30 2005-01-10 20:45:25 matthew Exp $
+# @(#) $Id: Config.pm,v 1.31 2005-01-10 22:39:29 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -37,7 +37,7 @@ require Exporter;
 
 our @ISA       = qw(Exporter);
 our @EXPORT_OK =
-  qw(read_config update_timestamp get_timestamp compare_timestamp
+  qw(read_config update_timestamp get_timestamp compare_timestamps
   scrub_environment );
 our $VERSION = '1.1';    # Release
 
@@ -62,18 +62,21 @@ sub read_config ($)
     my $config = shift;
     my $help;
     my @optargs;
+    my $important_makefiles_seen = 0;
 
     %{$config} = (
-        CacheDir          => "/var/db/$::pkgname",
-        CacheFilename     => "$::pkgname-cache.db",
-        ScrubEnvironment  => 0,
-        Input             => '-',
-        Format            => 'cvsup-output',
-        Output            => '-',
-        PortsDir          => '/usr/ports',
-        PropagationDelay  => 3600,                     # 1 hour
-        TimestampFilename => "$::pkgname-timestamp",
-        Verbose           => 1,
+        CacheDir           => "/var/db/$::pkgname",
+        CacheFilename      => "$::pkgname-cache.db",
+        ScrubEnvironment   => 0,
+        Input              => '-',
+        Format             => 'cvsup-output',
+        Output             => '-',
+        PortsDir           => '/usr/ports',
+        PropagationDelay   => 3600,                     # 1 hour
+        TimestampFilename  => "$::pkgname-timestamp",
+        Verbose            => 1,
+        ImportantMakefiles =>
+          [ "/usr/ports/Mk/bsd.port.mk", "/etc/make.conf", ],
     );
     @optargs = (
         'cache-dir|c=s'      => \$config->{CacheDir},
@@ -96,8 +99,20 @@ sub read_config ($)
 
             $config->{Format} = $optvalue;
         },
-        'propagation-delay=i'  => \$config->{PropagationDelay},
-        'scrub-environment|s!' => \$config->{ScrubEnvironment},
+        'propagation-delay=i'     => \$config->{PropagationDelay},
+        'scrub-environment|s!'    => \$config->{ScrubEnvironment},
+        'important-makefile|M=s@' => sub {
+            my $optname  = shift;
+            my $optvalue = shift;
+
+            # Discard built-in defaults for this list of Makefiles if
+            # any are given on the command-line
+
+            $config->{ImportantMakefiles} = []
+              unless $important_makefiles_seen++;
+
+            push @{ $config->{ImportantMakefiles} }, $optvalue;
+        },
       )
       if ( $0 eq 'cache-update' );
     push @optargs,
@@ -154,6 +169,7 @@ sub read_config ($)
 sub show_config ($)
 {
     my $config = shift;
+    my $im_fmt = "    Important Makefiles (cache-update) ........... ";
 
     print <<"E_O_CONFIG";
 
@@ -172,8 +188,12 @@ Current Configuration:
     Output (portindex, find-updated) ............. $config->{Output}
     TimestampFilename ............................ $config->{TimestampFilename}
     Verbose ...................................... $config->{Verbose}
-
 E_O_CONFIG
+    for my $im ( @{ $config->{ImportantMakefiles} } ) {
+        print $im_fmt, $im, "\n";
+        $im_fmt = ' ' x length $im_fmt
+          unless $im_fmt =~ m/^ +$/;
+    }
     return;
 }
 
@@ -204,21 +224,26 @@ sub get_timestamp ($)
 # Return true if the portindex timestamp is *newer* than the file
 # timestamp, false otherwise -- in which case, it's probably time to
 # re-run cache-init.
-sub compare_timestamp ($$)
+sub compare_timestamps ($)
 {
     my $config = shift;
-    my $file   = shift;
 
     my $p_mtime;
     my $f_mtime;
+    my $was_updated = 0;
 
     $p_mtime = get_timestamp($config);
-    $f_mtime = ( stat $file )[9]
-      or warn "$0: can't stat $file -- $!\n";
-    warn "$0: WARNING: $file more recently modified than last cache update",
-      " -- time for cache-init again?\n"
-      if ( $config->{Verbose} && ( !defined $f_mtime || $f_mtime > $p_mtime ) );
-    return ( $p_mtime > $f_mtime );
+
+    for my $file ( @{ $config->{ImportantMakefiles} } ) {
+        $f_mtime = ( stat $file )[9]
+          or warn "$0: can't stat $file -- $!\n";
+        warn "$0: WARNING: $file more recently modified than last ",
+          "cache update -- time for cache-init again?\n"
+          if ( $config->{Verbose}
+            && ( !defined $f_mtime || $f_mtime > $p_mtime ) );
+        $was_updated += ( $p_mtime > $f_mtime );
+    }
+    return $was_updated;
 }
 
 # Clear everything out of the environment except for some standard

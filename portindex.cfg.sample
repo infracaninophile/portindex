@@ -1,6 +1,6 @@
 # This file contains -*- perl -*- code
 #
-# @(#) $Id: portindex.cfg.sample,v 1.8 2004-11-02 15:24:02 matthew Exp $
+# @(#) $Id: portindex.cfg.sample,v 1.9 2005-01-10 22:39:29 matthew Exp $
 #
 # Sample configuration file for portindex, cache-init, cache-update
 #
@@ -80,6 +80,16 @@
 ## the last time any updates to the cache were made.
 
 # $::Config{TimestampFile} = 'portindex-timestamp';
+
+## cache-update (-M, --important-makefile): List of Makefiles
+## ubiquitously included by all or the vast majority of ports.  If any
+## Makefile on this list had been modified since the last time the
+## cache was updated, then it might be preferable to re-initialise the
+## cache from scratch using cache-init rather than trying to do an
+## incremental update.  Default: /usr/ports/Mk/bsd.port.mk,
+## /etc/make.conf
+
+# $::Config{ImportantMakefiles} = [ '/usr/ports/Mk/bsd.port.mk', '/etc/make.conf', ];
 
 ##
 ## That's All Folks!

@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.23 2004-11-05 14:32:09 matthew Exp $
+# @(#) $Id: cache-update,v 1.24 2005-01-10 22:39:29 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -60,7 +60,7 @@ use strict;
 use warnings;
 
 use FreeBSD::Portindex::Config qw(read_config update_timestamp get_timestamp
-  compare_timestamp scrub_environment);
+  compare_timestamps scrub_environment);
 use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::Tree;
 
@@ -201,10 +201,7 @@ MAIN:
     # resulting INDEX. Run 'make -V .MAKEFILE_LIST | tr \ \\n' in some
     # port directories to see the full story.
 
-    for my $important_makefile (qw( /usr/ports/Mk/bsd.port.mk /etc/make.conf ))
-    {
-        compare_timestamp( \%Config, $important_makefile );
-    }
+    compare_timestamps( \%Config );
 
     scrub_environment( \%Config )
       if $Config{ScrubEnvironment};
@@ -288,7 +285,7 @@ cache-update -- Incrementally update the portindex cache
 
 =head1 SYNOPSIS
 
-B<cache-update> [B<-hvqs>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-f> I<format>] [B<-p> num] [B<-i> F<file>]
+B<cache-update> [B<-hvqs>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-f> I<format>] [B<-p> num] [B<-i> F<file>] [B<-M> F<file>]...
 
 =head1 DESCRIPTION
 
@@ -364,7 +361,7 @@ considered.
 
 =item *
 
-Modifications to ubiquitously included makefiles such as
+Modifications to ubiquitously included important makefiles such as
 F</etc/make.conf> or F</usr/ports/Mk/bsd.port.mk>.  B<cache-update>
 will compare timestamps on these files with the cache timestamp and
 attempt to warn you when a re-initialisation might be a good idea.
@@ -373,6 +370,11 @@ included any time B<make> is invoked within the ports system, but no
 warnings will be generated for those files. They rarely change, and
 when they do, the changes are unlikely to have any material effect on
 the ports F<INDEX>.
+
+The list of important makefiles to test in this manner can be set
+using the C<--important-makefile> command line option: repeat the
+option to add more makefiles to the list, or by the
+C<ImportantMakefiles> configuration file setting.
 
 =item *
 
@@ -545,6 +547,19 @@ keeps a record of those.
 Empirically a value of 3600 (1 hour) seems to be a reasonable first
 choice, but this may need to be adjusted depending on how frequently
 your cvsup server updates itself.
+
+=item B<-M> F<file>
+
+=item B<--important-makefile> F<file>
+
+Compare the modification timestamp on this file with the last time
+that B<cache-update> was run, and indicate that B<cache-init> should
+be run instead of B<cache-update>.  Output is suppressed if running in
+C<--quiet> mode.  This test is meant to pick out ubiquitously included
+makefiles such as F</usr/ports/Mk/bsd.port.mk>, where any modification
+would affect the majority of ports.  Repeat this option to add more
+important makefiles to the list of files to have their modification
+times compared to the last cache update time.  manner.
 
 =back
 
