@@ -1,0 +1,78 @@
+# This file contains -*- perl -*- code
+#
+# @(#) $Id: portindex.cfg.sample,v 1.1 2004-10-19 15:00:47 matthew Exp $
+#
+# Sample configuration file for portindex, cache-init, cache-update
+#
+
+## Copy this file to any of /usr/local/etc/portindex.cfg,
+## ${HOME}/.portindexrc or ./.portindexrc (ie. the CWD where any of
+## the portindex processes are run), and edit the configuration
+## settings to taste, to set the appropriate entries in the global
+## %Config hash.
+
+## Available configuration and command line options are listed,
+## indicating which programs they affect.  The default values are
+## shown, commented out.  All options can be overriden from the
+## command line.
+
+## cache-init (--ports-dir): Base directory of the ports tree, same as
+## the PORTSDIR environment variable.
+
+# $::Config{PortsDir} = '/usr/ports';
+
+## all (--cache-dir): Directory where BDB btree files containing the
+## cache and master-slave relationships are stored.
+
+# $::Config{CacheDir} = '/var/tmp';
+
+## all (--cache-file): BDB btree file within the CacheDir containing
+## the cached 'make describe' output.
+
+# $::Config{CacheFilename} = 'portindex-cache.db';
+
+## all (--master-slave-file): BDB btree file within the CacheDir
+## containg a record of master/slave relationships between ports
+
+# $::Config{MasterSlaveFilename} = 'portindex-masterslave.db';
+
+## all (--verbose, --noverbose, --quiet): Boolean -- turn on verbose
+## output if true, turn off if false or undef
+
+# $::Config{Verbose} = 1;
+
+## cache-update (--input): Filename to read input from, '-' for STDIN
+
+# $::Config{Input} = '-';
+
+## portindex (--output): Filename to write the INDEX data out to, '-'
+## for STDOUT
+
+# $::Config{Output} = '-';
+
+## cache-update (--input-format, --format): What format to treat the
+## input data as.  Choices are:
+##    plain           -- a list of port directory origins, one per line
+##    cvsup-output    -- Output from running cvsup(1) with at least -L1
+##    cvsup-checkouts -- The cvsup(1) checkouts or list file
+##
+
+## If the cvsup-checkouts format is chosen, the input file will
+## usually be /usr/sup/ports-all/checkouts.cvs:. under FreeBSD 4.x, or
+## /var/db/sup/ports-all/checkouts.cvs:. under FreeBSD 5.x
+
+# $::Config{InputFormat} = 'cvsup-output'
+
+## cache-update (--propagation-delay): A fudge factor to account for
+## the time required between a change being committed to the FreeBSD
+## CVS repository, and when that change gets propagated out to the
+## local cvsup(1) server -- how many seconds older than the last time
+## cache-update was run can the mtime of files checked out in the tree
+## be and have them still considered newly updated?  About 3600
+## seconds (1 hour) seems to be a good value.
+
+# $::Config{PropagationDelay} = 60 * 60;
+
+##
+## That's All Folks!
+##
