@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.19 2004-10-19 22:06:24 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.20 2004-10-19 23:07:13 matthew Exp $
 #
 
 #
@@ -81,8 +81,8 @@ sub new ($@)
     # one DB per file.
 
     $self->{ENV} = new BerkeleyDB::Env
-      -Flags      => DB_INIT_LOCK,
-      -LockDetect => DB_LOCK_DEFAULT,
+      -Flags => DB_CREATE | DB_INIT_MPOOL | DB_INIT_LOCK,
+      -Home  => $::Config{CacheDir},
       %{ $args{-Env} };
     delete $args{-Env};
 
@@ -95,14 +95,14 @@ sub new ($@)
       %args,
       -Filename => $portscachefile
       or croak __PACKAGE__,
-      "::new(): Can't access $portscachefile -- $!";
+      "::new(): Can't access $portscachefile -- $! $BerkeleyDB::Error";
 
     tie %{ $self->{MASTERSLAVE} }, 'BerkeleyDB::Btree',
       -Env => $self->{ENV},
       %args,
       -Filename => $masterslavefile
       or croak __PACKAGE__,
-      "::new(): Can't access $masterslavefile -- $!";
+      "::new(): Can't access $masterslavefile -- $! $BerkeleyDB::Error";
 
     return bless $self, $class;
 }
