@@ -1,0 +1,52 @@
+#!/usr/bin/perl -w
+
+# @(#) $Id: crunch-cvsup-checkouts,v 1.1 2004-10-14 15:43:47 matthew Exp $
+#
+# Extract all of the entries from the cvsup checkouts file that
+# correspond to files with a mod time after an hour before the last
+# time the portsindex-cache was updated.
+
+use strict;
+
+MAIN:
+{
+    my $type;
+    my $name;
+
+    #my $tag;					# Usually '.' for ports
+    #my $date;					# Usually '.'
+    my $rcsAttr;    # Attributes of checked out file
+    my @attrs;
+
+    my $t;
+
+    # Allow 1 hours' slop on times, to allow for propagation delays
+    $t = ( stat('/var/tmp/portindex-cache.db') )[9] - 3600;    # mtime
+
+    while (<>) {
+        chomp;
+
+        # Select only the regular files -- ones labelled C exist in
+        # the checked out tree, ones labelled c do not.
+
+        if (m/^[cC] /) {
+            my @rcsAttr;
+
+            ( $type, $name, undef, undef, $rcsAttr, undef ) = split ' ', $_, 6;
+
+            # Unpick the $rcsAttr record.
+
+            @rcsAttr = split '#', $rcsAttr;
+            while ( $rcsAttr[0] ) {
+                my $n = shift @rcsAttr;
+
+                push @attrs, substr $rcsAttr[0], 0, $n, '';
+            }
+
+            print "$type $name --> ", join( " ", @attrs ), "\n"
+              if ( $attrs[2] > $t );
+            @attrs = ();
+        }
+    }
+}
+
