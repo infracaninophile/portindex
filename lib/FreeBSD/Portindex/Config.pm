@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.4 2004-10-17 09:57:13 matthew Exp $
+# @(#) $Id: Config.pm,v 1.5 2004-10-19 10:51:34 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -66,12 +66,27 @@ sub read_config ($)
         CacheFilename       => "$::pkgname-cache.db",
         MasterSlaveFilename => "$::pkgname-masterslave.db",
         Verbose             => 1,
+        Input               => '-',
         Output              => '-',
+        InputFormat         => 'cvsup-output',
+        PropagationDelay    => 3600,                          # 1 hour
     );
     @optargs = (
         'help|?'   => \$help,
         'verbose!' => \$config->{Verbose},
         'quiet'    => sub { $config->{Verbose} = 0 },
+        'input=s'  => \$config->{Input},
+        'output=s' => \$config->{Output},
+        'input-format|format=s' => sub {
+            my $optname  = shift;
+            my $optvalue = shift;
+
+            die "$0: Option --$optname unrecognised argument: $optvalue\n"
+              unless $optvalue =~ m@^plain|cvsup-(output|checkouts)\Z@;
+
+            $config->{InputFormat} = $optvalue;
+        },
+        'propagation-delay' => \$config->{PropagationDelay},
     );
 
     for my $cf (

@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.6 2004-10-17 19:12:42 matthew Exp $
+# @(#) $Id: cache-update,v 1.7 2004-10-19 10:51:34 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -75,7 +75,7 @@ $0 =~ s@.*/@@;    # Script name for error messages
 
 # Just read a list of port origins, one per line, from the given file
 # handle (default STDIN).
-sub read_origin_list (*$)
+sub read_plain (*$)
 {
     my $FH      = shift;
     my $updates = shift;
@@ -116,7 +116,7 @@ sub read_cvsup_output (*$)
 # cutoff point should be about 1 hour earlier than the last time
 # cache-update or cache-init was run, as determined by the mtime of
 # the DB cache files.
-sub read_cvs_checkouts (*$$)
+sub read_cvsup_checkouts (*$$)
 {
     my $FH         = shift;
     my $updates    = shift;
@@ -193,6 +193,25 @@ MAIN:
         -MasterSlaveFilename => $Config{MasterSlaveFilename},
     );
 
+    # Read the list of ports to re-check and update for the
+    # appropriate input format
+
+    if ( $Config{InputFormat} eq 'plain' ) {
+        read_plain( *STDIN, \@updates );
+    } elsif ( $Config{InputFormat} eq 'cvsup-output' ) {
+        read_cvsup_output( *STDIN, \@updates );
+    } elsif ( $Config{InputFormat} eq 'cvsup-checkouts' ) {
+		my $cutofftime;
+
+		$cutofftime = ( stat "$Config{CacheDir}/$Config{CacheFilename}" )[9]
+			or die "$0: can't stat $Config{CacheFilename} -- $!";
+		$cutofftime -= $Config{PropagationDelay};
+		
+        read_cvsup_checkouts( *STDIN, \@updates, $cutofftime );
+    } else {
+        die "$0: InputFormat \'$Config{InputFormat}\' unrecognised";
+    }
+
     # If one of the ports given in the @updaters list is the master of
     # several slave ports, add all of those slave ports to the
     # @updaters list, unconditionally.  This only works if the cache
@@ -203,14 +222,8 @@ MAIN:
     # Update the entries for the ports read from STDIN, plus the
     # slaves of any masters listed.
 
-    while (<>) {
-        chomp;
-        $seen{$_}++;
-        push @updates, $_;
-
-        push @updates, grep { !$seen{$_}++ } @{ $masterslave{$_} }
-          if ( defined $masterslave{$_} );
-    }
+    @updates = grep { !$seen{$_}++ } @updates,
+      map { @{ $masterslave{$_} || [] } } @updates;
 
     # Regenerate the FreeBSD::Port objects for all listed ports
 
