@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.15 2004-10-16 19:55:15 matthew Exp $
+# @(#) $Id: Port.pm,v 1.16 2004-10-19 22:06:24 matthew Exp $
 #
 
 #
@@ -187,7 +187,13 @@ sub accumulate_dependencies ($$;$)
             my %seen = ();
 
             for my $dep ( @{ $self->$whatdep() } ) {
-                $allports->{$dep}->accumulate_dependencies($allports);
+                if ( defined $allports->{$dep} ) {
+                    $allports->{$dep}->accumulate_dependencies($allports);
+                } else {
+                    carp __PACKAGE__, "::accumulate_dependencies: ",
+                      $self->PKGNAME(), " claims to have a dependency on $dep,",
+                      " but no such port is known";
+                }
             }
 
             grep { $seen{$_}++ } @{ $self->$whatdep() };
