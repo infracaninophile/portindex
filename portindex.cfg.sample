@@ -1,6 +1,6 @@
 # This file contains -*- perl -*- code
 #
-# @(#) $Id: portindex.cfg.sample,v 1.4 2004-10-26 17:05:20 matthew Exp $
+# @(#) $Id: portindex.cfg.sample,v 1.5 2004-10-31 11:29:30 matthew Exp $
 #
 # Sample configuration file for portindex, cache-init, cache-update
 #
@@ -24,7 +24,7 @@
 ## all (-c, --cache-dir): Directory where BDB btree files containing
 ## the cache and master-slave relationships are stored.
 
-# $::Config{CacheDir} = '/var/tmp';
+# $::Config{CacheDir} = '/var/tmp/portindex';
 
 ## all (-C, --cache-file): BDB btree file within the CacheDir
 ## containing the cached 'make describe' output.
