@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.25 2004-11-02 11:58:13 matthew Exp $
+# @(#) $Id: Config.pm,v 1.26 2004-11-02 15:10:11 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -36,8 +36,9 @@ package FreeBSD::Portindex::Config;
 require Exporter;
 
 our @ISA       = qw(Exporter);
-our @EXPORT_OK = qw(read_config update_timestamp get_timestamp);
-our $VERSION   = '1.0';                                            # Release
+our @EXPORT_OK =
+  qw(read_config update_timestamp get_timestamp scrub_environment);
+our $VERSION = '1.0';    # Release
 
 use strict;
 use warnings;
@@ -64,6 +65,7 @@ sub read_config ($)
     %{$config} = (
         CacheDir          => "/var/db/$::pkgname",
         CacheFilename     => "$::pkgname-cache.db",
+        ScrubEnvironment  => 0,
         Input             => '-',
         Format            => 'cvsup-output',
         Output            => '-',
@@ -93,10 +95,15 @@ sub read_config ($)
 
             $config->{Format} = $optvalue;
         },
-        'propagation-delay=i' => \$config->{PropagationDelay},
+        'propagation-delay=i'  => \$config->{PropagationDelay},
+        'scrub-environment|s!' => \$config->{ScrubEnvironment},
       )
       if ( $0 eq 'cache-update' );
-    push @optargs, ( 'ports-dir=s' => \$config->{PortsDir}, )
+    push @optargs,
+      (
+        'ports-dir=s'          => \$config->{PortsDir},
+        'scrub-environment|s!' => \$config->{ScrubEnvironment},
+      )
       if ( $0 eq 'cache-init' );
     push @optargs, (
         '<>' => sub {
@@ -121,7 +128,7 @@ sub read_config ($)
     for my $cf (
         "/usr/local/etc/${main::pkgname}.cfg",
         (
-            $> == 0				# Don't let root be trojanned
+            $> == 0    # Don't let root be trojanned
             ? ()
             : ( "$ENV{HOME}/.${main::pkgname}rc", "./.${main::pkgname}rc" )
         )
@@ -154,15 +161,16 @@ Current Configuration:
     Settings after reading all configuration files and parsing the
     command line.  They apply to all programs, except as marked.
 
-    PortsDir (cache-init) ............. $config->{PortsDir}
-    CacheDir .......................... $config->{CacheDir}
-    CacheFilename ..................... $config->{CacheFilename}
-    Input (cache-update) .............. $config->{Input}
-    Format (cache-update) ............. $config->{Format}
-    PropagationDelay (cache-update) ... $config->{PropagationDelay}
-    Output (portindex, find-updated) .. $config->{Output}
-    TimestampFilename ................. $config->{TimestampFilename}
-    Verbose ........................... $config->{Verbose}
+    PortsDir (cache-init) ........................ $config->{PortsDir}
+    CacheDir ..................................... $config->{CacheDir}
+    CacheFilename ................................ $config->{CacheFilename}
+    ScrubEnvironment (cache-init, cache-update) .. $config->{ScrubEnvironment}
+    Input (cache-update) ......................... $config->{Input}
+    Format (cache-update) ........................ $config->{Format}
+    PropagationDelay (cache-update) .............. $config->{PropagationDelay}
+    Output (portindex, find-updated) ............. $config->{Output}
+    TimestampFilename ............................ $config->{TimestampFilename}
+    Verbose ...................................... $config->{Verbose}
 
 E_O_CONFIG
     return;
@@ -190,6 +198,20 @@ sub get_timestamp ($)
 
     return ( stat "$config->{CacheDir}/$config->{TimestampFilename}" )[9]
       or die "$0: can't stat $config->{TimestampFilename} -- $!";
+}
+
+# Clear everything out of the environment except for some standard
+# variables.
+sub scrub_environment ($)
+{
+    my $config      = shift;
+    my $allowed_end = qr{^(USER|HOME|PATH|SHELL|TERM|TERMCAP)\Z};
+
+    for my $var ( keys %ENV ) {
+        delete $ENV{$var}
+          unless $var =~ m/$allowed_env/;
+    }
+    return;
 }
 
 1;

@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.19 2004-11-02 11:58:13 matthew Exp $
+# @(#) $Id: cache-update,v 1.20 2004-11-02 15:10:11 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -59,7 +59,8 @@
 use strict;
 use warnings;
 
-use FreeBSD::Portindex::Config qw(read_config update_timestamp get_timestamp);
+use FreeBSD::Portindex::Config qw(read_config update_timestamp get_timestamp
+  scrub_environment);
 use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::Tree;
 
@@ -186,6 +187,9 @@ MAIN:
 
     read_config( \%Config );
 
+    scrub_environment( \%Config )
+      if $Config{ScrubEnvironment};
+
     # Reopen STDIN if required
     if ( $Config{Input} ne '-' ) {
         open STDIN, '<', $Config{Input}
@@ -259,7 +263,7 @@ cache-update -- Incrementally update the portindex cache
 
 =head1 SYNOPSIS
 
-B<cache-update> [B<-hvq>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-f> I<format>] [B<-p> num] [B<-i> F<file>]
+B<cache-update> [B<-hvqs>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-f> I<format>] [B<-p> num] [B<-i> F<file>]
 
 =head1 DESCRIPTION
 
@@ -319,6 +323,57 @@ from within the ports tree (ie. under F</usr/ports>) are considered.
 in certain circumstances it may be more advantageous to run
 B<cache-init> rather than B<cache-update>; for instance whenever
 F</usr/ports/Mk/bsd.port.mk> is modified.
+
+=head2 When to run B<cache-init> and when to run B<cache-update>
+
+Over time, successively updating the F<INDEX> file via B<cache-update>
+can inevitably produce minor inconsistencies and an F<INDEX> file that
+diverges slowly from equivalence to what C<make index> would produce.
+For best results it will occasionally be necessary to re-run
+B<cache-init> and rebuild the cache from scratch.  Certain changes to
+your system should act as warning flags as to when this needs to be
+considered.
+
+=over 8
+
+=item *
+
+Modifications to ubiquitously included makefiles such as
+F</etc/make.conf> or F</usr/ports/Mk/bsd.port.mk>.  B<cache-update>
+will compare timestamps on these files with the cache timestamp and
+attempt to warn you when a re-initialisation might be a good idea.
+Technically there are several other makefiles which will be included
+any time B<make> is invoked within the ports system, but no warnings
+will be generated for those files. They rarely change, and when they
+do, the changes are unlikely to have any material effect on the ports.
+
+=item *
+
+Modifying the environment between successive runs of B<cache-update>.
+B<make> variables can often be set from the environment, although
+using F</etc/make.conf> would generally be a better idea.  There are
+two things that can be done to prevent this causing problems.
+Firstly, the configuration file can contain live I<Perl> code: you can
+modify the environment of the processes by manipulating the global
+C<%ENV> hash from within it.  Secondly both B<cache-init> and
+B<cache-update> obey a C<--scrub-environment> command line flag,
+and the equivalent C<ScrubEnvironment> configuration file setting,
+which deletes everything from the environment except for certain
+standard variables.  As command line options generally override
+configuration files, C<--scrub-environment> will trump modifying
+C<%ENV>.
+
+=item *
+
+Installing certain software packages.  For instance, the simple
+presence of the Gnome libraries on the system will cause many packages
+to add a C<-gnome> suffix to their names.  The F<editors/vim> port is
+a good example of this behaviour.  Unfortunately it is practically
+impossible to detect such changes and automatically update affected
+ports.  Automatic linking againt the Gnome libraries is not the only
+example of such mutable configuration.
+
+=back
 
 =head2 Configuration Files
 
@@ -385,6 +440,19 @@ Turn on verbose output printed to C<STDERR>.
 Turn off verbose output to C<STDERR>.  Using both the B<-v> amd B<-q>
 options together does not make any sense, but neither does it generate
 an error.  The last mentioned of the two options will prevail.
+
+=item B<-s>
+
+=item B<--scrub-environment>
+
+Delete all environment variables except for C<$USER>, C<$HOME>,
+C<$PATH>, C<$SHELL>, C<$TERM> and C<$TERMCAP>.  This provides a
+standardized environment for C<make describe> and other sub-processes.
+
+=item B<--noscrub-environment>
+
+Turn off environment scrubbing.  All environment variables will be
+passed through intact to C<make describe> and other sub-processes.
 
 =item B<-c> F<dir>
 
