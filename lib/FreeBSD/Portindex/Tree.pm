@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.10 2004-10-11 08:03:39 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.11 2004-10-11 12:55:07 matthew Exp $
 #
 
 #
@@ -42,6 +42,7 @@ use strict;
 use warnings;
 use Carp;
 use BerkeleyDB;    # BDB version 2, 3, 4, 41, 42
+use Storable qw(freeze thaw);
 
 use FreeBSD::Port;
 
@@ -69,33 +70,36 @@ sub new ($@)
     return $self;
 }
 
-# Insert port description (ie. 'make describe' output) into ports tree
-# structure according to the ORIGIN --
+# Insert FreeBSD::Port object (ie. from 'make describe' output) into
+# ports tree structure according to the ORIGIN -- freeze the object
+# for external storage.
 sub insert ($$$)
 {
     my $self   = shift;
     my $origin = shift;
-    my $desc   = shift;
+    my $port   = shift;
 
-    $self->db_put( $origin, $desc );
+    $port = freeze($port);
+    $self->db_put( $origin, $port );
 
     return $self;
 }
 
-# Return the cached port description for a given origin path, deleting
-# the version from the tree hash.  Return undef if port not found in
-# tree
+# Return the cached FreeBSD::Port object for a given origin path,
+# deleting the frozen version from the tree hash.  Return undef if
+# port not found in tree
 sub delete ($$)
 {
     my $self   = shift;
     my $origin = shift;
-    my $desc;
+    my $port;
 
-    $self->db_get( $origin, $desc );
-    if ( defined $desc ) {
+    $self->db_get( $origin, $port );
+    if ( defined $port ) {
         $self->db_del($origin);
     }
-    return $desc;
+    $port = thaw($port);
+    return $port;
 }
 
 # Return the cached port description for a given origin path.  Return
@@ -104,11 +108,11 @@ sub get ($$)
 {
     my $self   = shift;
     my $origin = shift;
-    my $desc;
+    my $port   = '';
 
-    $self->db_get( $origin, $desc );
-
-    return $desc;
+    $self->db_get( $origin, $port );
+    $port = thaw($port);
+    return $port;
 }
 
 # Build the tree structure by scanning through the Makefiles of the
@@ -154,7 +158,7 @@ sub _scan_makefiles($$;$)
       };
     while (<MAKEFILE>) {
         push @subdirs, "${path}/${1}"
-          if (m/^\s*SUBDIR\s+\+=\s+(\S+)\s*$/);
+          if (m/^\s*SUBDIR\s+\+=\s+([\S-]+)\s*$/);
     }
     close MAKEFILE;
 
@@ -182,24 +186,22 @@ sub make_describe($$;$)
     my $desc;
 
     chdir $path
-		or do {
-			carp __PACKAGE__,
-			"::make_describe():$path: can't chdir() -- $!";
-			return $self;
-		};
+      or do {
+        carp __PACKAGE__, "::make_describe():$path: can't chdir() -- $!";
+        return $self;
+      };
     open MAKE, '/usr/bin/make describe|'
-		or do {
-			carp __PACKAGE__,
-			"::make_describe():$path: can't run make -- $!";
-			return $self;
-		};
+      or do {
+        carp __PACKAGE__, "::make_describe():$path: can't run make -- $!";
+        return $self;
+      };
     $desc = <MAKE>;
     close MAKE
-		or do {
-			carp __PACKAGE__, "::make_describe():$path: ",
-			( $! ? "close failed -- $!" : "make: bad exit status -- $?" );
-			return $self;
-		};
+      or do {
+        carp __PACKAGE__, "::make_describe():$path: ",
+          ( $! ? "close failed -- $!" : "make: bad exit status -- $?" );
+        return $self;
+      };
 
     if ( $::verbose && ref $count ) {
         if ( $$count % 1000 == 0 ) {
@@ -210,58 +212,75 @@ sub make_describe($$;$)
     }
     $$count++;
 
-    # The make describe line may contain several undesirable
-    # constructs in the list of dependency origins.  Strip these
-    # out as follows:
-    #
-    #  Newline at EOS.
-    #  /usr/ports/foo/bar/../../baz/blurfl -> /usr/ports/baz/blurfl
-    #  /usr/ports/foo/bar/../quux -> /usr/ports/foo/quux
-    #  /usr/ports/foo/bar/ -> /usr/ports/foo/bar
+    $self->insert( $path, FreeBSD::Port->new_from_description($desc) );
 
-    chomp($desc);
-    if ( $desc =~ m@\.\.|/( |\|)@ ) {
-        my @desc = split '\|', $desc, -1;    # Don't eat trailing null fields
-        for my $i ( 7 .. 11 ) {
-            if ( $desc[$i] ) {
-                $desc[$i] =~ s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
-                $desc[$i] =~ s@/\w[^/]+/\.\./@/@g;
-                $desc[$i] =~ s@/( |\Z)@$1@g;
-            }
-        }
-        $desc = join '|', @desc;
+    return $self;
+}
+
+# Unpack all of the frozen FreeBSD::Ports objects from the btree
+# storage.  Return a reference to a hash containing refs to all port
+# objects.
+sub springtime($)
+{
+    my $self = shift;
+    my %allports;
+    my $cursor;
+    my $origin = "";
+    my $port   = "";
+
+    $cursor = $self->db_cursor();
+    while ( $cursor->c_get( $origin, $port, DB_NEXT ) == 0 ) {
+        $port = thaw($port);
+        $allports{$origin} = $port;
     }
-    $self->insert( $path, $desc );
+    return \%allports;
+}
+
+# For all of the known ports, accumulate the various dependencies as
+# required for the INDEX file.  See
+# FreeBSD::Port::accumulate_dependencies() for details.
+sub accumulate_dependencies($$)
+{
+    my $self     = shift;
+    my $allports = shift;
+    my $counter  = 1;
+
+    print STDERR "Accumulating dependency information: " if ($::verbose);
+    for my $port ( values %{$allports} ) {
+        $port->accumulate_dependencies($allports);
+
+        if ($::verbose) {
+            if ( $counter % 1000 == 0 ) {
+                print STDERR "[$counter]";
+            } elsif ( $counter % 100 == 0 ) {
+                print STDERR '.';
+            }
+            $counter++;
+        }
+    }
+    print STDERR "<${counter}>\n" if ($::verbose);
 
     return $self;
 }
 
 # Print out whole INDEX file sorted by ORIGIN using $tree hash: since
 # this is stored as a BerkeleyDB Btree, it comes out already sorted
-sub print_index($*)
+sub print_index($$*)
 {
-    my $self    = shift;
-    my $fh      = shift;
-    my $counter = 1;
+    my $self     = shift;
+    my $allports = shift;
+    my $fh       = shift;
+    my $counter  = 1;
 
     my $cursor;
     my $origin = "";
-    my $desc   = "";
-    my $port;
-    my %o2pn;    # ORIGIN to PKGNAME translation
-
-    $cursor = $self->db_cursor();
-    while ( $cursor->c_get( $origin, $desc, DB_NEXT ) == 0 ) {
-        ( $o2pn{$origin} ) = ( $desc =~ m@^([^|]+)\|@ );
-    }
+    my $port   = "";
 
     print STDERR "Writing INDEX file: " if ($::verbose);
 
     $cursor = $self->db_cursor();
-    while ( $cursor->c_get( $origin, $desc, DB_NEXT ) == 0 ) {
-        $port = FreeBSD::Port->new_from_description($desc);
-
-        $port->print( $fh, \%o2pn, \$counter );
+    while ( $cursor->c_get( $origin, $port, DB_NEXT ) == 0 ) {
+        $allports->{$origin}->print( $fh, $allports, \$counter );
     }
     print STDERR "<${counter}>\n" if ($::verbose);
 

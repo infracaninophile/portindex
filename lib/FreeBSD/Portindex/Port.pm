@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.10 2004-10-11 08:03:39 matthew Exp $
+# @(#) $Id: Port.pm,v 1.11 2004-10-11 12:55:07 matthew Exp $
 #
 
 #
@@ -104,11 +104,11 @@ sub new_from_description($$)
       or croak __PACKAGE__,
       "::new_from_description(): -- incorrect format: $desc";
 
-    $extract_depends = [ split ' ', $extract_depends ];
-    $patch_depends   = [ split ' ', $patch_depends ];
-    $fetch_depends   = [ split ' ', $fetch_depends ];
-    $build_depends   = [ split ' ', $build_depends ];
-    $run_depends     = [ split ' ', $run_depends ];
+    $extract_depends = _clean_depends($extract_depends);
+    $patch_depends   = _clean_depends($patch_depends);
+    $fetch_depends   = _clean_depends($fetch_depends);
+    $build_depends   = _clean_depends($build_depends);
+    $run_depends     = _clean_depends($run_depends);
 
     $self = $caller->new(
         PKGNAME         => $pkgname,
@@ -125,11 +125,36 @@ sub new_from_description($$)
     return $self;
 }
 
+# This is a regular sub, not a method call.  Convert the space
+# separated dependency list into an array, plus clean up various
+# undesirable features.
+sub _clean_depends ($)
+{
+    my $deps = shift;
+    my @deps;
+
+    # The make describe line may contain several undesirable
+    # constructs in the list of dependency origins.  Strip these
+    # out as follows:
+    #
+    #  /usr/ports/foo/bar/../../baz/blurfl -> /usr/ports/baz/blurfl
+    #  /usr/ports/foo/bar/../quux -> /usr/ports/foo/quux
+    #  /usr/ports/foo/bar/ -> /usr/ports/foo/bar
+
+    for my $dep ( split ' ', $deps ) {
+        $dep =~ s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
+        $dep =~ s@/\w[^/]+/\.\./@/@g;
+        $dep =~ s@/\Z@@g;
+
+        push @deps, $dep;
+    }
+    return \@deps;
+}
+
 # Bulk creation of accessor methods.
 for my $slot (
     qw(PKGNAME ORIGIN STUFF BUILD_DEPENDS RUN_DEPENDS WWW
-    EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS BUILD_INVERSE
-    RUN_INVERSE EXTRACT_INVERSE PATCH_INVERSE FETCH_INVERSE )
+    EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS DEPENDENCIES_ACCUMULATED )
   )
 {
     no strict qw(refs);
@@ -142,23 +167,55 @@ for my $slot (
     };
 }
 
+# Accumulate all of the various dependencies for this port.  If a port
+# has a FOO_DEPENDS entry for /usr/ports/foo/bar, then the FOO_DEPENDS
+# entry should have all of the RUN_DEPENDS items for the foo/bar port
+# added to it.  Recursively.  Note: don't store FreeBSD::Port objects with
+# accumulated dependencies in the FreeBSD::Ports::Tree structure.
+sub accumulate_dependencies ($$)
+{
+    my $self     = shift;
+    my $allports = shift;
+
+    unless ( $self->DEPENDENCIES_ACCUMULATED() ) {
+        for my $dep ( @{ $self->RUN_DEPENDS() } ) {
+            $allports->{$dep}->accumulate_dependencies($allports);
+        }
+        for my $whatdep (
+            qw( EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS
+            BUILD_DEPENDS RUN_DEPENDS )
+          )
+        {
+            my %seen = ();
+
+            grep { $seen{$_}++ } @{ $self->$whatdep() };
+            for my $dep ( @{ $self->$whatdep() } ) {
+                grep { $seen{$_}++ } @{ $allports->{$dep}->RUN_DEPENDS() };
+            }
+            $self->$whatdep( [ keys %seen ] );
+        }
+        $self->DEPENDENCIES_ACCUMULATED(1);
+    }
+    return $self;
+}
+
 # Print out one line of the INDEX file
 sub print ($*;$)
 {
-    my $self    = shift;
-    my $fh      = shift;
-    my $o2pn    = shift;
-    my $counter = shift;
+    my $self     = shift;
+    my $fh       = shift;
+    my $allports = shift;
+    my $counter  = shift;
 
     print $fh $self->PKGNAME(), '|';
     print $fh $self->ORIGIN(),  '|';
     print $fh $self->STUFF(),   '|';
-    print $fh $self->_chase_deps( $o2pn, 'BUILD_DEPENDS' ), '|';
-    print $fh $self->_chase_deps( $o2pn, 'RUN_DEPENDS' ),   '|';
+    print $fh $self->_chase_deps( $allports, 'BUILD_DEPENDS' ), '|';
+    print $fh $self->_chase_deps( $allports, 'RUN_DEPENDS' ),   '|';
     print $fh $self->WWW(), '|';
-    print $fh $self->_chase_deps( $o2pn, 'EXTRACT_DEPENDS' ), '|';
-    print $fh $self->_chase_deps( $o2pn, 'PATCH_DEPENDS' ),   '|';
-    print $fh $self->_chase_deps( $o2pn, 'FETCH_DEPENDS' ),   "\n";
+    print $fh $self->_chase_deps( $allports, 'EXTRACT_DEPENDS' ), '|';
+    print $fh $self->_chase_deps( $allports, 'PATCH_DEPENDS' ),   '|';
+    print $fh $self->_chase_deps( $allports, 'FETCH_DEPENDS' ),   "\n";
 
     if ( $::verbose && defined $counter ) {
         if ( $$counter % 1000 == 0 ) {
@@ -175,17 +232,17 @@ sub print ($*;$)
 # list.  Translate from ORIGINs into PKGNAMEs
 sub _chase_deps($$$)
 {
-    my $self = shift;
-    my $o2pn = shift;
-    my $dep  = shift;
+    my $self     = shift;
+    my $allports = shift;
+    my $dep      = shift;
     my @dependencies;
 
     for my $origin ( @{ $self ->${dep}() } ) {
-        if ( defined $o2pn->{$origin} ) {
-            push @dependencies, $o2pn->{$origin};
+        if ( defined $allports->{$origin} ) {
+            push @dependencies, $allports->{$origin}->PKGNAME();
         } else {
             carp __PACKAGE__, "::_chase_deps():", $self->PKGNAME(),
-			" No PKGNAME found for ($dep) $origin";
+              " No PKGNAME found for ($dep) $origin";
         }
     }
     return join ' ', sort @dependencies;
