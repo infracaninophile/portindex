@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.1 2004-10-13 16:02:50 matthew Exp $
+# @(#) $Id: cache-update,v 1.2 2004-10-14 11:15:23 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -79,6 +79,7 @@ MAIN:
     my $masterslave;
     my @updaters;
     my $counter = 0;
+    my %seen;
 
     $tree = FreeBSD::Ports::Tree->new(
         -Env                 => { -Home => '/var/tmp', },
@@ -98,9 +99,10 @@ MAIN:
 
     while (<>) {
         chomp;
+        $seen{$_}++;
         push @updaters, $_;
 
-        push @updaters, @{ $masterslave->{$_} }
+        push @updaters, grep { !$seen{$_}++ } @{ $masterslave->{$_} }
           if ( defined $masterslave->{$_} );
     }
 
