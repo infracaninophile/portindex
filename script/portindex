@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# @(#) $Id: portindex,v 1.1 2003-11-10 22:42:19 matthew Exp $
+# @(#) $Id: portindex,v 1.2 2003-12-19 16:25:42 matthew Exp $
 #
 # Read the ports index file and parse it into a series of objects
 
@@ -168,55 +168,6 @@ sub sort_and_uniq($)
 
 #-------------------------------------------------------------------------
 
-# Read in the MOVED file -- only record lines with a date the same day
-# or later than the INDEX file.
-sub read_moved($$)
-{
-    my $moved = shift;
-    my $cutoffdate;
-
-    # Date is given as a unix time -- convert to yyyy-mm-dd
-    $cutoffdate = strftime( '%Y-%m-%d', localtime $cutoffdate );
-
-    open( MOVED, '<', "$::base/MOVED" )
-      or do {
-        warn "$0: Cant open MOVED file -- $!\n";
-        return $moved;
-      } while (<MOVED>) {
-        next
-          if /^#/;
-        chomp;
-        ( $from, $to, $date, $why ) = split '\|';
-
-        # Ignore any data more than a day older than the INDEX file
-        next
-          if compare_dates( $cutoffdate, $date ) < 0;
-
-        $moved->{$from} = $to;
-    }
-    close MOVED;
-    return $moved;
-}
-
-# Compare two dates in the style yyyy-mm-dd.  Almost, but not quite,
-# suitable to pass to sort() unless you're running perl > 5.6.0...
-sub compare_dates($$)
-{
-    my $a = shift;
-    my $b = shift;
-    my @a;
-    my @b;
-
-    @a = split( '-', $a );
-    @b = split( '-', $b );
-
-    return $a[0] <=> $b[0]
-      || $a[1] <=> $b[1]
-      || $a[2] <=> $b[2];
-}
-
-#-------------------------------------------------------------------------
-
 # Recurse through all of the Makefiles -- expand the SUBDIR argument
 # from each Makefile, and all of the Makefiles in the referenced
 # directories.  If no SUBDIRs are found, this is a leaf directory, in
@@ -304,25 +255,6 @@ sub print_index_line($)
     print join( ' ', chase_links( $pkg, 'B_DEPS' ) ), '|';
     print join( ' ', chase_links( $pkg, 'R_DEPS' ) ), '|';
     print $pkg->{'WWW'}, "\n";
-
-    # Alternate format useful for debugging
-    #
-    # print $pkg->{'PKGNAME'},   "\n";
-    # print "$::base/", join( '/', @{ $pkg->{'ORIGIN'} } ), "\n";
-    # print $pkg->{'INSTALLDIR'}, "\n";
-    # print $pkg->{'COMMENT'},    "\n";
-    # print "$::base/", $pkg->{'PKG_DESCR'}, "\n";
-    # print $pkg->{'MAINTAINER'}, "\n";
-    # print $pkg->{'CATEGORIES'}, "\n";
-    # print "B_DEPS: ", join( "\n      : ",
-    #                        chase_links( $pkg, 'B_DEPS' ) ), "\n";
-    # print "R_DEPS: ", join( "\n      : ",
-    #                        chase_links( $pkg, 'R_DEPS' ) ), "\n";
-    # print $pkg->{'WWW'}, "\n";
-    # print "B_UPD : ", join( "\n      : ",
-    #                        chase_links( $pkg, 'B_UPD' ) ), "\n";
-    # print "R_UPD : ", join( "\n      : ",
-    #                        chase_links( $pkg, 'R_UPD' ) ), "\n*\n";
 
     return $pkg;
 }
