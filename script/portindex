@@ -1,8 +1,12 @@
 #!/usr/bin/perl -w
 
-# @(#) $Id: portindex,v 1.3 2004-01-01 14:50:22 matthew Exp $
+# @(#) $Id: portindex,v 1.4 2004-03-26 21:52:12 matthew Exp $
 #
-# Read the ports index file and parse it into a series of objects
+# Read the ports index file and parse it into a series of
+# objects. Scan the ports tree for updates since the last index was
+# built, run 'make describe' for those ports, integrate the results
+# with the rest of the INDEX data, plus delete the data for any ports
+# deleted from the tree.  Print out an updated INDEX file.
 
 use strict;
 use warnings;
@@ -100,7 +104,25 @@ sub delete_pkg($$)
 sub read_index($)
 {
     my $ports = shift;
-    my $index;
+    my $index = {};
+    my $pkg;
+
+    while (<>) {
+        $pkg = pkg_from_description( $index, $_ );
+        insert_pkg( $ports, $pkg, $pkg->{'ORIGIN'} );
+    }
+    clean_up_upreferences($index);
+    return $ports;
+}
+
+# Take the string returned by 'make describe' or read as one line out
+# of INDEX and use it to populate a pkg object
+sub pkg_from_description($$)
+{
+    my $index = shift;
+    my $desc  = shift;
+
+    my $pkg;
     my $pkgname;
     my $origin;
     my $installdir;
@@ -112,47 +134,43 @@ sub read_index($)
     my $r_deps;
     my $www;
 
-    while (<>) {
-        chomp;
-        (
-            $pkgname,    $origin,     $installdir, $comment, $pkg_descr,
-            $maintainer, $categories, $b_deps,     $r_deps,  $www
-          )
-          = split '\|';
+    chomp($desc);
+    (
+        $pkgname,    $origin,     $installdir, $comment, $pkg_descr,
+        $maintainer, $categories, $b_deps,     $r_deps,  $www
+      )
+      = split '\|', $desc;
 
-        # Strip the common prefix from the port origins and pkg_descr
-        # items
+    # Strip the common prefix from the port origins and pkg_descr
+    # items
 
-        $origin    =~ s,^$::base/,,o;
-        $pkg_descr =~ s,^$::base/,,o;
+    $origin    =~ s,^$::base/,,o;
+    $pkg_descr =~ s,^$::base/,,o;
 
-        # Create the reference only if it doesn't already exist.  This
-        # may be present, but empty if port has already been seen as a
-        # b_dep or r_dep of another port.
+    # Create the reference only if it doesn't already exist.  This
+    # may be present, but empty if port has already been seen as a
+    # b_dep or r_dep of another port.
 
-        $index->{$pkgname} = {}
-          unless defined( $index->{$pkgname} );
+    $index->{$pkgname} = {}
+      unless defined( $index->{$pkgname} );
+    $pkg = $index->{$pkgname};
 
-        $index->{$pkgname}{'PKGNAME'}    = $pkgname;
-        $index->{$pkgname}{'ORIGIN'}     = [ split( '/', $origin ) ];
-        $index->{$pkgname}{'INSTALLDIR'} = $installdir;
-        $index->{$pkgname}{'COMMENT'}    = $comment;
-        $index->{$pkgname}{'PKG_DESCR'}  = $pkg_descr;
-        $index->{$pkgname}{'MAINTAINER'} = $maintainer;
-        $index->{$pkgname}{'CATEGORIES'} = $categories;
-        $index->{$pkgname}{'B_DEPS'}     = get_index_links( $index, $b_deps );
-        $index->{$pkgname}{'R_DEPS'}     = get_index_links( $index, $r_deps );
-        $index->{$pkgname}{'WWW'}        = $www;
+    $pkg->{'PKGNAME'}    = $pkgname;
+    $pkg->{'ORIGIN'}     = [ split( '/', $origin ) ];
+    $pkg->{'INSTALLDIR'} = $installdir;
+    $pkg->{'COMMENT'}    = $comment;
+    $pkg->{'PKG_DESCR'}  = $pkg_descr;
+    $pkg->{'MAINTAINER'} = $maintainer;
+    $pkg->{'CATEGORIES'} = $categories;
+    $pkg->{'B_DEPS'}     = get_index_links( $index, $b_deps );
+    $pkg->{'R_DEPS'}     = get_index_links( $index, $r_deps );
+    $pkg->{'WWW'}        = $www;
 
-        # Construct the inverse links -- from the dependency to us
-        $index = invert_dependencies( $index, $pkgname, 'B_DEPS' );
-        $index = invert_dependencies( $index, $pkgname, 'R_DEPS' );
+    # Construct the inverse links -- from the dependency to us
+    $pkg = invert_dependencies( $pkg, 'B_DEPS' );
+    $pkg = invert_dependencies( $pkg, 'R_DEPS' );
 
-        insert_pkg( $ports, $index->{$pkgname}, $index->{$pkgname}{'ORIGIN'} );
-    }
-    clean_up_upreferences($index);
-    return $ports;
-
+    return $pkg;
 }
 
 # Take a list of pkgnames (separated by spaces), and convert it into a
@@ -177,24 +195,21 @@ sub get_index_links($$)
 
 # Create references from each package to the packages that have a
 # dependency on it.
-sub invert_dependencies($$$)
+sub invert_dependencies($$)
 {
-    my $index   = shift;
-    my $pkgname = shift;
-    my $dep     = shift;
+    my $pkg = shift;
+    my $dep = shift;
 
     my $upd;
-    my $pkg;
 
     ( $upd = $dep ) =~ s/DEPS/UPD/;
-    $pkg = $index->{$pkgname};
 
     foreach my $d ( @{ $pkg->{$dep} } ) {
         $d->{$upd} = []
           unless ( defined $d->{$upd} );
         push @{ $d->{$upd} }, $pkg;
     }
-    return $index;
+    return $pkg;
 }
 
 # For each of the up-references in any port, sort and uniq the data
@@ -299,19 +314,19 @@ sub process_pkg($$$$)
     my $newports = shift;
     my $dir      = shift;
     my $pkg      = shift;
-	my $pkgx;
+    my $pkgx;
 
-	# if this is a new port, $pkg and $pkgx should both be undef...
-	$pkgx = delete_pkg( $oldports, $dir );
+    # if this is a new port, $pkg and $pkgx should both be undef...
+    $pkgx = delete_pkg( $oldports, $dir );
 
-	if ( defined($pkgx) != defined($pkg) &&  $pkgx != $pkg ) {
-		warn "$0: it's all gone horribly wrong! $pkg != $pkgx\n";
-	}
-	
+    if ( defined($pkgx) != defined($pkg) && $pkgx != $pkg ) {
+        warn "$0: it's all gone horribly wrong! $pkg != $pkgx\n";
+    }
+
     # [...]
 
-	insert_pkg( $newports, $pkg, $dir );
-	
+    insert_pkg( $newports, $pkg, $dir );
+
     return;
 }
 
