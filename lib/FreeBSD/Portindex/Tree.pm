@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.33 2004-11-05 14:40:03 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.34 2005-01-13 22:50:37 matthew Exp $
 #
 
 #
@@ -87,6 +87,36 @@ sub new ($@)
       -Filename => $portscachefile
       or croak __PACKAGE__,
       "::new(): Can't access $portscachefile -- $! $BerkeleyDB::Error";
+
+    # Save some regex definitions for use in the make_describe() method.
+
+    # Directories where port-specific Makefiles are found.  Although
+    # other locations do contain Makefiles that will affect the
+    # result, these generally do not change that often.
+
+    $self->{MAKEFILE_LOCATIONS} = qr{
+        \A
+            (
+             /var/db/ports
+             |
+             $::Config{PortsDir}
+             )           
+        }x;
+
+    # Makefiles which we ignore changes to when producing the list of
+    # ports needing updating.  Either because changes to that file
+    # tend to have no effect on the final INDEX, or because changes to
+    # the file trigger update checks on too many (generally /all/)
+    # ports -- in which case a cache-init run is indicated
+
+    $self->{MAKEFILE_EXCEPTIONS} = qr{
+        \A
+            (
+             $::Config{PortsDir}/Mk/bsd.port.mk # Changes affect everything
+             |
+             $::Config{PortsDir}/Mk/bsd.sites.mk # Changes don't affect INDEX
+             )
+        }x;
 
     return bless $self, $class;
 }
@@ -302,11 +332,11 @@ sub make_describe($$;$)
         $port->MASTERDIR(undef);
     }
 
-    # List all of the makefiles under /usr/ports which affect the
-    # compilation of a port.  Don't include /usr/ports/Mk/bsd.port.mk,
-    # because that affects *everything*, nor include
-    # /usr/ports/Mk/bsd.sites.mk since that has no material effect on
-    # the resulting port/package.
+    # List all of the makefiles under ${PORTSDIR} which affect the
+    # compilation of a port.  Don't include
+    # ${PORTSDIR}/Mk/bsd.port.mk, because that affects *everything*,
+    # nor include ${PORTSDIR}/Mk/bsd.sites.mk since that has no
+    # material effect on the resulting port/package.
 
     # Hmmm... what about /var/db/ports/${LATEST_LINK}/options ?
     my %seen = ();
@@ -315,7 +345,8 @@ sub make_describe($$;$)
         [
             map    { _clean_path($_) }
               grep {
-                m@^(/var/db|/usr)/ports(?!/Mk/bsd\.(port|sites)\.mk)@
+                     m/$self->{MAKEFILE_LOCATIONS}/
+                  && !m/$self->{MAKEFILE_EXCEPTIONS}/
                   && !$seen{$_}++
               }
               split( ' ', $makefile_list )

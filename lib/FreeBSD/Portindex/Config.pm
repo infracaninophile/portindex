@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.32 2005-01-10 22:47:46 matthew Exp $
+# @(#) $Id: Config.pm,v 1.33 2005-01-13 22:50:37 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -71,12 +71,11 @@ sub read_config ($)
         Input              => '-',
         Format             => 'cvsup-output',
         Output             => '-',
-        PortsDir           => '/usr/ports',
-        PropagationDelay   => 3600,                     # 1 hour
+        PortsDir           => $ENV{PORTSDIR} || '/usr/ports',
+        PropagationDelay   => 3600,                                     # 1 hour
         TimestampFilename  => "$::pkgname-timestamp",
         Verbose            => 1,
-        ImportantMakefiles =>
-          [ "/usr/ports/Mk/bsd.port.mk", "/etc/make.conf", ],
+        ImportantMakefiles => [ "Mk/bsd.port.mk", "/etc/make.conf", ],
     );
     @optargs = (
         'cache-dir|c=s'      => \$config->{CacheDir},
@@ -156,6 +155,8 @@ sub read_config ($)
     if ( $0 eq 'find-updated' && !exists $::Config{ReferenceTime} ) {
         pod2usage(2);
     }
+    map { $_ = "$::Config{PortsDir}/$_" unless m@^/@ }
+      @{ $::Config{ImportantMakefiles} };
     if ($help) {
         pod2usage( -exitval => 'NOEXIT', -verbose => 1 );
         show_config($config);

@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.24 2005-01-10 22:39:29 matthew Exp $
+# @(#) $Id: cache-update,v 1.25 2005-01-13 22:50:37 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -87,12 +87,20 @@ sub read_plain (*$)
 # the output of cvsup(1) [ need atleast -L 1 verbosity ].  Pick out
 # the names of updated files, then convert that into a list of port
 # origins to process for updates.
-sub read_cvsup_output (*$$)
+sub read_cvsup_output (*$$$)
 {
     my $FH            = shift;
     my $updates       = shift;
     my $makefile_list = shift;
+    my $portsdir      = shift;
+    my $ports_location;
     my $name;
+
+    # $portsdir is usually /usr/ports, but can be any path ending in
+    # .../ports (cvsup(1) requires the top-level directory to be named
+    # 'ports').  Account for this
+
+    ( $ports_location = $portsdir ) =~ s@/ports\Z@@;
 
     while (<$FH>) {
         chomp;
@@ -100,11 +108,11 @@ sub read_cvsup_output (*$$)
         next
           unless m@\s(ports/\S+)@;
 
-        $name = "/usr/$1";
-        if ( $name =~ m@^(/usr/ports/[^/]+/[^/]+)/@ ) {
+        $name = "$ports_location/$1";
+        if ( $name =~ m@^($portsdir/[^/]+/[^/]+)/@o ) {
             $updates->{$1}++
               unless $name =~
-              m@^/usr/ports/(?:Mk|Templates|Tools|distfiles|packages)@;
+              m@^$portsdir/(?:Mk|Templates|Tools|distfiles|packages)@o;
         }
         map { $updates->{$_}++ } @{ $makefile_list->{$name} }
           if defined $makefile_list->{$name};
@@ -118,12 +126,17 @@ sub read_cvsup_output (*$$)
 # cutoff point should be about 1 hour earlier than the last time
 # cache-update or cache-init was run, as determined by the mtime of
 # the DB cache files.
-sub read_cvsup_checkouts (*$$$)
+sub read_cvsup_checkouts (*$$$$)
 {
     my $FH            = shift;
     my $updates       = shift;
     my $makefile_list = shift;
     my $cutofftime    = shift;
+    my $portsdir      = shift;
+    my $ports_location;
+
+    # As for read_cvsup_output, cope with a non-standard $PORTSDIR
+    ( $portsdir = $ports_location ) =~ s@/ports\Z@@;
 
     while (<$FH>) {
         my $name;
@@ -148,17 +161,17 @@ sub read_cvsup_checkouts (*$$$)
         next
           unless ( $name =~ m@(ports/\S+),v@g );
 
-        $name = "/usr/$1";
+        $name = "$ports_location/$1";
 
         # Unpick the $rcs_attr record.
 
         @rcs_attrs = decode_attrs($rcs_attr);
 
         if ( $rcs_attrs[2] > $cutofftime ) {
-            if ( $name =~ m@^(/usr/ports/[^/]+/[^/]+)/@ ) {
+            if ( $name =~ m@^($portsdir/[^/]+/[^/]+)/@o ) {
                 $updates->{$1}++
                   unless $name =~
-                  m@^/usr/ports/(?:Mk|Templates|Tools|distfiles|packages)@;
+                  m@^$portsdir/(?:Mk|Templates|Tools|distfiles|packages)@o;
             }
             map { $updates->{$_}++ } @{ $makefile_list->{$name} }
               if defined $makefile_list->{$name};
@@ -228,14 +241,16 @@ MAIN:
         my %makefile_list;
 
         $tree->makefile_list( \%makefile_list );
-        read_cvsup_output( *STDIN, \%updates, \%makefile_list );
+        read_cvsup_output( *STDIN, \%updates, \%makefile_list,
+            $Config{PortsDir} );
     } elsif ( $Config{Format} eq 'cvsup-checkouts' ) {
         my $cutofftime;
         my %makefile_list;
 
         $cutofftime = get_timestamp( \%Config ) - $Config{PropagationDelay};
         $tree->makefile_list( \%makefile_list );
-        read_cvsup_checkouts( *STDIN, \%updates, \%makefile_list, $cutofftime );
+        read_cvsup_checkouts( *STDIN, \%updates, \%makefile_list, $cutofftime,
+            $Config{PortsDir} );
     } else {
         die "$0: Format \'$Config{Format}\' unrecognised";
     }
@@ -342,9 +357,10 @@ port have been modified.
 Similarly for input formats other than plain, where an update to a
 Makefile is detected, all ports where that Makefile is included will
 be added to the list of ports to reprocess.  Only Makefiles included
-from within the ports tree (ie. under F</usr/ports>) are considered.
-in certain circumstances it may be more advantageous to run
-B<cache-init> rather than B<cache-update>; for instance whenever
+from within the ports tree (ie. under F</usr/ports>, or F<$PORTSDIR>
+if it is set in the environment) are considered.  in certain
+circumstances it may be more advantageous to run B<cache-init> rather
+than B<cache-update>; for instance whenever
 F</usr/ports/Mk/bsd.port.mk> is modified.
 
 =head2 When to run B<cache-init> and when to run B<cache-update>
@@ -374,7 +390,10 @@ the ports F<INDEX>.
 The list of important makefiles to test in this manner can be set
 using the C<--important-makefile> command line option: repeat the
 option to add more makefiles to the list, or by the
-C<ImportantMakefiles> configuration file setting.
+C<ImportantMakefiles> configuration file setting.  Any makefile name
+given as a non-absolure path will be taken as relative to the ports
+directory, F</usr/ports> or the value of C<$PORTSDIR> in the
+environment, or the C<PortsDir> configuration file setting.
 
 =item *
 
@@ -613,12 +632,6 @@ L<ports(7)>
 
 I<cvsup-checkouts> format mode is not completely accurate.  Choosing the
 correct propagation delay is a matter of guesswork.
-
-Both I<cvsup-checkouts> and I<cvsup-output> format modes currently
-assume that C<PORTSDIR> is F</usr/ports>.  This should be configurable.
-
-B<cache-update> should deal with changes to the Makefile C<OPTIONS>
-data stored under F</var/db/ports>.
 
 B<cache-update> should optionally parse the contents of
 B</usr/local/etc/pkgtools.conf> and apply settings from the

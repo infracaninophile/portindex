@@ -1,6 +1,6 @@
 # This file contains -*- perl -*- code
 #
-# @(#) $Id: portindex.cfg.sample,v 1.9 2005-01-10 22:39:29 matthew Exp $
+# @(#) $Id: portindex.cfg.sample,v 1.10 2005-01-13 22:50:37 matthew Exp $
 #
 # Sample configuration file for portindex, cache-init, cache-update
 #
@@ -19,7 +19,7 @@
 ## cache-init (-p, --ports-dir): Base directory of the ports tree,
 ## same as the PORTSDIR environment variable.
 
-# $::Config{PortsDir} = '/usr/ports';
+# $::Config{PortsDir} = $ENV{PORTSDIR} || '/usr/ports';
 
 ## all (-c, --cache-dir): Directory where BDB btree files containing
 ## the cache and master-slave relationships are stored.
@@ -89,7 +89,7 @@
 ## incremental update.  Default: /usr/ports/Mk/bsd.port.mk,
 ## /etc/make.conf
 
-# $::Config{ImportantMakefiles} = [ '/usr/ports/Mk/bsd.port.mk', '/etc/make.conf', ];
+# $::Config{ImportantMakefiles} = [ $::Config{PortsDir} . '/Mk/bsd.port.mk', '/etc/make.conf', ];
 
 ##
 ## That's All Folks!

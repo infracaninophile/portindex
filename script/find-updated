@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: find-updated,v 1.7 2004-11-05 14:32:09 matthew Exp $
+# @(#) $Id: find-updated,v 1.8 2005-01-13 22:50:37 matthew Exp $
 #
 
 # Scan through the ports tree, and pick out all ports containing files
@@ -230,10 +230,8 @@ MAIN:
     # Check the standard ports makefiles in /usr/ports/Mk -- updates
     # to these generally affect a lot of ports.
 
-    look_for_updated_files(
-        '/usr/ports/Mk', $Config{ReferenceTime},
-        \%updaters,      \%makefile_list
-    );
+    look_for_updated_files( "$Config{PortsDir}/Mk", $Config{ReferenceTime},
+        \%updaters, \%makefile_list );
 
     # Scan through all ports, looking for files newer than the cut-off
     # date.
@@ -265,11 +263,12 @@ B<find-updated> [B<-hvq>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-o> 
 =head1 DESCRIPTION
 
 B<find-updated> scans through the whole ports tree and checks each
-port origin and the F</usr/ports/Mk> directory for files modified
-after the date given on the command line.  The output consists of a
-list of modified ports, printed one per line suitably for feeding into
-the input of B<cache-update> using plain format.  The generated list
-of updated ports takes into account any master-slave relationships
+port origin and the F</usr/ports/Mk> directory (or F<${PORTSDIR}/Mk>
+if C<$PORTSDIR> is set in the environment) for files modified after
+the date given on the command line.  The output consists of a list of
+modified ports, printed one per line suitably for feeding into the
+input of B<cache-update> using plain format.  The generated list of
+updated ports takes into account any master-slave relationships
 between ports, and any ports that include a Makefile modified in the
 given period.
 
