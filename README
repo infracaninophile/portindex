@@ -2,7 +2,7 @@
     README    19 October 2004
     -------------------------
 
-$Id: README,v 1.1 2004-10-19 16:00:40 matthew Exp $
+$Id: README,v 1.2 2004-10-22 18:37:34 matthew Exp $
 
 portindex, cache-init and cache-update are a set of tools used to
 generate ports INDEX or INDEX-5 files.  They work, ultimately, in a
@@ -52,7 +52,7 @@ However, routine usage will typically be something like this:
        and a separate table listing all of the slave ports and the
        master ports they belong to (about 72kb currently).
 
-The for regular day to day use:
+Then for regular day to day use:
 
   iii) In order to generate a new index file, update the portindex
        cache with the details of any recently updated ports.  The
