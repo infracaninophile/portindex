@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.9 2004-10-19 12:51:31 matthew Exp $
+# @(#) $Id: cache-update,v 1.10 2004-10-21 16:24:59 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -187,12 +187,6 @@ MAIN:
 
     read_config( \%Config );
 
-    $tree = FreeBSD::Ports::Tree->new(
-        -Env           => { -Home => $Config{CacheDir}, },
-        -CacheFilename => $Config{CacheFilename},
-        -MasterSlaveFilename => $Config{MasterSlaveFilename},
-    );
-
     # Reopen STDIN if required
     if ( $Config{Input} ne '-' ) {
         open STDIN, '<', $Config{Input}
@@ -217,6 +211,23 @@ MAIN:
     } else {
         die "$0: InputFormat \'$Config{InputFormat}\' unrecognised";
     }
+
+    # If there's nothing to update, exit immediately: otherwise,
+    # opening the tied btree files will change the mod-time on the
+    # cache files, and we don't want to do that unless we're going to
+    # modify the data.
+
+    unless (@updates) {
+        print STDERR "$0: Nothing to do!\n"
+          if $Config{Verbose};
+        exit 0;
+    }
+
+    $tree = FreeBSD::Ports::Tree->new(
+        -Env           => { -Home => $Config{CacheDir}, },
+        -CacheFilename => $Config{CacheFilename},
+        -MasterSlaveFilename => $Config{MasterSlaveFilename},
+    );
 
     # If one of the ports given in the @updaters list is the master of
     # several slave ports, add all of those slave ports to the
