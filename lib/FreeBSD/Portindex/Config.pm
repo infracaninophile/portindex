@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.1 2004-10-16 15:24:46 matthew Exp $
+# @(#) $Id: Config.pm,v 1.2 2004-10-16 19:55:15 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -45,8 +45,6 @@ use Carp;
 use Getopt::Long;
 use Pod::Usage;
 
-our %Config;
-
 # Config file and command line option handling.  The config data is
 # loaded from (in order): defaults built into this function, the
 # system etc dir: /usr/local/etc/$::{pkgname}.cfg the users' home dir
@@ -56,23 +54,24 @@ our %Config;
 # to populate the %Config hash, which is the return value of this
 # function.  Then any command line arguments are parsed, which can
 # override any of the config file settings.
-sub read_config ()
+sub read_config ($)
 {
+    my $config = shift;
     my $help;
     my @optargs;
 
-    %Config = (
+    $config = {
         PortsDir            => '/usr/ports',
         CacheDir            => '/var/tmp',
         CacheFilename       => "$::pkgname-cache.db",
         MasterSlaveFilename => "$::pkgname-masterslave.db",
         Verbose             => 1,
         Output              => '-',
-    );
+    };
     @optargs = (
         'help|?'   => \$help,
-        'verbose!' => \$Config{Verbose},
-        'quiet'    => sub { $Config{Verbose} = 0 },
+        'verbose!' => \$config->{Verbose},
+        'quiet'    => sub { $config->{Verbose} = 0 },
     );
 
     for my $cf (
@@ -86,7 +85,7 @@ sub read_config ()
     GetOptions(@optargs) or pod2usage(2);
     pod2usage(1)
       if $help;
-    return \%Config;
+    return $config;
 }
 
 1;

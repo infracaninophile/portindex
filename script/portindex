@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: portindex,v 1.20 2004-10-16 15:24:46 matthew Exp $
+# @(#) $Id: portindex,v 1.21 2004-10-16 19:55:15 matthew Exp $
 #
 # Process the cached 'make describe' output to produce an INDEX file
 # Should be a lot quicker than 'make index'.
@@ -46,7 +46,7 @@ use FreeBSD::Portindex qw(read_config);
 use FreeBSD::Port;
 use FreeBSD::Ports::Tree;
 
-our $config;
+our %Config;
 our $pkgname = 'portindex';
 
 $0 =~ s@.*/@@;    # Script name for error messages
@@ -54,23 +54,23 @@ $0 =~ s@.*/@@;    # Script name for error messages
 MAIN:
 {
     my $tree;
-    my $allports;
+    my %allports;
 
-    $config = read_config();
+    read_config( \%Config );
 
     $tree = FreeBSD::Ports::Tree->new(
-        -Env           => { -Home => $config->{CacheDir}, },
-        -CacheFilename => $config->{CacheFilename},
-        -MasterSlaveFilename => $config->{MasterSlaveFilename},
+        -Env           => { -Home => $Config{CacheDir}, },
+        -CacheFilename => $Config{CacheFilename},
+        -MasterSlaveFilename => $Config{MasterSlaveFilename},
     );
 
     # Unfreeze the cached ports data
 
-    $allports = $tree->springtime();
+    $tree->springtime( \%allports );
 
-    $tree->accumulate_dependencies($allports);
+    $tree->accumulate_dependencies( \%allports );
 
-    $tree->print_index( $allports, *STDOUT );
+    $tree->print_index( \%allports, *STDOUT );
 }
 
 __END__

@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.16 2004-10-16 15:24:46 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.17 2004-10-16 19:55:15 matthew Exp $
 #
 
 #
@@ -52,8 +52,8 @@ sub new ($@)
     my $class  = ref($caller) || $caller;
     my %args   = @_;
     my $self;
-    my $portscachefile  = "/var/tmp/portindex-cache.db";
-    my $masterslavefile = "/var/tmp/portindex-masterslave.db";
+    my $portscachefile  = $::Config{CacheFilename};
+    my $masterslavefile = $::Config{MasterSlaveFilename};
 
     # Make sure that the certain defaults are set.
 
@@ -116,8 +116,7 @@ sub insert ($$$)
     my $origin = shift;
     my $port   = shift;
 
-    $port = freeze($port);
-    $self->{PORTS}->{$origin} = $port;
+    $self->{PORTS}->{$origin} = freeze($port);
 
     return $self;
 }
@@ -190,14 +189,14 @@ sub scan_makefiles($@)
     my @paths   = @_;
     my $counter = 0;
 
-    print STDERR "Processing 'make describe' output",
+    print STDERR "Processing make describe output",
       @paths == 1 ? " for path \"$paths[0]\": " : ": "
-      if ( $::config->{Verbose} );
+      if ( $::Config{Verbose} );
     for my $path (@paths) {
         $self->_scan_makefiles( $path, \$counter );
     }
     print STDERR "<$counter>\n"
-      if ( $::config->{Verbose} );
+      if ( $::Config{Verbose} );
     return $self;
 }
 
@@ -294,7 +293,7 @@ sub make_describe($$;$)
         return $self;
       };
 
-    if ( $::config->{Verbose} && ref $counter ) {
+    if ( $::Config{Verbose} && ref $counter ) {
         $$counter++;
         if ( $$counter % 1000 == 0 ) {
             print STDERR "[$$counter]";
@@ -341,31 +340,31 @@ sub make_describe($$;$)
 # storage.  Return a reference to a hash containing refs to all port
 # objects. (Note: 'each' passes values by reference (implicitly) --
 # modifying the returned value will affect the underlying hash)
-sub springtime($)
+sub springtime($$)
 {
-    my $self = shift;
-    my %allports;
+    my $self     = shift;
+    my $allports = shift;
 
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
-        $allports{$origin} = thaw($port);
+        $allports->{$origin} = thaw($port);
     }
-    return \%allports;
+    return $allports;
 }
 
 # Invert all of the slave => master hash relationships, returning a
 # reference to a hash whose keys are the master port origins, and
 # whose values are refs to arrays of slave port origins.
-sub masterslave($)
+sub masterslave($$)
 {
-    my $self = shift;
-    my %masterslave;
+    my $self        = shift;
+    my $masterslave = shift;
 
     while ( my ( $slave, $master ) = each %{ $self->{MASTERSLAVE} } ) {
-        $masterslave{$master} = []
-          unless defined $masterslave{$master};
-        push @{ $masterslave{$master} }, $slave;
+        $masterslave->{$master} = []
+          unless defined $masterslave->{$master};
+        push @{ $masterslave->{$master} }, $slave;
     }
-    return \%masterslave;
+    return $masterslave;
 }
 
 # For all of the known ports, accumulate the various dependencies as
@@ -378,20 +377,11 @@ sub accumulate_dependencies($$)
     my $counter  = 0;
 
     print STDERR "Accumulating dependency information: "
-      if ( $::config->{Verbose} );
+      if ( $::Config{Verbose} );
     for my $port ( values %{$allports} ) {
-        $port->accumulate_dependencies($allports);
-
-        if ( $::config->{Verbose} ) {
-            $counter++;
-            if ( $counter % 1000 == 0 ) {
-                print STDERR "[$counter]";
-            } elsif ( $counter % 100 == 0 ) {
-                print STDERR '.';
-            }
-        }
+        $port->accumulate_dependencies( $allports, \$counter );
     }
-    print STDERR "<${counter}>\n" if ( $::config->{Verbose} );
+    print STDERR "<${counter}>\n" if ( $::Config{Verbose} );
 
     return $self;
 }
@@ -405,12 +395,12 @@ sub print_index($$*)
     my $fh       = shift;
     my $counter  = 0;
 
-    print STDERR "Writing INDEX file: " if ( $::config->{Verbose} );
+    print STDERR "Writing INDEX file: " if ( $::Config{Verbose} );
 
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
         $allports->{$origin}->print( $fh, $allports, \$counter );
     }
-    print STDERR "<${counter}>\n" if ( $::config->{Verbose} );
+    print STDERR "<${counter}>\n" if ( $::Config{Verbose} );
 
     return $self;
 }

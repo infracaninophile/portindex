@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.14 2004-10-16 15:24:46 matthew Exp $
+# @(#) $Id: Port.pm,v 1.15 2004-10-16 19:55:15 matthew Exp $
 #
 
 #
@@ -172,10 +172,11 @@ for my $slot (
 # entry should have all of the RUN_DEPENDS items for the foo/bar port
 # added to it.  Recursively.  Note: don't store FreeBSD::Port objects with
 # accumulated dependencies in the FreeBSD::Ports::Tree structure.
-sub accumulate_dependencies ($$)
+sub accumulate_dependencies ($$;$)
 {
     my $self     = shift;
     my $allports = shift;
+    my $counter  = shift;
 
     unless ( $self->DEPENDENCIES_ACCUMULATED() ) {
         for my $whatdep (
@@ -196,6 +197,14 @@ sub accumulate_dependencies ($$)
             $self->$whatdep( [ keys %seen ] );
         }
         $self->DEPENDENCIES_ACCUMULATED(1);
+    }
+    if ( $::Config{Verbose} && ref $counter ) {
+        $$counter++;
+        if ( $$counter % 1000 == 0 ) {
+            print STDERR "[$$counter]";
+        } elsif ( $$counter % 100 == 0 ) {
+            print STDERR '.';
+        }
     }
     return $self;
 }
@@ -218,7 +227,7 @@ sub print ($*;$)
     print $fh $self->_chase_deps( $allports, 'PATCH_DEPENDS' ),   '|';
     print $fh $self->_chase_deps( $allports, 'FETCH_DEPENDS' ),   "\n";
 
-    if ( $::config->{Verbose} && defined $counter ) {
+    if ( $::Config{Verbose} && ref $counter ) {
         $$counter++;
         if ( $$counter % 1000 == 0 ) {
             print STDERR "[$$counter]";

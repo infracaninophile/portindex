@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.4 2004-10-16 15:24:46 matthew Exp $
+# @(#) $Id: cache-update,v 1.5 2004-10-16 19:55:15 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -68,7 +68,7 @@ use FreeBSD::Portindex qw(read_config);
 use FreeBSD::Port;
 use FreeBSD::Ports::Tree;
 
-our $config;
+our %Config;
 our $pkgname = 'portindex';
 
 $0 =~ s@.*/@@;    # Script name for error messages
@@ -77,17 +77,17 @@ MAIN:
 {
     my $tree;
     my $allports;
-    my $masterslave;
+    my %masterslave;
     my @updaters;
     my $counter = 0;
     my %seen;
 
-	$config = read_config();
-	
+    read_config( \%Config );
+
     $tree = FreeBSD::Ports::Tree->new(
-        -Env                 => { -Home => $config->{CacheDir}, },
-        -CacheFilename       => $config->{CacheFilename},
-		-MasterSlaveFilename => $config->{MasterSlaveFilename},
+        -Env           => { -Home => $Config{CacheDir}, },
+        -CacheFilename => $Config{CacheFilename},
+        -MasterSlaveFilename => $Config{MasterSlaveFilename},
     );
 
     # If one of the ports given in the @updaters list is the master of
@@ -95,7 +95,7 @@ MAIN:
     # @updaters list, unconditionally.  This only works if the cache
     # is largely complete.
 
-    $masterslave = $tree->masterslave();
+    $tree->masterslave( \%masterslave );
 
     # Update the entries for the ports read from STDIN, plus the
     # slaves of any masters listed.
@@ -105,8 +105,8 @@ MAIN:
         $seen{$_}++;
         push @updaters, $_;
 
-        push @updaters, grep { !$seen{$_}++ } @{ $masterslave->{$_} }
-          if ( defined $masterslave->{$_} );
+        push @updaters, grep { !$seen{$_}++ } @{ $masterslave{$_} }
+          if ( defined $masterslave{$_} );
     }
 
     # Regenerate the FreeBSD::Port objects for all listed ports
@@ -114,7 +114,7 @@ MAIN:
     for my $path ( sort @updaters ) {
         $counter++;
         print STDERR "$0:$counter: Updating cached data for $path\n"
-          if $::verbose;
+          if $Config{Verbose};
         $tree->make_describe($path);
     }
 }
