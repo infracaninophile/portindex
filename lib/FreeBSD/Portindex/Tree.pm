@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.17 2004-10-16 19:55:15 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.18 2004-10-17 09:57:13 matthew Exp $
 #
 
 #
@@ -105,6 +105,15 @@ sub new ($@)
       "::new(): Can't access $masterslavefile -- $!";
 
     return bless $self, $class;
+}
+
+sub DESTROY
+{
+    my $self = shift;
+
+    untie $self->{PORTS};
+    untie $self->{MASTERSLAVE};
+    undef $self;
 }
 
 # Insert FreeBSD::Port object (ie. from 'make describe' output) into
@@ -360,6 +369,10 @@ sub masterslave($$)
     my $masterslave = shift;
 
     while ( my ( $slave, $master ) = each %{ $self->{MASTERSLAVE} } ) {
+
+        #print STDERR "Slave: $slave  Master: $master\n"
+        #    if $::Config{Verbose};
+
         $masterslave->{$master} = []
           unless defined $masterslave->{$master};
         push @{ $masterslave->{$master} }, $slave;
