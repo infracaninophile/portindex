@@ -1,0 +1,106 @@
+
+    README    19 October 2004
+    -------------------------
+
+$Id: README,v 1.1 2004-10-19 16:00:40 matthew Exp $
+
+portindex, cache-init and cache-update are a set of tools used to
+generate ports INDEX or INDEX-5 files.  They work, ultimately, in a
+very similar way to the standard 'make index' command, except that the
+portindex tools keep a cache of the 'make describe' output from each
+port, and can update that incrementally.  Once the cache has been
+initialised, all of the changes made over the course of a day or a
+week can be incorporated in a few seconds, and an up to date INDEX
+file produced in a couple more.
+
+The cache-update process can either take the output of running
+cvsup(1) over the ports tree, or it can read cvsup(1)'s checkouts file
+(usually /usr/sup/ports-all/checkouts.cvs:.) to work out which ports
+have been modified or deleted recently, and so should have their
+cached description updated.  Of course, it can also just read a simple
+list of the port origins to re-check, which you can generate how you
+will.
+
+Quick start
+-----------
+
+Please see the POD documentation for each of the commands for details.
+However, routine usage will typically be something like this:
+
+    0) Prerequisites: you will need to have installed perl-5.8.5
+       (lang/perl5.8) p5-BerkeleyDB-0.25_1 (databases/p5-BerkeleyDB
+       ports) and db42-4.2.52_3 (databases/db42).  Other perl or BDB
+       versions may work, but haven't been tested.
+
+    i) Unpack the portsindex tar-ball:
+
+        % tar -jxvf portindex-N.NN.tar.bz2
+
+       For beta test purposes, just run the portsindex programs
+       straight from the portsindex-N.NN directory.  Once I'm
+       satisfied that everything is working OK, I'll declare an
+       official release and submit the program as a new port which
+       will install everything required neatly.
+
+   ii) Initialise the portindex cache.  This is a slow step (slower than
+       'make index') but it only needs to be done once.
+
+        % cd portindex-N.NN
+        % ./cache-init
+
+       That creates the portsindex cache file (about 8.5Mb currently)
+       and a separate table listing all of the slave ports and the
+       master ports they belong to (about 72kb currently).
+
+The for regular day to day use:
+
+  iii) In order to generate a new index file, update the portindex
+       cache with the details of any recently updated ports.  The
+       recommended way to do this is by parsing the output of cvsup(1):
+
+        % script /tmp/cvsup.out \
+           sudo cvsup -g -L2 /usr/share/examples/cvsup/ports-supfile
+        % cd portindex-N.NN
+        % ./cache-update --input /tmp/cvsup.out
+
+       Repeat as necessary if you run cvsup(1) several times between
+       generating new INDEX files.
+
+   iv) Print out the new INDEX file
+
+        # ./portindex --output /usr/ports/INDEX
+
+Steps (iii) and (iv) together should take under a minute: very much
+faster than building the INDEX file from scratch each time you update
+your ports.
+
+Licensing
+---------
+
+portindex is available under the same two clause BSD license as
+FreeBSD itself.
+
+Bugs
+----
+
+This should be considered Beta code at best.  The programs have
+survived testing during the flood of ports updates after the latest
+pre-release freeze.  Even so, I'm sure various issues with it will
+arise.
+
+Please report any bugs to me, m.seaman@infracaninophile.co.uk with as
+much detail as possible so I can try and reproduce them.  Please try
+and include:
+
+    FreeBSD version -- 'uname -a' output.
+    Perl version -- 'perl -V' output 
+    Transcript of session showing how the problem occurs
+
+and anything else you think is relevant.
+
+Author
+------
+
+    (c) Matthew Seaman 2004
+        m.seaman@infracaninophile.co.uk
+
