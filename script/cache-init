@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-init,v 1.7 2004-10-22 14:59:57 matthew Exp $
+# @(#) $Id: cache-init,v 1.8 2004-10-23 21:37:21 matthew Exp $
 #
 
 # Build the portindex cache from scratch by scanning through the whole
@@ -40,9 +40,9 @@ use strict;
 use warnings;
 use BerkeleyDB;
 
-use FreeBSD::Portindex qw(read_config);
-use FreeBSD::Port;
-use FreeBSD::Ports::Tree;
+use FreeBSD::Portindex::Config qw(read_config);
+use FreeBSD::Portindex::Port;
+use FreeBSD::Portindex::Tree;
 
 our %Config;
 our $pkgname = 'portindex';
@@ -74,7 +74,7 @@ MAIN:
         }
     }
 
-    $tree = FreeBSD::Ports::Tree->new(
+    $tree = FreeBSD::Portindex::Tree->new(
         -Env => {
             -Home => $Config{CacheDir},
             -Mode => 0644,
@@ -84,8 +84,8 @@ MAIN:
         -MasterSlaveFilename => $Config{MasterSlaveFilename},
     );
 
-    # Regenerate the FreeBSD::Port objects for all listed ports (or
-    # the whole tree beneath some directory).
+    # Regenerate the FreeBSD::Portindex::Port objects for all listed
+    # ports (or the whole tree beneath some directory).
 
     $tree->scan_makefiles( $Config{PortsDir} );
 }
@@ -129,7 +129,7 @@ locations, where the later items on this list override the former:
 
 =item *
 
-Built-in settings from the B<FreeBSD::Portindex> perl module.
+Built-in settings from the B<FreeBSD::Portindex::Config> perl module.
 
 =item *
 

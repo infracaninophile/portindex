@@ -27,14 +27,14 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.18 2004-10-23 11:01:09 matthew Exp $
+# @(#) $Id: Port.pm,v 1.19 2004-10-23 21:37:22 matthew Exp $
 #
 
 #
 # An object for holding various data used in creating a port -- mostly
 # this is used for generating the ports INDEX.
 #
-package FreeBSD::Port;
+package FreeBSD::Portindex::Port;
 our $VERSION = 0.2;    # Beta
 
 use strict;
@@ -55,15 +55,15 @@ sub new ($@)
     return bless \%self, $class;
 }
 
-# Process the output from 'make describe' into a FreeBSD::Port object.
-# The 'make describe' format is very similar to an index line, except
-# that the fields are in a different (more sendsible) order, and the
-# dependencies are given using the port ORIGIN, rather than PKGNAME.
-# Only the immediate dependencies of any port are given, not the
-# cumulative dependencies of the port and all of its dependencies,
-# etc.  Transforming the ORIGIN lines into the PKGNAME form has to
-# wait until all the port objects have been created, ie. on output of
-# the INDEX file.
+# Process the output from 'make describe' into a
+# FreeBSD::Portindex::Port object.  The 'make describe' format is very
+# similar to an index line, except that the fields are in a different
+# (more sendsible) order, and the dependencies are given using the
+# port ORIGIN, rather than PKGNAME.  Only the immediate dependencies
+# of any port are given, not the cumulative dependencies of the port
+# and all of its dependencies, etc.  Transforming the ORIGIN lines
+# into the PKGNAME form has to wait until all the port objects have
+# been created, ie. on output of the INDEX file.
 sub new_from_description($$)
 {
     my $caller = shift;
@@ -170,8 +170,9 @@ for my $slot (
 # Accumulate all of the various dependencies for this port.  If a port
 # has a FOO_DEPENDS entry for /usr/ports/foo/bar, then the FOO_DEPENDS
 # entry should have all of the RUN_DEPENDS items for the foo/bar port
-# added to it.  Recursively.  Note: don't store FreeBSD::Port objects with
-# accumulated dependencies in the FreeBSD::Ports::Tree structure.
+# added to it.  Recursively.  Note: don't store
+# FreeBSD::Portindex::Port objects with accumulated dependencies in
+# the FreeBSD::Portindex::Tree structure.
 sub accumulate_dependencies ($$;$)
 {
     my $self     = shift;

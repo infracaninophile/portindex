@@ -27,15 +27,15 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.23 2004-10-23 16:40:54 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.24 2004-10-23 21:37:22 matthew Exp $
 #
 
 #
-# Container for FreeBSD::Ports objects which models the entire ports
-# tree -- indexed by port directories.  Persistence is supplied by
-# using BerkeleyDB Btree for backing stores.
+# Container for FreeBSD::Portindex::Ports objects which models the
+# entire ports tree -- indexed by port directories.  Persistence is
+# supplied by using BerkeleyDB Btree for backing stores.
 #
-package FreeBSD::Ports::Tree;
+package FreeBSD::Portindex::Tree;
 our $VERSION = 0.2;    # Beta
 
 use strict;
@@ -44,7 +44,7 @@ use Carp;
 use BerkeleyDB;        # BDB version 2, 3, 4, 41, 42
 use Storable qw(freeze thaw);
 
-use FreeBSD::Port;
+use FreeBSD::Portindex::Port;
 
 sub new ($@)
 {
@@ -116,9 +116,9 @@ sub DESTROY
     undef $self;
 }
 
-# Insert FreeBSD::Port object (ie. from 'make describe' output) into
-# ports tree structure according to the ORIGIN -- freeze the object
-# for external storage.
+# Insert FreeBSD::Portindex::Port object (ie. from 'make describe'
+# output) into ports tree structure according to the ORIGIN -- freeze
+# the object for external storage.
 sub insert ($$$)
 {
     my $self   = shift;
@@ -130,9 +130,9 @@ sub insert ($$$)
     return $self;
 }
 
-# Return the cached FreeBSD::Port object for a given origin path,
-# deleting the frozen version from the tree hash.  Return undef if
-# port not found in tree
+# Return the cached FreeBSD::Portindex::Port object for a given origin
+# path, deleting the frozen version from the tree hash.  Return undef
+# if port not found in tree
 sub delete ($$)
 {
     my $self   = shift;
@@ -314,7 +314,8 @@ sub make_describe($$;$)
         }
     }
 
-    $self->insert( $path, FreeBSD::Port->new_from_description($desc) );
+    $self->insert( $path,
+        FreeBSD::Portindex::Port->new_from_description($desc) );
 
     # Now do almost the same again, to extract the MASTERDIR value so
     # we can tell if this is a slave port or not.
@@ -332,8 +333,8 @@ sub make_describe($$;$)
       };
 
     # Clean up various objectionable constructs -- see
-    # FreeBSD::Port::_clean_depends() where the same thing is done to
-    # port dependencies as well.
+    # FreeBSD::Portindex::Port::_clean_depends() where the same thing
+    # is done to port dependencies as well.
 
     chomp($masterdir);
     $masterdir =~ s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
@@ -348,10 +349,10 @@ sub make_describe($$;$)
     return $self;
 }
 
-# Unpack all of the frozen FreeBSD::Ports objects from the btree
-# storage.  Return a reference to a hash containing refs to all port
-# objects. (Note: 'each' passes values by reference (implicitly) --
-# modifying the returned value will affect the underlying hash)
+# Unpack all of the frozen FreeBSD::Portindex::Ports objects from the
+# btree storage.  Return a reference to a hash containing refs to all
+# port objects. (Note: 'each' passes values by reference (implicitly)
+# -- modifying the returned value will affect the underlying hash)
 sub springtime($$)
 {
     my $self     = shift;
@@ -385,7 +386,7 @@ sub masterslave($$)
 
 # For all of the known ports, accumulate the various dependencies as
 # required for the INDEX file.  See
-# FreeBSD::Port::accumulate_dependencies() for details.
+# FreeBSD::Portindex::Port::accumulate_dependencies() for details.
 sub accumulate_dependencies($$)
 {
     my $self     = shift;

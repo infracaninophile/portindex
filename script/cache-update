@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.11 2004-10-22 14:59:57 matthew Exp $
+# @(#) $Id: cache-update,v 1.12 2004-10-23 21:37:21 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -55,9 +55,9 @@
 use strict;
 use warnings;
 
-use FreeBSD::Portindex qw(read_config);
-use FreeBSD::Port;
-use FreeBSD::Ports::Tree;
+use FreeBSD::Portindex::Config qw(read_config);
+use FreeBSD::Portindex::Port;
+use FreeBSD::Portindex::Tree;
 
 our %Config;
 our $pkgname = 'portindex';
@@ -218,7 +218,7 @@ MAIN:
         exit 0;
     }
 
-    $tree = FreeBSD::Ports::Tree->new(
+    $tree = FreeBSD::Portindex::Tree->new(
         -Env           => { -Home => $Config{CacheDir}, },
         -CacheFilename => $Config{CacheFilename},
         -MasterSlaveFilename => $Config{MasterSlaveFilename},
@@ -317,7 +317,7 @@ locations, where the later items on this list override the former:
 
 =item *
 
-Built-in settings from the B<FreeBSD::Portindex> perl module.
+Built-in settings from the B<FreeBSD::Portindex::Config> perl module.
 
 =item *
 

@@ -27,12 +27,12 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.13 2004-10-23 11:01:09 matthew Exp $
+# @(#) $Id: Config.pm,v 1.14 2004-10-23 21:37:22 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
 
-package FreeBSD::Portindex;
+package FreeBSD::Portindex::Config;
 require Exporter;
 
 our @ISA       = qw(Exporter);

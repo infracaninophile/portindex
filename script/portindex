@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: portindex,v 1.24 2004-10-22 14:59:57 matthew Exp $
+# @(#) $Id: portindex,v 1.25 2004-10-23 21:37:21 matthew Exp $
 #
 # Process the cached 'make describe' output to produce an INDEX file
 # Should be a lot quicker than 'make index'.
@@ -36,9 +36,9 @@
 use strict;
 use warnings;
 
-use FreeBSD::Portindex qw(read_config);
-use FreeBSD::Port;
-use FreeBSD::Ports::Tree;
+use FreeBSD::Portindex::Config qw(read_config);
+use FreeBSD::Portindex::Port;
+use FreeBSD::Portindex::Tree;
 
 our %Config;
 our $pkgname = 'portindex';
@@ -52,7 +52,7 @@ MAIN:
 
     read_config( \%Config );
 
-    $tree = FreeBSD::Ports::Tree->new(
+    $tree = FreeBSD::Portindex::Tree->new(
         -Env           => { -Home => $Config{CacheDir}, },
         -CacheFilename => $Config{CacheFilename},
         -MasterSlaveFilename => $Config{MasterSlaveFilename},
@@ -118,7 +118,7 @@ former:
 
 =item *
 
-Built-in settings from the B<FreeBSD::Portindex> perl module.
+Built-in settings from the B<FreeBSD::Portindex::Config> perl module.
 
 =item *
 
