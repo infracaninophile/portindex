@@ -2,7 +2,7 @@
 FreeBSD-Portindex version 1.0
 =============================
 
-$Id: README,v 1.3 2004-11-01 11:55:57 matthew Exp $
+$Id: README,v 1.4 2004-11-01 13:51:46 matthew Exp $
 
 portindex, cache-init, cache-update and find-updated are a set of
 tools used to generate ports INDEX or INDEX-5 files.  They work,
@@ -49,8 +49,8 @@ However, routine usage will typically be something like this:
 
     i) Unpack the portsindex tar-ball, and install:
 
-        % tar -jxvf portindex-N.NN.tar.bz2
-        % cd portindex-N.NN
+        % tar -jxvf FreeBSD-Portindex-N.NN.tar.bz2
+        % cd FreeBSD-Portindex-N.NN
         % perl Makefile.PL
         % make
         % make test

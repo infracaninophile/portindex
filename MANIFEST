@@ -11,3 +11,4 @@ MANIFEST
 portindex.cfg.sample
 README
 t/FreeBSD-Portindex.t
+META.yml                                 Module meta-data (added by MakeMaker)

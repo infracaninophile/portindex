@@ -1,4 +1,4 @@
-# @(#) $Id: Makefile.PL,v 1.2 2004-11-01 13:34:02 matthew Exp $
+# @(#) $Id: Makefile.PL,v 1.3 2004-11-01 13:51:46 matthew Exp $
 use ExtUtils::MakeMaker;
 
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
@@ -21,4 +21,5 @@ WriteMakefile(
             AUTHOR   => 'Matthew Seaman <m.seaman@infracaninophile.co.uk>' )
         : ()
     ),
+    dist => { COMPRESS => 'bzip2', SUFFIX => '.bz2' },
 );
