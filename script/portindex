@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: portindex,v 1.7 2004-09-30 11:01:59 matthew Exp $
+# @(#) $Id: portindex,v 1.8 2004-10-01 19:11:37 matthew Exp $
 #
 # Read the ports index file and parse it into a series of
 # objects. Scan the ports tree for updates since the last index was
@@ -48,233 +48,6 @@ use FreeBSD::Ports::Tree;
 $0 =~ s@.*/@@;    # Script name for error messages
 $::base    = '/usr/ports';    # Port origins relative to this value.
 $::verbose = 1;               # Be garrulous.
-
-# Insert port into ports structure according to the ORIGIN -- either as
-# a string or an array of directories
-sub insert_pkg($$$)
-{
-    my $ports  = shift;
-    my $pkg    = shift;
-    my $origin = shift;
-
-    $origin = [ split( '/', $origin ) ]
-      unless ( ref($origin) eq 'ARRAY' );
-
-    for ( my $i = 0 ; $i < @{$origin} - 1 ; $i++ ) {
-        my $j = $origin->[$i];
-
-        $ports->{$j} = {}
-          unless defined $ports->{$j};
-        $ports = $ports->{$j};
-
-    }
-    $ports->{ $origin->[-1] } = $pkg;
-
-    print STDERR "Inserted $pkg->{'PKGNAME'} at ",
-      join( '/', @{ $pkg->{'ORIGIN'} } ), "\n"
-      if ($::verbose);
-
-    return $pkg;
-}
-
-# Return the pkg value for a given origin path -- note that this can
-# return entries corresponding to a port subdirectory as well.  Return
-# undef if pkg not found in $ports
-sub get_pkg($$)
-{
-    my $ports  = shift;
-    my $origin = shift;
-    my $pkg;
-
-    $origin = [ split( '/', $origin ) ]
-      unless ( ref($origin) eq 'ARRAY' );
-    $pkg = $ports;
-    for my $o ( @{$origin} ) {
-        if ( $pkg->{$o} ) {
-            $pkg = $pkg->{$o};
-        } else {
-            undef($pkg);
-            last;
-        }
-    }
-    return $pkg;
-}
-
-# Return the pkg data for a given origin path, deleting the references
-# to it from the $ports structure.  Return undef if pkg not found in
-# $ports
-sub delete_pkg($$)
-{
-    my $ports  = shift;
-    my $origin = shift;
-    my $pkg;
-    my $pkgx;
-
-    $origin = [ split( '/', $origin ) ]
-      unless ( ref($origin) eq 'ARRAY' );
-    $pkg = $ports;
-    for my $o ( @{$origin} ) {
-        if ( $pkg->{$o} ) {
-            $pkgx = $pkg;
-            $pkg  = $pkg->{$o};
-        } else {
-            undef($pkg);
-            last;
-        }
-    }
-    delete( $pkgx->{ $origin->[-1] } )
-      if ( defined $pkg );
-    print STDERR "Deleted $pkg->{'PKGNAME'} at ",
-      join( '/', @{ $pkg->{'ORIGIN'} } ), "\n"
-      if ($::verbose);
-    return $pkg;
-}
-
-# Read in the /usr/ports/INDEX file converting to an array of
-# hashes with links to the entries for dependencies.
-sub read_index($)
-{
-    my $ports = shift;
-    my $index = {};
-    my $pkg;
-
-    while (<>) {
-        $pkg = pkg_from_description( $index, $_ );
-        insert_pkg( $ports, $pkg, $pkg->{'ORIGIN'} );
-    }
-
-    # Only construct the inverse dependency links once the whole
-    # structure has been initialised
-
-    foreach $pkg ( values %{$index} ) {
-
-        # Construct the inverse links -- from the dependency to us
-        $pkg = invert_dependencies( $pkg, 'B_DEPS' );
-        $pkg = invert_dependencies( $pkg, 'R_DEPS' );
-    }
-    return $ports;
-}
-
-# Take the string returned by 'make describe' or read as one line out
-# of INDEX and use it to populate a pkg object
-sub pkg_from_description($$)
-{
-    my $index = shift;
-    my $desc  = shift;
-
-    my $pkg;
-    my $pkgname;
-    my $origin;
-    my $installdir;
-    my $comment;
-    my $pkg_descr;
-    my $maintainer;
-    my $categories;
-    my $b_deps;
-    my $r_deps;
-    my $www;
-
-    chomp($desc);
-    (
-        $pkgname,    $origin,     $installdir, $comment, $pkg_descr,
-        $maintainer, $categories, $b_deps,     $r_deps,  $www
-      )
-      = split '\|', $desc;
-
-    # Strip the common prefix from the port origins and pkg_descr
-    # items
-
-    $origin    =~ s,^$::base/,,o;
-    $pkg_descr =~ s,^$::base/,,o;
-
-    # Create the reference only if it doesn't already exist.  This
-    # may be present, but empty if port has already been seen as a
-    # b_dep or r_dep of another port.
-
-    $index->{$pkgname} = {}
-      unless defined( $index->{$pkgname} );
-    $pkg = $index->{$pkgname};
-
-    $pkg->{'PKGNAME'}    = $pkgname;
-    $pkg->{'ORIGIN'}     = [ split( '/', $origin ) ];
-    $pkg->{'INSTALLDIR'} = $installdir;
-    $pkg->{'COMMENT'}    = $comment;
-    $pkg->{'PKG_DESCR'}  = $pkg_descr;
-    $pkg->{'MAINTAINER'} = $maintainer;
-    $pkg->{'CATEGORIES'} = $categories;
-    $pkg->{'B_DEPS'}     = get_index_links( $index, $b_deps );
-    $pkg->{'R_DEPS'}     = get_index_links( $index, $r_deps );
-    $pkg->{'WWW'}        = $www;
-
-    return $pkg;
-}
-
-# Take a list of pkgnames (separated by spaces), and convert it into a
-# list of hash references to entries in the %index hash -- creating
-# empty entries as required.
-sub get_index_links($$)
-{
-    my $index  = shift;
-    my $list   = shift;
-    my @return = ();
-
-    foreach my $entry ( split( / /, $list ) ) {
-
-        # Create only if doesn't already exist...
-        $index->{$entry} = {}
-          unless defined( $index->{$entry} );
-
-        push @return, $index->{$entry};
-    }
-    return \@return;
-}
-
-# Create references from each package to the packages that have a
-# dependency on it.  $dep is a hash key -- either B_DEPS for build
-# dependencies, or R_DEPS for runtime dependencies.  The B_UPD and R_UPD
-# are the keys for the corresponding inverse arrays.
-sub invert_dependencies($$)
-{
-    my $pkg = shift;
-    my $dep = shift;
-
-    my $inverse_dep;
-    my $i;
-
-    ( $inverse_dep = $dep ) =~ s/DEPS/UPD/;
-
-    foreach my $dependency ( @{ $pkg->{$dep} } ) {
-        if ( defined $dependency->{$inverse_dep} ) {
-
-            # Insert the upreference into the
-            # $dependency->{$inverse_dep} list so that the list
-            # remains sorted by $pkgname
-
-            $i = 0;    # Index at which to make insertion
-            foreach my $dependent_pkg ( @{ $dependency->{$inverse_dep} } ) {
-                if ( $dependent_pkg->{'PKGNAME'} eq $pkg->{'PKGNAME'} ) {
-
-                    # Already in the list
-                    last;
-                }
-                if ( $dependent_pkg->{'PKGNAME'} gt $pkg->{'PKGNAME'} ) {
-
-                    # Add before this entry...
-                    splice( @{ $dependency->{$inverse_dep} }, $i, 0, $pkg );
-                    last;
-                }
-                $i++;
-            }
-        } else {
-
-            # It's easy to order a list of one thing...
-            $dependency->{$inverse_dep} = [$pkg];
-        }
-    }
-    print STDERR "Inverse $dep dependencies of $pkg->{'PKGNAME'}\n"
-      if $::verbose;
-    return $pkg;
-}
 
 #-------------------------------------------------------------------------
 
@@ -355,7 +128,7 @@ sub process_pkg($$$$)
     my $pkgx;
 
     # if this is a new port, $pkg and $pkgx should both be undef...
-    $pkgx = delete_pkg( $oldports, $dir );
+    $pkgx = $oldports->delete($dir);
 
     if ( defined($pkgx) != defined($pkg) && $pkgx != $pkg ) {
         warn "$0: it's all gone horribly wrong! $pkg != $pkgx\n";
@@ -363,73 +136,27 @@ sub process_pkg($$$$)
 
     # [...]
 
-    insert_pkg( $newports, $pkg, $dir );
+    $newports->insert( $dir, $pkg );
 
     return;
 }
 
 #-------------------------------------------------------------------------
 
-# Print out whole INDEX file sorted by origin using %ports hash:
-# recurse through directory levels.
-sub print_index($)
-{
-    my $p = shift;
-
-    unless ( defined $p->{'PKGNAME'} ) {
-        for my $q ( sort keys %{$p} ) {
-            &print_index( $p->{$q} );
-        }
-    } else {
-        print_index_line($p);
-    }
-    return $p;
-}
-
-# Print out one line of the INDEX file
-sub print_index_line($)
-{
-    my $pkg = shift;
-
-    print $pkg->{'PKGNAME'}, '|';
-    print "$::base/", join( '/', @{ $pkg->{'ORIGIN'} } ), '|';
-    print $pkg->{'INSTALLDIR'}, '|';
-    print $pkg->{'COMMENT'},    '|';
-    print "$::base/", $pkg->{'PKG_DESCR'}, '|';
-    print $pkg->{'MAINTAINER'}, '|';
-    print $pkg->{'CATEGORIES'}, '|';
-    print join( ' ', chase_links( $pkg, 'B_DEPS' ) ), '|';
-    print join( ' ', chase_links( $pkg, 'R_DEPS' ) ), '|';
-    print $pkg->{'WWW'}, "\n";
-
-    return $pkg;
-}
-
-# Turn the list of references to hashes, which are the dependencies
-# (of the specified type) for this package into a list of package
-# names.
-sub chase_links($$)
-{
-    my $pkg = shift;
-    my $dep = shift;
-
-    return sort map { $_->{'PKGNAME'} } @{ $pkg->{$dep} };
-}
-
-#-------------------------------------------------------------------------
-
 MAIN:
 {
-    my %ports;
+    my $tree;
 
-    read_index( \%ports );
+    $tree = FreeBSD::Ports::Tree->new();
+
+    read_index($tree);
 
     # Scan through the Makefiles in the ports tree looking for ports
     # which have files updated more recently than the current ports
     # INDEX.  Compare the 'SUBDIR' links in the Makefiles with the
     # port origins to find added or deleted ports
 
-    print_index( \%ports );
+    $tree->print();
 }
 
 #

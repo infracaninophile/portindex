@@ -27,12 +27,12 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.3 2004-10-01 11:58:24 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.4 2004-10-01 19:11:37 matthew Exp $
 #
 
 #
 # Container for FreeBSD::Ports objects which models the entire ports
-# tree -- mapping port directories 'www/apache2'
+# tree -- mapping port directories 'www/apache2'.
 #
 package FreeBSD::Ports::Tree;
 $VERSION = 0.01;
@@ -40,6 +40,8 @@ $VERSION = 0.01;
 use strict;
 use warnings;
 use Carp;
+
+use FreeBSD::Port;
 
 our ($verbose);
 
@@ -52,6 +54,9 @@ sub new ($@)
     return bless \%self, $class;
 }
 
+# Insert port into ports tree structure according to the ORIGIN --
+# either as a string or an array of directories.  Specifying a $port
+# is optional -- leaving it out just creates a "directory" structure.
 sub insert ($$;$)
 {
     my $self   = shift;
@@ -61,7 +66,7 @@ sub insert ($$;$)
 
     $origin = [ split '/' . $origin ]
       unless ref $origin eq 'ARRAY';
-    $port = {}
+    $port = undef
       unless defined $port && $port->isa("FreeBSD::Port");
 
     while ( @{$origin} > 1 ) {
@@ -76,6 +81,9 @@ sub insert ($$;$)
     return $self;
 }
 
+# Return the port object for a given origin path, deleting the
+# reference to it from the tree structure.  Return undef if port not
+# found in tree
 sub delete ($$)
 {
     my $self   = shift;
@@ -101,6 +109,9 @@ sub delete ($$)
     return $port;
 }
 
+# Return the port object for a given origin path -- note that this can
+# return entries corresponding to a port subdirectory as well.  Return
+# undef if port not found in tree.
 sub get ($$)
 {
     my $self   = shift;
@@ -120,6 +131,58 @@ sub get ($$)
         }
     }
     return $port;
+}
+
+# Read in the /usr/ports/INDEX file from STDIN converting to an array
+# of hashes with links to the entries for dependencies.
+sub read_index($)
+{
+    my $self  = shift;
+    my $index = {};
+    my $port;
+
+    while (<>) {
+        $port = FreeBSD::Port->new_from_description( $index, $_ );
+        $self->insert( $port->ORIGIN(), $port );
+    }
+
+    # Only construct the inverse dependency links once the whole
+    # structure has been initialised
+
+    foreach $port ( values %{$index} ) {
+
+        # Construct the inverse links -- from the dependency to us
+        $port->invert_dependencies('B_DEPS');
+        $port->invert_dependencies('R_DEPS');
+        $port->invert_dependencies('E_DEPS');
+        $port->invert_dependencies('P_DEPS');
+        $port->invert_dependencies('F_DEPS');
+    }
+    return $self;
+}
+
+# Print out whole INDEX file sorted by origin using %ports hash:
+# recurse through directory levels.
+sub print($)
+{
+    my $self = shift;
+
+    sub _do_print ($)
+    {
+        my $self = shift;
+
+        unless ( $self->isa("FreeBSD::Port") ) {
+            for my $q ( sort keys %{$self} ) {
+                &_do_print( $self->{$q} );
+            }
+        } else {
+            $self->print();
+        }
+    }
+
+    _do_print($self);
+
+    return $self;
 }
 
 1;
