@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.26 2005-01-16 10:21:47 matthew Exp $
+# @(#) $Id: cache-update,v 1.27 2005-01-16 11:19:13 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -125,7 +125,7 @@ sub read_cvsup_output (*$$$)
 # file entries marked with an mtime later than some cutoff point.  The
 # cutoff point should be about 1 hour earlier than the last time
 # cache-update or cache-init was run, as determined by the mtime of
-# the DB cache files.
+# the DB timestamp file.
 sub read_cvsup_checkouts (*$$$$)
 {
     my $FH            = shift;
@@ -209,10 +209,10 @@ MAIN:
     # Some Makefiles affect the compilation of all ports.  When those
     # are changed, then it is a good idea to re-initialise the cache
     # from scratch.  Note: the list of Makefiles included on every
-    # invocation of make(1) is longer than this, but the /usr/sys/Mk
-    # and other stuff doesn't generally affect the contents of the
-    # resulting INDEX. Run 'make -V .MAKEFILE_LIST | tr \ \\n' in some
-    # port directories to see the full story.
+    # invocation of make(1) is longer than this, but /usr/sys/Mk/* and
+    # other stuff doesn't generally affect the contents of the
+    # resulting INDEX.  Run 'make -V .MAKEFILE_LIST | tr ' ' \\n' in
+    # some port directories to see the full story.
 
     compare_timestamps( \%Config );
 
@@ -255,10 +255,7 @@ MAIN:
         die "$0: Format \'$Config{Format}\' unrecognised";
     }
 
-    # If there's nothing to update, exit immediately: otherwise,
-    # opening the tied btree files will change the mod-time on the
-    # cache files, and we don't want to do that unless we're going to
-    # modify the data.
+    # If there's nothing to update, exit immediately.
 
     unless (%updates) {
         print STDERR "$0: Nothing to do!\n"
@@ -273,8 +270,9 @@ MAIN:
 
     $tree->masterslave( \%masterslave );
 
-    # Update the entries for the ports read from STDIN, plus the
-    # slaves of any masters listed.
+    # Include in the list of updated ports all of the suitable entries
+    # from the ports read from STDIN, plus the slaves of any masters
+    # listed.
 
     map { $updates{$_}++ } map { @{ $masterslave{$_} || [] } } keys %updates;
 
@@ -306,10 +304,10 @@ B<cache-update> [B<-hvqs>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-p>
 
 B<cache-update> processes a list of port origins, regenerating the
 C<make describe> and C<make -V MASTERDIR -V .MAKEFILE_LIST> output
-from each of them, and updating the records held in the B<portindex>
-cache.  If B<cache-update> is passed a port origin that no longer
-exists, it will delete any corresponding records from the cache: thus
-to handle a port that has been moved, it is necessary to pass
+from each of them, and updating the record of thst data held in the
+B<portindex> cache.  If B<cache-update> is passed a port origin that
+no longer exists, it will delete any corresponding record from the
+cache. To handle a port that has been moved, it is necessary to pass
 B<cache-update> both the old and the new locations of the port for
 processing.
 
@@ -340,38 +338,37 @@ F<portindex-timestamp> file in the cache it can determine which files
 have been modified since it was last run.  When comparing the mtime
 values, B<cache-update> has to allow for the time it takes to
 propagate updates from the master CVS repository to the world-wide
-cvsup servers.  This process is not entirely foolproof and can
-occasionally result in missing some port updates.
+cvsup servers.  This process can occasionally result in missing some
+port updates, but they should be handled in a following
+B<cache-update>.
 
 =back
 
 Where one of the ports B<cache-update> has to process is recognised to
 be a master port, all known slave ports of that master are
 unconditionally added to the list of ports to reprocess.  This is
-necessary since two of the three input formats work by detecting
-modifications to files within the ports tree.  However the C<make
-describe> output of a slave port may well be quite different after an
-update to its master port, even if none of the files within the slave
-port have been modified.
+necessary since two of the three input formats pick out the ports
+needed to be re-checked by detecting modifications to files within
+them.  However the C<make describe> output of a slave port may well be
+quite different after an update to its master port, even if none of
+the files within the slave port have been modified.
 
-Similarly for input formats other than plain, where an update to a
+Similarly, for input formats other than plain, where an update to a
 Makefile is detected, all ports where that Makefile is included will
 be added to the list of ports to reprocess.  Only Makefiles included
 from within the ports tree (ie. under F</usr/ports>, or F<$PORTSDIR>
-if it is set in the environment) are considered.  in certain
+if it is set in the environment) are considered.  In certain
 circumstances it may be more advantageous to run B<cache-init> rather
-than B<cache-update>; for instance whenever
-F</usr/ports/Mk/bsd.port.mk> is modified.
+than B<cache-update>.
 
 =head2 When to run B<cache-init> and when to run B<cache-update>
 
 Over time, successively updating the F<INDEX> file via B<cache-update>
 can inevitably produce minor inconsistencies and an F<INDEX> file that
 diverges slowly from equivalence to what C<make index> would produce.
-For best results it will occasionally be necessary to re-run
+For best results it will be necessary to occasionally re-run
 B<cache-init> and rebuild the cache from scratch.  Certain changes to
-your system should act as warning flags that this needs to be
-considered.
+your system should act as warnings that this needs to be done.
 
 =over 8
 
@@ -386,23 +383,24 @@ The list of ubiquitous makefiles to test in this manner can be set
 using the C<--ubiquitous-makefile> command line option: repeat the
 option to add more makefiles to the list, or by the
 C<UbiquitousMakefiles> configuration file setting.  Any makefile name
-given as a non-absolure path will be taken as relative to the ports
+given as a non-absolute path will be taken as relative to the ports
 directory, F</usr/ports> or the value of C<$PORTSDIR> in the
-environment, or the C<PortsDir> configuration file setting.
+environment, or whatever the C<PortsDir> configuration file setting
+contains.
 
 Technically there are a number of other makefiles located outside
 F</usr/ports> (C<$PORTSDIR>) which will can be included any time
 B<make> is invoked within the ports system, but these are ignored but
-B<cache-update> and B<cache-init>.  Those makefiles rarely change, and
-when they do, the changes are unlikely to have any material effect on
-the generated ports F<INDEX>.
+B<cache-update> and B<cache-init>.  Most of those makefiles rarely
+change, and when they do, the changes are unlikely to have any
+material effect on the generated ports F<INDEX>.  
 
 The C<--endemic-makefile> option or C<EndemicMakefiles> configuration
 file setting can be used to tell B<cache-update> of any other
 makefiles (ie. from within C<PortsDir>) to be considered to have no
 effect on the outcome of generating the F<INDEX> at all.  Again,
 non-absolute paths are taken to be relative to C<PortsDir>.  Repeat
-the option to add several entries.  The list defaults to:
+the option to add several entries.  The list defaults to one item:
 F</usr/ports/Mk/bsd.sites.mk>.
 
 =item *
@@ -441,7 +439,7 @@ the only two examples of such behaviour.
 B<cache-update> shares configuration files with B<cache-init>,
 B<find-updated> and B<portindex>.  Any configuration settings are
 taken from the following locations, where the later items on this list
-override the former:
+override the earlier:
 
 =over 8
 
@@ -606,7 +604,7 @@ update time.
 =item B<--endemic-makefile> F<file>
 
 Ignore this makefile as a trigger for re-checking the C<make describe>
-output for any ports.  Non absolute paths will be taken as relative to
+output for any ports.  Non-absolute paths will be taken as relative to
 C<PortsDir> -- indeed, it is pointless to specify any file located
 outside C<PortsDir>.  Repeat this option to add more makefiles to the
 list.
@@ -667,6 +665,10 @@ correct propagation delay is a matter of guesswork.
 B<cache-update> should optionally parse the contents of
 B</usr/local/etc/pkgtools.conf> and apply settings from the
 C<MAKE_ENV> array.
+
+Changes to some makefiles outside the ports tree can have significant
+effects.  For instance F</usr/local/etc/php.conf> or the options files
+under F</var/db/ports/>.  These are currently ignored.
 
 =cut
 

@@ -28,14 +28,14 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: find-updated,v 1.9 2005-01-16 10:21:47 matthew Exp $
+# @(#) $Id: find-updated,v 1.10 2005-01-16 11:19:13 matthew Exp $
 #
 
 # Scan through the ports tree, and pick out all ports containing files
 # updated after the date given on the command line.  Optionally print
-# names of any ports in the cache that no-longer exist in the tree.  This
-# program doesn't modify the cache at all, but it produces output that
-# cache-update can use.
+# names of any ports in the cache that no-longer exist in the tree.
+# This program doesn't modify the cache at all, but it reads cache
+# data and produces output that cache-update can use.
 
 use strict;
 use warnings;
@@ -76,8 +76,7 @@ sub look_for_updated_files ($$$$)
                 if ( -f _ && $mtime > $refmtime ) {
                     $is_updated++;
                     map { $updaters->{$_}++ }
-                      @{ $makefile_list->{$File::Find::name} }
-                      if ( defined $makefile_list->{$File::Find::name} );
+					@{ $makefile_list->{$File::Find::name} || [] };
 
                     print STDERR "$0: ",
                       strftime( '%Y.%m.%d.%H.%M.%S', localtime($mtime) ),
@@ -174,7 +173,7 @@ sub deleted_ports($$$$)
     for my $origin ( keys %{$allports} ) {
         if ( $allports->{$origin} == 0 ) {
 
-            # A port can be unhooked up from the ports system, but the
+            # A port can be unhooked from the ports system, but the
             # directory left in the tree.  This means the cache will
             # still contain the port data -- don't pass the name to
             # cache-update to recheck unless that directory contains
@@ -253,8 +252,8 @@ __END__
 
 =head1 NAME
 
-find-updated -- generate a list of those ports whose files have been
-modified since the given date/time.
+find-updated -- generate a list of those ports depending on files that
+have been modified since the given date/time.
 
 =head1 SYNOPSIS
 
@@ -266,11 +265,10 @@ B<find-updated> scans through the whole ports tree and checks each
 port origin and the F</usr/ports/Mk> directory (or F<${PORTSDIR}/Mk>
 if C<$PORTSDIR> is set in the environment) for files modified after
 the date given on the command line.  The output consists of a list of
-modified ports, printed one per line suitably for feeding into the
-input of B<cache-update> using plain format.  The generated list of
-updated ports takes into account any master-slave relationships
-between ports, and any ports that include a Makefile modified in the
-given period.
+modified ports, printed one per line, suitable for feeding into
+B<cache-update> using plain format.  The generated list of updated
+ports takes into account any master-slave relationships between ports
+and any ports that include Makefiles modified in the given period.
 
 Only file modification times are checked, not directories.  Files
 named F<README.html> or any F<work> subdirectories are ignored.
@@ -286,17 +284,18 @@ required format, use:
 B<find-update> does a further level of checking by comparing the list
 of port origins obtained from the cache with all of the ports it scans
 for modifications.  Any ports listed in the cache, but either not
-present in the ports tree on disk, or not referenced from the
-F<Makefile>s in the ports tree, but containing modified files will be
-added to the output.  B<cache-update> will recognise if the port has
-been deleted or not and modify the cache accordingly.
+present in the ports tree (a I<deleted> port), or not referenced from
+the sub-directory F<Makefile>s and containing modified files (a
+I<disconnected> port) will be added to the output.  B<cache-update>
+will recognise if the port has been deleted or not and modify the
+cache accordingly.
 
 =head2 Configuration Files
 
 B<find-updated> shares configuration files with B<portindex>,
 B<cache-init> and B<cache-update>.  Any configuration settings are
 taken from the following locations, where the later items on this list
-override the former:
+override the earlier:
 
 =over 8
 
@@ -446,11 +445,12 @@ L<ports(7)>
 
 =head1 BUGS
 
-Any port which is disconnected from the ports tree rather than being
-deleted will remain listed in the cache, and so will still result in
-an entry in the F<INDEX> file.  B<find-updated> will check any known
-but disconnected ports for updates.  The only way to purge the cache
-of disconnected ports is by starting afresh using B<cache-init>.
+Any port already in the cache but which is disconnected from the ports
+tree rather than being deleted will remain listed in the cache, and so
+will still result in an entry in the F<INDEX> file.  B<find-updated>
+will check any known but disconnected ports for updates.  The only way
+to purge the cache of disconnected ports is by starting afresh using
+B<cache-init>.
 
 =cut
 
