@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.13 2004-10-12 22:02:57 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.14 2004-10-12 22:11:53 matthew Exp $
 #
 
 #
@@ -303,9 +303,11 @@ sub make_describe($$;$)
     $masterdir =~ s@/\w[^/]+/\.\./@/@g;
     $masterdir =~ s@/\Z@@g;
 
-    $self->enslave( $masterdir, $path )
-      if ( $masterdir ne $path );
-
+    if ( $masterdir ne $path ) {
+        $self->enslave( $masterdir, $path );
+    } else {
+        $self->manumit( $path );
+    }
     return $self;
 }
 
