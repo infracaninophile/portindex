@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.5 2004-10-19 10:51:34 matthew Exp $
+# @(#) $Id: Config.pm,v 1.6 2004-10-19 11:23:27 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -86,7 +86,7 @@ sub read_config ($)
 
             $config->{InputFormat} = $optvalue;
         },
-        'propagation-delay' => \$config->{PropagationDelay},
+        'propagation-delay=i' => \$config->{PropagationDelay},
     );
 
     for my $cf (
