@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.4 2004-10-01 19:14:09 matthew Exp $
+# @(#) $Id: Port.pm,v 1.5 2004-10-04 14:24:58 matthew Exp $
 #
 
 #
@@ -41,106 +41,127 @@ use strict;
 use warnings;
 use Carp;
 
-our ($base);
-
-$base = '/usr/ports';
+# Ports should be uniquely identified by pkgname
+our (%index);
 
 sub new ($@)
 {
     my $caller = shift;
-    my $class  = ref($caller) || $caller;
-    my %self   = @_;
+    my $class = ref($caller) || $caller;
+    my $self;
+    my %args = @_;
 
-    return bless \%self, $class;
+    croak __PACKAGE__, "::new() -- PKGNAME missing"
+      unless defined $args{PKGNAME};
+
+    if ( defined $index{ $args{PKGNAME} } ) {
+        $self = $index{ $args{PKGNAME} };
+        %{$self} = ( %{$self}, %args );
+    } else {
+        $self = $index{ $args{PKGNAME} } = \%args;
+    }
+
+    bless $self, $class;
+
+    $self->{ORIGIN} = [ split '/', $self->{ORIGIN} ]
+      if defined $self->{ORIGIN} && !ref $self->{ORIGIN};
+    for my $dep (
+        qw(BUILD_DEPENDS RUN_DEPENDS EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS )
+      )
+    {
+        $self->{$dep} = $self->_get_index_links( $self->{$dep} )
+          if defined $self->{$dep} && !ref $self->{$dep};
+    }
+    return $self;
+}
+
+sub DESTROY ($)
+{
+    my $self = shift;
+
+    delete $index{ $self->PKGNAME() };
+    undef $self;
+    return;
 }
 
 # Take the string returned by 'make describe' or read as one line out
 # of INDEX and use it to populate a pkg object
-sub new_from_description($$)
+sub new_from_indexline($)
 {
-	my $caller = shift;
-	my $class  = ref($caller) || $caller;
-    my $index  = shift;
+    my $caller = shift;
+    my $class  = ref($caller) || $caller;
     my $desc   = shift;
+    my $self;
 
-    my $pkg;
     my $pkgname;
     my $origin;
-    my $installdir;
-    my $comment;
-    my $pkg_descr;
-    my $maintainer;
-    my $categories;
-    my $b_deps;
-    my $r_deps;
+    my $stuff;
+    my $build_depends;
+    my $run_depends;
     my $www;
-    my $e_deps;
-    my $p_deps;
-    my $f_deps;
+    my $extract_depends;
+    my $patch_depends;
+    my $fetch_depends;
 
-    # Take a list of pkgnames (separated by spaces), and convert it into a
-    # list of hash references to entries in the temporary %index hash --
-    # creating empty entries as required.
-    sub _get_index_links($)
-    {
-        my $list   = shift;
-        my @return = ();
-    
-        foreach my $entry ( split( / /, $list ) ) {
-    
-            # Create only if doesn't already exist...
-            $index->{$entry} = FreeBSD::Port->new()
-              unless defined( $index->{$entry} );
-    
-            push @return, $index->{$entry};
-        }
-        return \@return;
-    }
-    
     chomp($desc);
+
     (
-        $pkgname,    $origin,     $installdir, $comment, $pkg_descr,
-        $maintainer, $categories, $b_deps,     $r_deps,  $www,
-        $e_deps,     $p_deps,     $f_deps,
+        $pkgname,         $origin,        $stuff,
+        $build_depends,   $run_depends,   $www,
+        $extract_depends, $patch_depends, $fetch_depends
       )
-      = split '\|', $desc;
+      = (
+        $desc =~ m{
+			 ^([^|]+)\|          # PKGNAME
+	          ([^|]+)\|          # ORIGIN
+	          ((?:[^|]*\|){4}[^|]*)\|
+			                     # PREFIX,COMMENT,DESCR,MAINTAINER,CATEGORIES
+	          ([^|]*)\|          # BUILD_DEPENDS
+	          ([^|]*)\|          # RUN_DEPENDS
+	          ([^|]*)\|          # WWW
+	          ([^|]*)\|          # EXTRACT_DEPENDS
+	          ([^|]*)\|          # PATCH_DEPENDS
+	          ([^|]*)$           # FETCH_DEPENDS
+		  }x
+      )
+      or croak __PACKAGE__, "::new_from_indexline():$.: -- incorrect format";
 
-    # Strip the common prefix from the port origins and pkg_descr
-    # items
+    $self = $caller->new(
+        PKGNAME         => $pkgname,
+        ORIGIN          => $origin,
+        STUFF           => $stuff,
+        BUILD_DEPENDS   => $build_depends,
+        RUN_DEPENDS     => $run_depends,
+        WWW             => $www,
+        EXTRACT_DEPENDS => $extract_depends,
+        PATCH_DEPENDS   => $patch_depends,
+        FETCH_DEPENDS   => $fetch_depends
+    );
+    return $self;
+}
 
-    $origin    =~ s,^$::base/,,o;
-    $pkg_descr =~ s,^$::base/,,o;
+# Take a list of pkgnames (separated by spaces), and convert it into a
+# list of hash references to entries in the temporary %index hash --
+# creating empty entries as required.
+sub _get_index_links ($$)
+{
+    my $self   = shift;
+    my $list   = shift;
+    my @return = ();
 
-    # Create the reference only if it doesn't already exist.  This
-    # may be present, but empty if port has already been seen as a
-    # *_dep of another port.
+    foreach my $entry ( split( / /, $list ) ) {
 
-    $index->{$pkgname} = $caller->new()
-      unless defined( $index->{$pkgname} );
-    $pkg = $index->{$pkgname};
-
-    $pkg->PKGNAME($pkgname);
-    $pkg->ORIGIN( [ split( '/', $origin ) ] );
-    $pkg->INSTALLDIR($installdir);
-    $pkg->COMMENT($comment);
-    $pkg->PKG_DESCR($pkg_descr);
-    $pkg->MAINTAINER($maintainer);
-    $pkg->CATEGORIES($categories);
-    $pkg->B_DEPS( _get_index_links( $b_deps ) );
-    $pkg->R_DEPS( _get_index_links( $r_deps ) );
-    $pkg->WWW($www);
-    $pkg->E_DEPS( _get_index_links( $e_deps ) );
-    $pkg->P_DEPS( _get_index_links( $p_deps ) );
-    $pkg->F_DEPS( _get_index_links( $f_deps ) );
-
-    return $pkg;
+        # Created only if doesn't already exist...
+        push @return, $self->new( PKGNAME => $entry );
+    }
+    return \@return;
 }
 
 # Bulk creation of accessor methods.
 for my $slot (
-    qw(PKGNAME ORIGIN PREFIX COMMENT DESCR MAINTAINER
-    CATEGORIES B_DEPS R_DEPS E_DEPS P_DEPS F_DEPS
-    B_UPD R_UPD E_UPD P_UPD F_UPD )
+    qw(PKGNAME ORIGIN STUFF BUILD_DEPENDS RUN_DEPENDS WWW
+    EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS
+    BUILD_INVERSE RUN_INVERSE EXTRACT_INVERSE PATCH_INVERSE FETCH_INVERSE )
   )
 {
     no strict qw(refs);
@@ -159,18 +180,14 @@ sub print ($)
     my $self = shift;
 
     print $self->PKGNAME(), '|';
-    print "$base/", join( '/', @{ $self->ORIGIN() } ), '|';
-    print $self->PREFIX(),  '|';
-    print $self->COMMENT(), '|';
-    print "$base/", $self->DESCR(), '|';
-    print $self->MAINTAINER(), '|';
-    print $self->CATEGORIES(), '|';
-    print join( ' ', $self->_chase_links('B_DEPS') ), '|';
-    print join( ' ', $self->_chase_links('R_DEPS') ), '|';
+    print join( '/', @{ $self->ORIGIN() } ), '|';
+    print $self->STUFF(), '|';
+    print join( ' ', $self->_chase_links('BUILD_DEPENDS') ), '|';
+    print join( ' ', $self->_chase_links('RUN_DEPENDS') ),   '|';
     print $self->WWW(), '|';
-    print join( ' ', $self->_chase_links('E_DEPS') ), '|';
-    print join( ' ', $self->_chase_links('P_DEPS') ), '|';
-    print join( ' ', $self->_chase_links('F_DEPS') ), "\n";
+    print join( ' ', $self->_chase_links('EXTRACT_DEPENDS') ), '|';
+    print join( ' ', $self->_chase_links('PATCH_DEPENDS') ),   '|';
+    print join( ' ', $self->_chase_links('FETCH_DEPENDS') ),   "\n";
 
     return $self;
 }
@@ -187,11 +204,11 @@ sub _chase_links($$)
 }
 
 # Create references from each package to the packages that have a
-# dependency on it.  $dep is a hash key -- either B_DEPS for build
-# dependencies, R_DEPS for runtime dependencies, E_DEPS for extract
-# dependencies, P_DEPS for patch dependencies and F_DEPS for fetch
-# dependencies. B_UPD, R_UPD, E_UPD, P_UPD and F_UPD are the keys for
-# the corresponding inverse arrays.
+# dependency on it.  $dep is a hash key -- one of BUILD_DEPENDS,
+# RUN_DEPENDS, EXTRACT_DEPENDS, PATCH_DEPENDS, FETCH_DEPENDS -- which
+# we invert to create links from the dependencies' FOO_INVERSE entry
+# to $self.  Ie. FOO_INVERSE is a list of the ports which have a FOO
+# dependency on this one.
 sub invert_dependencies($$)
 {
     my $self = shift;
@@ -200,7 +217,7 @@ sub invert_dependencies($$)
     my $inverse_dep;
     my $i;
 
-    ( $inverse_dep = $dep ) =~ s/DEPS/UPD/;
+    ( $inverse_dep = $dep ) =~ s/DEPENDSS/INVERSE/;
 
     foreach my $dependency ( @{ $self ->${dep}() } ) {
         if ( defined $dependency ->${inverse_dep}() ) {
@@ -210,13 +227,13 @@ sub invert_dependencies($$)
             # remains sorted by $pkgname
 
             $i = 0;    # Index at which to make insertion
-            foreach my $dependent_pkg ( @{ $dependency ->${inverse_dep}() } ) {
-                if ( $dependent_pkg->PKGNAME() eq $self->PKGNAME() ) {
+            foreach my $dependent ( @{ $dependency ->${inverse_dep}() } ) {
+                if ( $dependent->PKGNAME() eq $self->PKGNAME() ) {
 
                     # Already in the list
                     last;
                 }
-                if ( $dependent_pkg->PKGNAME() gt $self->PKGNAME() ) {
+                if ( $dependent->PKGNAME() gt $self->PKGNAME() ) {
 
                     # Add before this entry...
                     splice( @{ $dependency ->${inverse_dep}() }, $i, 0, $self );
@@ -230,7 +247,7 @@ sub invert_dependencies($$)
             $dependency ->${inverse_dep}( [$self] );
         }
     }
-    print STDERR "Inverse $dep dependencies of ", $self->PKGNAME(), "\n"
+    carp "Inverse $dep dependencies of ", $self->PKGNAME(), "\n"
       if $::verbose;
     return $self;
 }
