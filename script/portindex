@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# @(#) $Id: portindex,v 1.4 2004-03-26 21:52:12 matthew Exp $
+# @(#) $Id: portindex,v 1.5 2004-03-28 12:15:47 matthew Exp $
 #
 # Read the ports index file and parse it into a series of
 # objects. Scan the ports tree for updates since the last index was
@@ -111,8 +111,16 @@ sub read_index($)
         $pkg = pkg_from_description( $index, $_ );
         insert_pkg( $ports, $pkg, $pkg->{'ORIGIN'} );
     }
-    clean_up_upreferences($index);
-    return $ports;
+
+	# Only construct the inverse dependency links once the whole
+	# structure has been initialised
+
+	foreach $pkg ( values %{$index} ) {
+    # Construct the inverse links -- from the dependency to us
+		$pkg = invert_dependencies( $pkg, 'B_DEPS' );
+		$pkg = invert_dependencies( $pkg, 'R_DEPS' );
+	}
+	return $ports;
 }
 
 # Take the string returned by 'make describe' or read as one line out
@@ -166,10 +174,6 @@ sub pkg_from_description($$)
     $pkg->{'R_DEPS'}     = get_index_links( $index, $r_deps );
     $pkg->{'WWW'}        = $www;
 
-    # Construct the inverse links -- from the dependency to us
-    $pkg = invert_dependencies( $pkg, 'B_DEPS' );
-    $pkg = invert_dependencies( $pkg, 'R_DEPS' );
-
     return $pkg;
 }
 
@@ -194,48 +198,50 @@ sub get_index_links($$)
 }
 
 # Create references from each package to the packages that have a
-# dependency on it.
+# dependency on it.  $dep is a hash key -- either B_DEPS for build
+# dependencies, or R_DEPS for runtime dependencies.  The B_UPD and R_UPD
+# are the keys for the corresponding inverse arrays.
 sub invert_dependencies($$)
 {
     my $pkg = shift;
     my $dep = shift;
 
-    my $upd;
+    my $inverse_dep;
+    my $i;
 
-    ( $upd = $dep ) =~ s/DEPS/UPD/;
+    ( $inverse_dep = $dep ) =~ s/DEPS/UPD/;
 
-    foreach my $d ( @{ $pkg->{$dep} } ) {
-        $d->{$upd} = []
-          unless ( defined $d->{$upd} );
-        push @{ $d->{$upd} }, $pkg;
+    foreach my $dependency ( @{ $pkg->{$dep} } ) {
+        if ( defined $dependency->{$inverse_dep} ) {
+
+            # Insert the upreference into the
+            # $dependency->{$inverse_dep} list so that the list
+            # remains sorted by $pkgname
+
+            $i = 0;    # Index at which to make insertion
+            foreach my $dependent_pkg ( @{ $dependency->{$inverse_dep} } ) {
+                if ( $dependent_pkg->{'PKGNAME'} eq $pkg->{'PKGNAME'} ) {
+
+                    # Already in the list
+                    last;
+                }
+                if ( $dependent_pkg->{'PKGNAME'} gt $pkg->{'PKGNAME'} ) {
+
+                    # Add before this entry...
+                    splice( @{ $dependency->{$inverse_dep} }, $i, 0, $pkg );
+                    last;
+                }
+                $i++;
+            }
+        } else {
+
+            # It's easy to order a list of one thing...
+            $dependency->{$inverse_dep} = [$pkg];
+        }
     }
-    return $pkg;
-}
-
-# For each of the up-references in any port, sort and uniq the data
-sub clean_up_upreferences($)
-{
-    my $index = shift;
-
-    foreach my $pkg ( values %{$index} ) {
-        $pkg->{'B_UPD'} = sort_and_uniq( $pkg->{'B_UPD'} );
-        $pkg->{'R_UPD'} = sort_and_uniq( $pkg->{'R_UPD'} );
-    }
-    return $index;
-}
-
-# Given an array ref to a list of package refs uniq the list, then
-# sort by PKGNAME. Return ref to sorted list.
-sub sort_and_uniq($)
-{
-    my $array = shift;
-    my %seen;
-    my @ary;
-
-    @ary =
-      sort { $a->{'PKGNAME'} cmp $b->{'PKGNAME'} }
-      grep { !$seen{$_}++ } @{$array};
-    return \@ary;
+	print STDERR "Inverse $dep dependencies of $pkg->{'PKGNAME'}\n"
+			if $::verbose;
+	return $pkg;
 }
 
 #-------------------------------------------------------------------------
