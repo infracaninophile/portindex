@@ -1,0 +1,359 @@
+#!/usr/bin/perl -w
+
+# @(#) $Id: portindex,v 1.1 2003-11-10 22:42:19 matthew Exp $
+#
+# Read the ports index file and parse it into a series of objects
+
+use strict;
+use warnings;
+use POSIX qw(strftime);
+use vars qw($base);
+
+$::base = '/usr/ports';    # Port origins relative to this value.
+
+# Build indexing structure of nested hashes parallelling the directory
+# structure of the ports tree
+sub ports_index($)
+{
+    my $ports = shift;
+    my $index;
+    my $p;
+    my $i;
+    my $j;
+
+    $index = read_index( {} );
+
+    foreach my $pkg ( values %{$index} ) {
+
+        $p = $ports;
+
+        for ( $i = 0 ; $i < @{ $pkg->{'ORIGIN'} } ; $i++ ) {
+            $j = $pkg->{'ORIGIN'}[$i];
+
+            if ( $i + 1 == @{ $pkg->{'ORIGIN'} } ) {
+                $p->{$j} = $pkg;
+            } else {
+                $p->{$j} = {}
+                  unless defined $p->{$j};
+                $p = $p->{$j};
+            }
+        }
+    }
+    return $ports;
+}
+
+# Read in the /usr/ports/INDEX file converting to an array of
+# hashes with links to the entries for dependencies.
+sub read_index($)
+{
+    my $index = shift;
+    my $pkgname;
+    my $origin;
+    my $installdir;
+    my $comment;
+    my $pkg_descr;
+    my $maintainer;
+    my $categories;
+    my $b_deps;
+    my $r_deps;
+    my $www;
+
+    while (<>) {
+        chomp;
+        (
+            $pkgname,    $origin,     $installdir, $comment, $pkg_descr,
+            $maintainer, $categories, $b_deps,     $r_deps,  $www
+          )
+          = split '\|';
+
+        # Strip the common prefix from the port origins and pkg_descr
+        # items
+
+        $origin    =~ s,^$::base/,,o;
+        $pkg_descr =~ s,^$::base/,,o;
+
+        # Create the reference only if it doesn't already exist.  This
+        # may be present, but empty if port has already been seen as a
+        # b_dep or r_dep of another port.
+
+        $index->{$pkgname} = {}
+          unless defined( $index->{$pkgname} );
+
+        $index->{$pkgname}{'PKGNAME'}    = $pkgname;
+        $index->{$pkgname}{'ORIGIN'}     = [ split( '/', $origin ) ];
+        $index->{$pkgname}{'INSTALLDIR'} = $installdir;
+        $index->{$pkgname}{'COMMENT'}    = $comment;
+        $index->{$pkgname}{'PKG_DESCR'}  = $pkg_descr;
+        $index->{$pkgname}{'MAINTAINER'} = $maintainer;
+        $index->{$pkgname}{'CATEGORIES'} = $categories;
+        $index->{$pkgname}{'B_DEPS'}     = get_index_links( $index, $b_deps );
+        $index->{$pkgname}{'R_DEPS'}     = get_index_links( $index, $r_deps );
+        $index->{$pkgname}{'WWW'}        = $www;
+
+        # Construct the inverse links -- from the dependency to us
+        $index = invert_dependencies( $index, $pkgname, 'B_DEPS' );
+        $index = invert_dependencies( $index, $pkgname, 'R_DEPS' );
+    }
+    return clean_up_upreferences($index);
+
+}
+
+# Take a list of pkgnames (separated by spaces), and convert it into a
+# list of hash references to entries in the %index hash -- creating
+# empty entries as required.
+sub get_index_links($$)
+{
+    my $index  = shift;
+    my $list   = shift;
+    my @return = ();
+
+    foreach my $entry ( split( / /, $list ) ) {
+
+        # Create only if doesn't already exist...
+        $index->{$entry} = {}
+          unless defined( $index->{$entry} );
+
+        push @return, $index->{$entry};
+    }
+    return \@return;
+}
+
+# Create references from each package to the packages that have a
+# dependency on it.
+sub invert_dependencies($$$)
+{
+    my $index   = shift;
+    my $pkgname = shift;
+    my $dep     = shift;
+
+    my $upd;
+    my $pkg;
+
+    ( $upd = $dep ) =~ s/DEPS/UPD/;
+    $pkg = $index->{$pkgname};
+
+    foreach my $d ( @{ $pkg->{$dep} } ) {
+        $d->{$upd} = []
+          unless ( defined $d->{$upd} );
+        push @{ $d->{$upd} }, $pkg;
+    }
+    return $index;
+}
+
+# For each of the up-references in any port, sort and uniq the data
+sub clean_up_upreferences($)
+{
+    my $index = shift;
+
+    foreach my $pkg ( values %{$index} ) {
+        $pkg->{'B_UPD'} = sort_and_uniq( $pkg->{'B_UPD'} );
+        $pkg->{'R_UPD'} = sort_and_uniq( $pkg->{'R_UPD'} );
+    }
+    return $index;
+}
+
+# Given an array ref to a list of package refs uniq the list, then
+# sort by PKGNAME. Return ref to sorted list.
+sub sort_and_uniq($)
+{
+    my $array = shift;
+    my %seen;
+    my @ary;
+
+    @ary =
+      sort { $a->{'PKGNAME'} cmp $b->{'PKGNAME'} }
+      grep { !$seen{$_}++ } @{$array};
+    return \@ary;
+}
+
+#-------------------------------------------------------------------------
+
+# Read in the MOVED file -- only record lines with a date the same day
+# or later than the INDEX file.
+sub read_moved($$)
+{
+    my $moved = shift;
+    my $cutoffdate;
+
+    # Date is given as a unix time -- convert to yyyy-mm-dd
+    $cutoffdate = strftime( '%Y-%m-%d', localtime $cutoffdate );
+
+    open( MOVED, '<', "$::base/MOVED" )
+      or do {
+        warn "$0: Cant open MOVED file -- $!\n";
+        return $moved;
+      } while (<MOVED>) {
+        next
+          if /^#/;
+        chomp;
+        ( $from, $to, $date, $why ) = split '\|';
+
+        # Ignore any data more than a day older than the INDEX file
+        next
+          if compare_dates( $cutoffdate, $date ) < 0;
+
+        $moved->{$from} = $to;
+    }
+    close MOVED;
+    return $moved;
+}
+
+# Compare two dates in the style yyyy-mm-dd.  Almost, but not quite,
+# suitable to pass to sort() unless you're running perl > 5.6.0...
+sub compare_dates($$)
+{
+    my $a = shift;
+    my $b = shift;
+    my @a;
+    my @b;
+
+    @a = split( '-', $a );
+    @b = split( '-', $b );
+
+    return $a[0] <=> $b[0]
+      || $a[1] <=> $b[1]
+      || $a[2] <=> $b[2];
+}
+
+#-------------------------------------------------------------------------
+
+# Recurse through all of the Makefiles -- expand the SUBDIR argument
+# from each Makefile, and all of the Makefiles in the referenced
+# directories.  If no SUBDIRs are found, this is a leaf directory, in
+# which case run the given func with the directory name as first
+# argument and $args as an opaque ref to whatever data the func needs.
+sub scan_makefiles($$$)
+{
+    my $dir  = shift;
+    my $func = shift;
+    my $args = shift;
+    my $subdirs;
+
+    $subdirs = get_subdirs($dir);
+
+    if ( @{$subdirs} ) {
+        for my $subd ( @{$subdirs} ) {
+
+            # Use & to suppress prototype check...
+            $args = &scan_makefiles( $subd, $func, $args );
+        }
+    } else {
+        $args = &$func( $dir, $args );
+    }
+    return $args;
+}
+
+# Read out the value of the SUBDIR variable in the Makefile in the
+# directory in the argument.
+sub get_subdirs($)
+{
+    my $dir = shift;
+    my @subdirs;
+
+    # Hmmm... Using make(1) to print out the value of the variable
+    # (make -V SUBDIRS) takes about 200 times as long as just scanning
+    # the Makefiles for definitions of the SUBDIR variable.  Be picky
+    # about the format of the SUBDIR assignment lines: SUBDIR is used
+    # in some of the leaf Makefiles, but in a different style.
+
+    open( MAKEFILE, '<', "${base}/${dir}/Makefile" )
+      or do {
+        warn "$0: Can't open Makefile in $dir -- $!\n";
+        return \@subdirs;    # Leave empty.
+      };
+    while (<MAKEFILE>) {
+
+        # Return the path relative to $::base
+        push @subdirs, ( $dir ? "$dir/$1" : $1 )
+          if (m/^\s*SUBDIR\s+\+=\s+(\S+)\s*$/);
+    }
+    close MAKEFILE;
+    return \@subdirs;
+}
+
+#-------------------------------------------------------------------------
+
+# Print out whole INDEX file sorted by origin using %ports hash:
+# recurse through directory levels.
+sub print_index($)
+{
+    my $p = shift;
+
+    unless ( defined $p->{'PKGNAME'} ) {
+        for my $q ( sort keys %{$p} ) {
+            &print_index( $p->{$q} );
+        }
+    } else {
+        print_index_line($p);
+    }
+    return $p;
+}
+
+# Print out one line of the INDEX file
+sub print_index_line($)
+{
+    my $pkg = shift;
+
+    print $pkg->{'PKGNAME'}, '|';
+    print "$::base/", join( '/', @{ $pkg->{'ORIGIN'} } ), '|';
+    print $pkg->{'INSTALLDIR'}, '|';
+    print $pkg->{'COMMENT'},    '|';
+    print "$::base/", $pkg->{'PKG_DESCR'}, '|';
+    print $pkg->{'MAINTAINER'}, '|';
+    print $pkg->{'CATEGORIES'}, '|';
+    print join( ' ', chase_links( $pkg, 'B_DEPS' ) ), '|';
+    print join( ' ', chase_links( $pkg, 'R_DEPS' ) ), '|';
+    print $pkg->{'WWW'}, "\n";
+
+    # Alternate format useful for debugging
+    #
+    # print $pkg->{'PKGNAME'},   "\n";
+    # print "$::base/", join( '/', @{ $pkg->{'ORIGIN'} } ), "\n";
+    # print $pkg->{'INSTALLDIR'}, "\n";
+    # print $pkg->{'COMMENT'},    "\n";
+    # print "$::base/", $pkg->{'PKG_DESCR'}, "\n";
+    # print $pkg->{'MAINTAINER'}, "\n";
+    # print $pkg->{'CATEGORIES'}, "\n";
+    # print "B_DEPS: ", join( "\n      : ",
+    #                        chase_links( $pkg, 'B_DEPS' ) ), "\n";
+    # print "R_DEPS: ", join( "\n      : ",
+    #                        chase_links( $pkg, 'R_DEPS' ) ), "\n";
+    # print $pkg->{'WWW'}, "\n";
+    # print "B_UPD : ", join( "\n      : ",
+    #                        chase_links( $pkg, 'B_UPD' ) ), "\n";
+    # print "R_UPD : ", join( "\n      : ",
+    #                        chase_links( $pkg, 'R_UPD' ) ), "\n*\n";
+
+    return $pkg;
+}
+
+# Turn the list of references to hashes, which are the dependencies
+# (of the specified type) for this package into a list of package
+# names.
+sub chase_links($$)
+{
+    my $pkg = shift;
+    my $dep = shift;
+
+    return sort map { $_->{'PKGNAME'} } @{ $pkg->{$dep} };
+}
+
+#-------------------------------------------------------------------------
+
+MAIN:
+{
+    my %ports;
+
+    ports_index( \%ports );
+
+    # Scan through the Makefiles in the ports tree looking for ports
+    # which have files updated more recently than the current ports
+    # INDEX.  Compare the 'SUBDIR' links in the Makefiles with the
+    # port origins to find added or deleted ports
+
+    print_index( \%ports );
+}
+
+#
+# That's All Folks!
+#
