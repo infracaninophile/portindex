@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# @(#) $Id: portindex,v 1.5 2004-03-28 12:15:47 matthew Exp $
+# @(#) $Id: portindex,v 1.6 2004-09-30 10:39:03 matthew Exp $
 #
 # Read the ports index file and parse it into a series of
 # objects. Scan the ports tree for updates since the last index was
@@ -13,6 +13,9 @@ use warnings;
 use POSIX qw(strftime);
 use File::Find;
 use vars qw($base $verbose);
+
+use FreeBSD::Ports;
+use FreeBSD::Ports::Tree;
 
 $0 =~ s@.*/@@;    # Script name for error messages
 $::base    = '/usr/ports';    # Port origins relative to this value.
@@ -112,15 +115,16 @@ sub read_index($)
         insert_pkg( $ports, $pkg, $pkg->{'ORIGIN'} );
     }
 
-	# Only construct the inverse dependency links once the whole
-	# structure has been initialised
+    # Only construct the inverse dependency links once the whole
+    # structure has been initialised
 
-	foreach $pkg ( values %{$index} ) {
-    # Construct the inverse links -- from the dependency to us
-		$pkg = invert_dependencies( $pkg, 'B_DEPS' );
-		$pkg = invert_dependencies( $pkg, 'R_DEPS' );
-	}
-	return $ports;
+    foreach $pkg ( values %{$index} ) {
+
+        # Construct the inverse links -- from the dependency to us
+        $pkg = invert_dependencies( $pkg, 'B_DEPS' );
+        $pkg = invert_dependencies( $pkg, 'R_DEPS' );
+    }
+    return $ports;
 }
 
 # Take the string returned by 'make describe' or read as one line out
@@ -239,9 +243,9 @@ sub invert_dependencies($$)
             $dependency->{$inverse_dep} = [$pkg];
         }
     }
-	print STDERR "Inverse $dep dependencies of $pkg->{'PKGNAME'}\n"
-			if $::verbose;
-	return $pkg;
+    print STDERR "Inverse $dep dependencies of $pkg->{'PKGNAME'}\n"
+      if $::verbose;
+    return $pkg;
 }
 
 #-------------------------------------------------------------------------
