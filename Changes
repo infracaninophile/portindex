@@ -24,7 +24,8 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 	- Respect $PORTSDIR, add '-p' or '--ports-dir' option to
           select PortsDir to cache-update, cache-init and
           find-updated.  Change cache-update's '-p' (propagation
-          delay) to '-P'.
+          delay) to '-P'.  Requested by Renato Botelho <renato (at)
+          galle.com.br>
 
         - Don't emit the cache-update warnings about /etc/make.conf
           etc. being updated when in quiet mode.
@@ -44,3 +45,11 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 	- Fix dumb programming error that stopped cache-update's
           cvsup-checkouts mode working.
 
+1.4 Sat Feb 19 10:35:00 2005
+
+        - Allow cache-updates to process the output from cvsup(1)'s
+          cvs mode, as well as checkout mode.  Patch from SANETO
+          Takanori <sanewo (at) ba2.so-net.ne.jp>.
+
+        - Fix a run-away recursion problem reported by Alaine <2a (at)
+          deuza.net>

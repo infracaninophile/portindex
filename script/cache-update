@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.28 2005-01-21 21:53:53 matthew Exp $
+# @(#) $Id: cache-update,v 1.29 2005-02-19 10:47:52 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -145,14 +145,20 @@ sub read_cvsup_checkouts (*$$$$)
 
         chomp;
 
-        # Assume checkout mode: only look at files (C = currently
-        # existing, c = used to be present, but now deleted).
+        # Either "checkout" mode: (C = currently existing, c = used to
+        # be present, but now deleted), or "cvs" mode (V = existing, v
+        # = now gone
 
-        next unless m/^[cC]/;
+        next unless m/^[cCvV]/;
 
-        # Extract the important data from the checkouts line
+        # Extract the important data from either style of the
+        # checkouts line
 
-        ( undef, $name, undef, undef, $rcs_attr, undef ) = split ' ', $_, 6;
+        if (m/^[cC]/) {
+            ( undef, $name, undef, undef, $rcs_attr, undef ) = split ' ', $_, 6;
+        } else {
+            ( undef, $name, $rcs_attr ) = split ' ', $_, 3;
+        }
 
         # Can't short-circuit this checking -- any file could be a
         # Makefile from the .MAKEFILE_LIST output.  However, limit the

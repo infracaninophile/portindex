@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.27 2005-01-21 21:58:55 matthew Exp $
+# @(#) $Id: Port.pm,v 1.28 2005-02-19 10:47:52 matthew Exp $
 #
 
 #
@@ -174,13 +174,20 @@ for my $slot (
 # added to it.  Recursively.  Note: don't store
 # FreeBSD::Portindex::Port objects with accumulated dependencies in
 # the FreeBSD::Portindex::Tree structure.
-sub accumulate_dependencies ($$;$)
+sub accumulate_dependencies ($$$;$)
 {
     my $self     = shift;
     my $allports = shift;
+    my $recdepth = shift;
     my $counter  = shift;
 
+    print STDERR ' ' x $recdepth, $self->ORIGIN(),
+      ( $self->DEPENDENCIES_ACCUMULATED() ? '+' : '' ), "\n"
+      if ( $::Config{Debug} );
+
     unless ( $self->DEPENDENCIES_ACCUMULATED() ) {
+        $self->DEPENDENCIES_ACCUMULATED(1);    # Accumulation in progress
+
       DEPEND: for my $whatdep (
             qw( EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS
             BUILD_DEPENDS RUN_DEPENDS )
@@ -190,7 +197,8 @@ sub accumulate_dependencies ($$;$)
 
             for my $dep ( @{ $self->$whatdep() } ) {
                 if ( defined $allports->{$dep} ) {
-                    $allports->{$dep}->accumulate_dependencies($allports);
+                    $allports->{$dep}
+                      ->accumulate_dependencies( $allports, $recdepth + 1 );
                 } else {
                     carp "\n", __PACKAGE__, "::accumulate_dependencies: ",
                       $self->PKGNAME(), " (", $self->ORIGIN(),
@@ -206,7 +214,12 @@ sub accumulate_dependencies ($$;$)
             }
             $self->$whatdep( [ keys %seen ] );
         }
-        $self->DEPENDENCIES_ACCUMULATED(1);
+        $self->DEPENDENCIES_ACCUMULATED(2);    # Accumulation done
+    } elsif ( $self->DEPENDENCIES_ACCUMULATED() == 1 ) {
+
+        # We've got a dependency loop
+        carp __PACKAGE__, "::accumulate_dependencies(): ",
+          "dependency loop detected while processing ", $self->ORIGIN();
     }
     if ( $::Config{Verbose} && ref $counter ) {
         $$counter++;

@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.36 2005-01-21 21:58:55 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.37 2005-02-19 10:47:52 matthew Exp $
 #
 
 #
@@ -456,7 +456,7 @@ sub accumulate_dependencies($$)
     print STDERR "Accumulating dependency information: "
       if ( $::Config{Verbose} );
     for my $port ( values %{$allports} ) {
-        $port->accumulate_dependencies( $allports, \$counter );
+        $port->accumulate_dependencies( $allports, 0, \$counter );
     }
     print STDERR "<${counter}>\n" if ( $::Config{Verbose} );
 
