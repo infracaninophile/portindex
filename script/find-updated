@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: find-updated,v 1.2 2004-10-30 22:25:25 matthew Exp $
+# @(#) $Id: find-updated,v 1.3 2004-10-31 11:45:17 matthew Exp $
 #
 
 # Scan through the ports tree, and pick out all ports containing files
@@ -333,8 +333,7 @@ an error.  The last mentioned of the two options will prevail.
 =item B<--cache-dir>=F<dir>
 
 The location of the B<portindex> data caches, by default
-F</var/tmp/portindex> at the moment, but probably moving to
-F</var/db/portindex> once version 1.0 is released.
+F</var/db/portindex>.
 
 =item B<-C> F<file>
 
@@ -381,10 +380,9 @@ F<-> means output to STDOUT, which is the default.
 
 The default ports directory.
 
-=item F</var/tmp/portindex>
+=item F</var/db/portindex>
 
-The location of the data caches.  Temporary during testing -- the
-default location will probably be F</var/db/portindex>.
+The location of the data caches.
 
 =item F<portindex-cache.db>
 

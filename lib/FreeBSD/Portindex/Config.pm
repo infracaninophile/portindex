@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.19 2004-10-31 11:15:56 matthew Exp $
+# @(#) $Id: Config.pm,v 1.20 2004-10-31 11:45:17 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -62,7 +62,7 @@ sub read_config ($)
     my @optargs;
 
     %{$config} = (
-        CacheDir            => "/var/tmp/$::pkgname",
+        CacheDir            => "/var/db/$::pkgname",
         CacheFilename       => "$::pkgname-cache.db",
         Input               => '-',
         Format              => 'cvsup-output',

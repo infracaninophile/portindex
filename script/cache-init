@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-init,v 1.12 2004-10-30 22:25:25 matthew Exp $
+# @(#) $Id: cache-init,v 1.13 2004-10-31 11:45:17 matthew Exp $
 #
 
 # Build the portindex cache from scratch by scanning through the whole
@@ -199,8 +199,7 @@ The location of the ports tree, almost always F</usr/ports>.
 =item B<--cache-dir>=F<dir>
 
 The location of the B<portindex> data caches, by default
-F</var/tmp/portindex> at the moment, but probably moving to
-F</var/db/portindex> once version 1.0 is released.
+F</var/db/portindex>.
 
 =item B<-C> F<file>
 
@@ -240,10 +239,9 @@ last time that data was modified in or added to the cache.
 
 The default ports directory.
 
-=item F</var/tmp/portindex>
+=item F</var/db/portindex>
 
-The location of the data caches.  Temporary during testing -- the
-default location will probably move to F</var/db/portindex>.
+The location of the data caches.
 
 =item F<portindex-cache.db>
 
