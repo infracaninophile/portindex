@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.11 2004-10-11 12:55:07 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.12 2004-10-12 13:35:36 matthew Exp $
 #
 
 #
@@ -92,13 +92,13 @@ sub delete ($$)
 {
     my $self   = shift;
     my $origin = shift;
-    my $port;
+    my $port   = '';
 
     $self->db_get( $origin, $port );
     if ( defined $port ) {
         $self->db_del($origin);
+        $port = thaw($port);
     }
-    $port = thaw($port);
     return $port;
 }
 
@@ -111,7 +111,8 @@ sub get ($$)
     my $port   = '';
 
     $self->db_get( $origin, $port );
-    $port = thaw($port);
+    $port = thaw($port)
+      if ( defined $port );
     return $port;
 }
 
@@ -124,24 +125,26 @@ sub get ($$)
 # processing
 sub scan_makefiles($@)
 {
-    my $self  = shift;
-    my @paths = @_;
-    my $count = 1;
+    my $self    = shift;
+    my @paths   = @_;
+    my $counter = 0;
 
+    print STDERR "Processing 'make describe' output",
+      @paths == 1 ? "for path \"$path[0]\": " : ": "
+      if ($::verbose);
     foreach my $path (@paths) {
-        print STDERR "Processing 'make describe' output for path \"$path\": ";
-        $self->_scan_makefiles( $path, \$count );
-        print STDERR "<$count>\n";
-
+        $self->_scan_makefiles( $path, \$counter );
     }
+    print STDERR "<$counter>\n"
+      if ($::verbose);
     return $self;
 }
 
 sub _scan_makefiles($$;$)
 {
-    my $self  = shift;
-    my $path  = shift;
-    my $count = shift;
+    my $self    = shift;
+    my $path    = shift;
+    my $counter = shift;
     my @subdirs;
 
     # Hmmm... Using make(1) to print out the value of the variable
@@ -154,22 +157,38 @@ sub _scan_makefiles($$;$)
       or do {
         carp __PACKAGE__,
           "::_scan_makefiles(): Can't open Makefile in $path -- $!";
+
+        # If $path does not exist, or if there's no Makefile there,
+        # then make sure anything corresponding to $path is deleted
+        # from the cache.
+
+        if ( $self->delete($path) ) {
+            carp __PACKAGE__, "::_scan_makefiles():$path: deleted from cache";
+        }
         return $self;    # Leave out this directory.
       };
     while (<MAKEFILE>) {
         push @subdirs, "${path}/${1}"
-          if (m/^\s*SUBDIR\s+\+=\s+([\S-]+)\s*$/);
+          if (m/^\s*SUBDIR\s+\+=\s+(\S+)\s*$/);
     }
-    close MAKEFILE;
+    close MAKEFILE
+      or do {
+
+        # Even if the close() errors out, we've got this far, so
+        # might as well carry on and try and process any output.
+
+        carp __PACKAGE__, "::_scan_makefiles():$path: ",
+          $! ? "close failed -- $!" : "make: bad exit status -- $?";
+      };
 
     if (@subdirs) {
         for my $subdir (@subdirs) {
-            $self->_scan_makefiles( $subdir, $count );
+            $self->_scan_makefiles( $subdir, $counter );
         }
     } else {
 
         # This is a real port directory, not a subdir.
-        $self->make_describe( $path, $count );
+        $self->make_describe( $path, $counter );
     }
     return $self;
 }
@@ -180,14 +199,17 @@ sub _scan_makefiles($$;$)
 # other problems.
 sub make_describe($$;$)
 {
-    my $self  = shift;
-    my $path  = shift;
-    my $count = shift;
+    my $self    = shift;
+    my $path    = shift;
+    my $counter = shift;
     my $desc;
 
     chdir $path
       or do {
         carp __PACKAGE__, "::make_describe():$path: can't chdir() -- $!";
+        if ( $self->delete($path) ) {    # Make sure old cruft is deleted
+            carp __PACKAGE__, "::make_describe():$path -- deleted from cache";
+        }
         return $self;
       };
     open MAKE, '/usr/bin/make describe|'
@@ -200,17 +222,22 @@ sub make_describe($$;$)
       or do {
         carp __PACKAGE__, "::make_describe():$path: ",
           ( $! ? "close failed -- $!" : "make: bad exit status -- $?" );
+
+        # There's a Makefile, but it's not a valid port.
+        if ( $? && $self->delete($path) ) {
+            carp __PACKAGE__, "::make_describe():$path -- deleted from cache";
+        }
         return $self;
       };
 
-    if ( $::verbose && ref $count ) {
-        if ( $$count % 1000 == 0 ) {
-            print STDERR "[$$count]";
-        } elsif ( $$count % 100 == 0 ) {
+    if ( $::verbose && ref $counter ) {
+        $$counter++;
+        if ( $$counter % 1000 == 0 ) {
+            print STDERR "[$$counter]";
+        } elsif ( $$counter % 100 == 0 ) {
             print STDERR '.';
         }
     }
-    $$count++;
 
     $self->insert( $path, FreeBSD::Port->new_from_description($desc) );
 
@@ -243,19 +270,19 @@ sub accumulate_dependencies($$)
 {
     my $self     = shift;
     my $allports = shift;
-    my $counter  = 1;
+    my $counter  = 0;
 
     print STDERR "Accumulating dependency information: " if ($::verbose);
     for my $port ( values %{$allports} ) {
         $port->accumulate_dependencies($allports);
 
         if ($::verbose) {
+            $counter++;
             if ( $counter % 1000 == 0 ) {
                 print STDERR "[$counter]";
             } elsif ( $counter % 100 == 0 ) {
                 print STDERR '.';
             }
-            $counter++;
         }
     }
     print STDERR "<${counter}>\n" if ($::verbose);
@@ -270,7 +297,7 @@ sub print_index($$*)
     my $self     = shift;
     my $allports = shift;
     my $fh       = shift;
-    my $counter  = 1;
+    my $counter  = 0;
 
     my $cursor;
     my $origin = "";

@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.12 2004-10-11 13:09:27 matthew Exp $
+# @(#) $Id: Port.pm,v 1.13 2004-10-12 13:35:36 matthew Exp $
 #
 
 #
@@ -219,12 +219,12 @@ sub print ($*;$)
     print $fh $self->_chase_deps( $allports, 'FETCH_DEPENDS' ),   "\n";
 
     if ( $::verbose && defined $counter ) {
+        $$counter++;
         if ( $$counter % 1000 == 0 ) {
             print STDERR "[$$counter]";
         } elsif ( $$counter % 100 == 0 ) {
             print STDERR '.';
         }
-        $$counter++;
     }
     return $self;
 }
