@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.39 2006-01-29 13:52:30 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.40 2006-01-29 13:59:15 matthew Exp $
 #
 
 #
@@ -259,7 +259,7 @@ sub _scan_makefiles($$;$)
 # other problems. Deal gracefully with the case where the Makefile
 # without SUBDIR entries is a new category (non-leaf) Makefile,
 # without any ports in that category yet -- in which case, 'make
-# describe' will return the empty string.
+# describe' will succeed but return no output.
 sub make_describe($$;$)
 {
     my $self    = shift;
