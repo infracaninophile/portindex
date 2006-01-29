@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.30 2006-01-29 13:52:30 matthew Exp $
+# @(#) $Id: Port.pm,v 1.31 2006-01-29 14:08:34 matthew Exp $
 #
 
 #
@@ -35,7 +35,7 @@
 # this is used for generating the ports INDEX.
 #
 package FreeBSD::Portindex::Port;
-our $VERSION = '1.4';    # Release
+our $VERSION = '1.5';    # Release
 
 use strict;
 use warnings;
