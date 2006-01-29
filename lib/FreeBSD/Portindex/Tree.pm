@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.38 2005-02-19 10:52:31 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.39 2006-01-29 13:52:30 matthew Exp $
 #
 
 #
@@ -181,7 +181,7 @@ sub get ($$)
 # from each Makefile, and all of the Makefiles in the referenced
 # directories.  If no SUBDIRs are found, this is a leaf directory, in
 # which case use 'make describe' and cache that output for later
-# processing
+# processing.
 sub scan_makefiles($@)
 {
     my $self    = shift;
@@ -256,7 +256,10 @@ sub _scan_makefiles($$;$)
 # Run 'make describe' -- takes the port directory as an argument, and
 # runs make describe in it.  Changes current working directory of the
 # process: bails out without updating tree if no such directory or
-# other problems.
+# other problems. Deal gracefully with the case where the Makefile
+# without SUBDIR entries is a new category (non-leaf) Makefile,
+# without any ports in that category yet -- in which case, 'make
+# describe' will return the empty string.
 sub make_describe($$;$)
 {
     my $self    = shift;
@@ -297,6 +300,9 @@ sub make_describe($$;$)
         return $self;
       };
 
+    return $self
+      unless ( defined $desc && $desc !~ m/\A\s*\Z/ );
+
     if ( $::Config{Verbose} && ref $counter ) {
         $$counter++;
         if ( $$counter % 1000 == 0 ) {
@@ -306,7 +312,9 @@ sub make_describe($$;$)
         }
     }
 
-    $port = FreeBSD::Portindex::Port->new_from_description($desc);
+    $port = FreeBSD::Portindex::Port->new_from_description($desc)
+      or croak __PACKAGE__,
+      "::make_describe():$path -- couldn't parse description $desc";
 
     # Now do almost the same again, to extract the MASTERDIR value (so
     # we can tell if this is a slave port or not) and the .MAKEFILE_LIST value

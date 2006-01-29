@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.29 2005-02-19 10:52:31 matthew Exp $
+# @(#) $Id: Port.pm,v 1.30 2006-01-29 13:52:30 matthew Exp $
 #
 
 #
@@ -101,8 +101,11 @@ sub new_from_description($$)
               ([^|]*)$           # WWW
           }x
       )
-      or croak __PACKAGE__,
-      "::new_from_description(): -- incorrect format: $desc";
+      or do {
+        carp __PACKAGE__,
+          "::new_from_description(): -- incorrect format: $desc";
+        return undef;
+      };
 
     $extract_depends = _clean_depends($extract_depends);
     $patch_depends   = _clean_depends($patch_depends);
