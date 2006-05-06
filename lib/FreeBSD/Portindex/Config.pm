@@ -1,4 +1,4 @@
-# Copyright (c) 2004 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2006 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.37 2005-02-19 10:52:31 matthew Exp $
+# @(#) $Id: Config.pm,v 1.38 2006-05-06 22:43:26 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -38,8 +38,8 @@ require Exporter;
 our @ISA       = qw(Exporter);
 our @EXPORT_OK =
   qw(read_config update_timestamp get_timestamp compare_timestamps
-  scrub_environment );
-our $VERSION = '1.4';    # Release
+  scrub_environment counter);
+our $VERSION = '1.5';    # Release
 
 use strict;
 use warnings;
@@ -281,6 +281,22 @@ sub scrub_environment ($)
           unless $var =~ m/$allowed_env/;
     }
     return;
+}
+
+# Print numbers and dots to show progress
+sub counter ($$)
+{
+    my $config  = shift;
+    my $counter = shift;
+
+    if ( $config->{Verbose} && ref $counter ) {
+        $$counter++;
+        if ( $$counter % 1000 == 0 ) {
+            print STDERR "[$$counter]";
+        } elsif ( $$counter % 100 == 0 ) {
+            print STDERR '.';
+        }
+    }
 }
 
 1;

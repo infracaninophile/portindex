@@ -1,4 +1,4 @@
-# Copyright (c) 2004 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2006 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.31 2006-01-29 14:08:34 matthew Exp $
+# @(#) $Id: Port.pm,v 1.32 2006-05-06 22:43:26 matthew Exp $
 #
 
 #
@@ -47,9 +47,9 @@ sub new ($@)
     my $class  = ref($caller) || $caller;
     my %self   = @_;
 
-    croak __PACKAGE__, "::new() -- PKGNAME missing"
+    croak __PACKAGE__, "::new() -- PKGNAME missing\n"
       unless defined $self{PKGNAME};
-    croak __PACKAGE__, "::new() -- ORIGIN missing"
+    croak __PACKAGE__, "::new() -- ORIGIN missing\n"
       unless defined $self{ORIGIN};
 
     return bless \%self, $class;
@@ -102,8 +102,8 @@ sub new_from_description($$)
           }x
       )
       or do {
-        carp __PACKAGE__,
-          "::new_from_description(): -- incorrect format: $desc";
+        warn __PACKAGE__,
+          "::new_from_description(): -- incorrect format: $desc\n";
         return undef;
       };
 
@@ -203,10 +203,10 @@ sub accumulate_dependencies ($$$;$)
                     $allports->{$dep}
                       ->accumulate_dependencies( $allports, $recdepth + 1 );
                 } else {
-                    carp "\n", __PACKAGE__, "::accumulate_dependencies: ",
+                    warn "\n", __PACKAGE__, "::accumulate_dependencies: ",
                       $self->PKGNAME(), " (", $self->ORIGIN(),
                       ") claims to have a $whatdep dependency on $dep,",
-                      " but no such port is known";
+                      " but no such port is known\n";
                     next DEPEND;
                 }
             }
@@ -221,17 +221,10 @@ sub accumulate_dependencies ($$$;$)
     } elsif ( $self->DEPENDENCIES_ACCUMULATED() == 1 ) {
 
         # We've got a dependency loop
-        carp __PACKAGE__, "::accumulate_dependencies(): ",
-          "dependency loop detected while processing ", $self->ORIGIN();
+        warn __PACKAGE__, "::accumulate_dependencies(): ",
+          "dependency loop detected while processing ", $self->ORIGIN(), "\n";
     }
-    if ( $::Config{Verbose} && ref $counter ) {
-        $$counter++;
-        if ( $$counter % 1000 == 0 ) {
-            print STDERR "[$$counter]";
-        } elsif ( $$counter % 100 == 0 ) {
-            print STDERR '.';
-        }
-    }
+    counter( \$::Config, $counter );
     return $self;
 }
 
@@ -253,14 +246,7 @@ sub print ($*;$)
     print $fh $self->_chase_deps( $allports, 'PATCH_DEPENDS' ),   '|';
     print $fh $self->_chase_deps( $allports, 'FETCH_DEPENDS' ),   "\n";
 
-    if ( $::Config{Verbose} && ref $counter ) {
-        $$counter++;
-        if ( $$counter % 1000 == 0 ) {
-            print STDERR "[$$counter]";
-        } elsif ( $$counter % 100 == 0 ) {
-            print STDERR '.';
-        }
-    }
+    counter( \$::Config, $counter );
     return $self;
 }
 
@@ -277,8 +263,8 @@ sub _chase_deps($$$)
         if ( defined $allports->{$origin} ) {
             push @dependencies, $allports->{$origin}->PKGNAME();
         } else {
-            carp "\n", __PACKAGE__, "::_chase_deps():", $self->PKGNAME(),
-              " No PKGNAME found for ($dep) $origin";
+            warn "\n", __PACKAGE__, "::_chase_deps():", $self->PKGNAME(),
+              " No PKGNAME found for ($dep) $origin\n";
         }
     }
     return join ' ', sort @dependencies;

@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.41 2006-05-06 22:04:20 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.42 2006-05-06 22:43:26 matthew Exp $
 #
 
 #
@@ -36,7 +36,7 @@
 # supplied by using BerkeleyDB Btree for backing stores.
 #
 package FreeBSD::Portindex::Tree;
-our $VERSION = '1.4';    # Release
+our $VERSION = '1.5';    # Release
 
 use strict;
 use warnings;
@@ -221,10 +221,10 @@ sub _scan_makefiles($$;$)
         # from the cache.
 
         if ( $self->delete($path) ) {
-            carp __PACKAGE__, "::_scan_makefiles():$path: deleted from cache";
+            warn __PACKAGE__, "::_scan_makefiles():$path: deleted from cache\n";
         } else {
-            carp __PACKAGE__,
-              "::_scan_makefiles(): Can't open Makefile in $path -- $!";
+            warn __PACKAGE__,
+              "::_scan_makefiles(): Can't open Makefile in $path -- $!\n";
         }
         return $self;    # Leave out this directory.
       };
@@ -238,8 +238,8 @@ sub _scan_makefiles($$;$)
         # Even if the close() errors out, we've got this far, so
         # might as well carry on and try and process any output.
 
-        carp __PACKAGE__,
-          "::_scan_makefiles():$path/Makefile: close failed -- $!";
+        warn __PACKAGE__,
+          "::_scan_makefiles():$path/Makefile: close failed -- $!\n";
       };
 
     # bsd.ports.subdir.mk will automatically include Makefile.local
@@ -253,8 +253,8 @@ sub _scan_makefiles($$;$)
               or do {
 
                 # We can't read Makefile.local.  So just ignore it
-                carp __PACKAGE__,
-                  "::_scan_makefiles():$path: Makefile.local unreadable -- $!";
+                warn __PACKAGE__,
+"::_scan_makefiles():$path: Makefile.local unreadable -- $!\n";
                 last MAKEFILE_LOCAL;
               };
             while (<MAKEFILE>) {
@@ -267,8 +267,8 @@ sub _scan_makefiles($$;$)
                 # Even if the close() errors out, we've got this far, so
                 # might as well carry on and try and process any output.
 
-                carp __PACKAGE__,
-"::_scan_makefiles():$path/Makefile.local: close failed -- $!";
+                warn __PACKAGE__,
+"::_scan_makefiles():$path/Makefile.local: close failed -- $!\n";
               };
         }
     }
@@ -307,15 +307,15 @@ sub make_describe($$;$)
 
         # Make sure old cruft is deleted
         if ( $self->delete($path) ) {
-            carp __PACKAGE__, "::make_describe():$path -- deleted from cache";
+            warn __PACKAGE__, "::make_describe():$path -- deleted from cache\n";
         } else {
-            carp __PACKAGE__, "::make_describe():$path: can't chdir() -- $!";
+            warn __PACKAGE__, "::make_describe():$path: can't chdir() -- $!\n";
         }
         return $self;
       };
     open MAKE, '/usr/bin/make describe|'
       or do {
-        carp __PACKAGE__, "::make_describe():$path: can't run make -- $!";
+        warn __PACKAGE__, "::make_describe():$path: can't run make -- $!\n";
         return $self;
       };
     $desc = <MAKE>;
@@ -324,10 +324,10 @@ sub make_describe($$;$)
 
         # There's a Makefile, but it's not a valid port.
         if ( $? && $self->delete($path) ) {
-            carp __PACKAGE__, "::make_describe():$path -- deleted from cache";
+            warn __PACKAGE__, "::make_describe():$path -- deleted from cache\n";
         } else {
-            carp __PACKAGE__, "::make_describe():$path: ",
-              ( $! ? "close failed -- $!" : "make: bad exit status -- $?" );
+            warn __PACKAGE__, "::make_describe():$path: ",
+              ( $! ? "close failed -- $!\n" : "make: bad exit status -- $?\n" );
         }
         return $self;
       };
@@ -335,18 +335,11 @@ sub make_describe($$;$)
     return $self
       unless ( defined $desc && $desc !~ m/\A\s*\Z/ );
 
-    if ( $::Config{Verbose} && ref $counter ) {
-        $$counter++;
-        if ( $$counter % 1000 == 0 ) {
-            print STDERR "[$$counter]";
-        } elsif ( $$counter % 100 == 0 ) {
-            print STDERR '.';
-        }
-    }
+    counter( \$::Config, $counter );
 
     $port = FreeBSD::Portindex::Port->new_from_description($desc)
-      or croak __PACKAGE__,
-      "::make_describe():$path -- couldn't parse description $desc";
+      or die __PACKAGE__,
+      "::make_describe():$path -- couldn't parse description $desc\n";
 
     # Now do almost the same again, to extract the MASTERDIR value (so
     # we can tell if this is a slave port or not) and the .MAKEFILE_LIST value
@@ -354,15 +347,16 @@ sub make_describe($$;$)
 
     open MAKE, '/usr/bin/make -V MASTERDIR -V .MAKEFILE_LIST|'
       or do {
-        carp __PACKAGE__, "::make_describe():$path: can't run make again -- $!";
+        warn __PACKAGE__,
+          "::make_describe():$path: can't run make again -- $!\n";
         return $self;
       };
     $masterdir     = <MAKE>;
     $makefile_list = <MAKE>;
     close MAKE
       or do {
-        carp __PACKAGE__, "::make_describe():$path: ",
-          ( $! ? "close failed -- $!" : "make: bad exit status -- $?" );
+        warn __PACKAGE__, "::make_describe():$path: ",
+          ( $! ? "close failed -- $!\n" : "make: bad exit status -- $?\n" );
       };
 
     $masterdir = _clean_path($masterdir);
