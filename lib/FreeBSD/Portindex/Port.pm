@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.33 2006-05-06 22:49:23 matthew Exp $
+# @(#) $Id: Port.pm,v 1.34 2006-05-06 22:52:32 matthew Exp $
 #
 
 #
@@ -41,7 +41,7 @@ use strict;
 use warnings;
 use Carp;
 
-use FreeBSD::Portindex::Config;
+use FreeBSD::Portindex::Config qw{counter};
 
 sub new ($@)
 {

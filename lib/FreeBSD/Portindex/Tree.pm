@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.43 2006-05-06 22:48:31 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.44 2006-05-06 22:52:32 matthew Exp $
 #
 
 #
@@ -45,7 +45,7 @@ use BerkeleyDB;          # BDB version 2, 3, 4, 41, 42, 43, 44
 use Storable qw(freeze thaw);
 
 use FreeBSD::Portindex::Port;
-use FreeBSD::Portindex::Config;
+use FreeBSD::Portindex::Config qw{counter};
 
 sub new ($@)
 {
