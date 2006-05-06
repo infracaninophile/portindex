@@ -1,4 +1,4 @@
-# Copyright (c) 2004 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2006 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.40 2006-01-29 13:59:15 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.41 2006-05-06 22:04:20 matthew Exp $
 #
 
 #
@@ -41,7 +41,7 @@ our $VERSION = '1.4';    # Release
 use strict;
 use warnings;
 use Carp;
-use BerkeleyDB;          # BDB version 2, 3, 4, 41, 42, 43
+use BerkeleyDB;          # BDB version 2, 3, 4, 41, 42, 43, 44
 use Storable qw(freeze thaw);
 
 use FreeBSD::Portindex::Port;
@@ -204,6 +204,7 @@ sub _scan_makefiles($$;$)
     my $self    = shift;
     my $path    = shift;
     my $counter = shift;
+    my $sdmatch = qr{^\s*SUBDIR\s*\+=\s*(\S+)\s*(#.*)?$};
     my @subdirs;
 
     # Hmmm... Using make(1) to print out the value of the variable
@@ -229,7 +230,7 @@ sub _scan_makefiles($$;$)
       };
     while (<MAKEFILE>) {
         push @subdirs, "${path}/${1}"
-          if (m/^\s*SUBDIR\s+\+=\s+(\S+)\s*(#.*)?$/);
+          if (m/$sdmatch/);
     }
     close MAKEFILE
       or do {
@@ -240,6 +241,37 @@ sub _scan_makefiles($$;$)
         carp __PACKAGE__,
           "::_scan_makefiles():$path/Makefile: close failed -- $!";
       };
+
+    # bsd.ports.subdir.mk will automatically include Makefile.local
+    # if it exists, which permits locally added ports or categories
+    # Just append any SUBDIR settings onto the ones read from the
+    # standard Makefile
+
+    if ( -e "${path}/Makefile.local" ) {
+      MAKEFILE_LOCAL: {
+            open( MAKEFILE, '<', "${path}/Makefile.local" )
+              or do {
+
+                # We can't read Makefile.local.  So just ignore it
+                carp __PACKAGE__,
+                  "::_scan_makefiles():$path: Makefile.local unreadable -- $!";
+                last MAKEFILE_LOCAL;
+              };
+            while (<MAKEFILE>) {
+                push @subdirs, "${path}/${1}"
+                  if (m/$sdmatch/);
+            }
+            close MAKEFILE
+              or do {
+
+                # Even if the close() errors out, we've got this far, so
+                # might as well carry on and try and process any output.
+
+                carp __PACKAGE__,
+"::_scan_makefiles():$path/Makefile.local: close failed -- $!";
+              };
+        }
+    }
 
     if (@subdirs) {
         for my $subdir (@subdirs) {
