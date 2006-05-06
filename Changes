@@ -53,3 +53,20 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 
         - Fix a run-away recursion problem reported by Alaine <2a (at)
           deuza.net>
+
+1.5 Sun Jan 29 13:52:30
+
+        - Stop cache-init falling over while processing a category
+          directory with no ports in it yet.  Bug reported by Will
+          Wainwright <survive (at) masterrave.com>
+
+
+1.6 Sat May  7 00:17:00 2006
+
+        - Incorporate local ports/categories into the INDEX by
+          scanning Makefile.local for additions to $SUBDIR.  Mentioned
+          on freebsd-ports@freebsd.org by Rong-En Fan <rafan (at)
+          infor.org>
+
+        - Clean up error messages, and factor out common progress
+          counter code.
