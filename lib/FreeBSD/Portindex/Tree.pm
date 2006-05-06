@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.44 2006-05-06 22:52:32 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.45 2006-05-06 22:55:43 matthew Exp $
 #
 
 #
@@ -336,7 +336,7 @@ sub make_describe($$;$)
     return $self
       unless ( defined $desc && $desc !~ m/\A\s*\Z/ );
 
-    counter( \$::Config, $counter );
+    counter( \%::Config, $counter );
 
     $port = FreeBSD::Portindex::Port->new_from_description($desc)
       or die __PACKAGE__,

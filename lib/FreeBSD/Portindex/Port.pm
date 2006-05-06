@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.34 2006-05-06 22:52:32 matthew Exp $
+# @(#) $Id: Port.pm,v 1.35 2006-05-06 22:55:43 matthew Exp $
 #
 
 #
@@ -226,7 +226,7 @@ sub accumulate_dependencies ($$$;$)
         warn __PACKAGE__, "::accumulate_dependencies(): ",
           "dependency loop detected while processing ", $self->ORIGIN(), "\n";
     }
-    counter( \$::Config, $counter );
+    counter( \%::Config, $counter );
     return $self;
 }
 
@@ -248,7 +248,7 @@ sub print ($*;$)
     print $fh $self->_chase_deps( $allports, 'PATCH_DEPENDS' ),   '|';
     print $fh $self->_chase_deps( $allports, 'FETCH_DEPENDS' ),   "\n";
 
-    counter( \$::Config, $counter );
+    counter( \%::Config, $counter );
     return $self;
 }
 
