@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.46 2006-05-07 10:47:53 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.47 2006-05-07 10:57:04 matthew Exp $
 #
 
 #
@@ -239,7 +239,7 @@ sub _scan_makefiles($$;$)
             last;
         }
         push @subdirs, "${path}/${1}"
-          if (m/^\s+SUBDIR\s\+=\s(\S+)\s*(#.*)?$/);
+          if (m/^\s*SUBDIR\s\+=\s(\S+)\s*(#.*)?$/);
     }
     close MAKEFILE
       or do {
