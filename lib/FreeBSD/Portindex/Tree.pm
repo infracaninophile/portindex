@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.45 2006-05-06 22:55:43 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.46 2006-05-07 10:47:53 matthew Exp $
 #
 
 #
@@ -205,7 +205,7 @@ sub _scan_makefiles($$;$)
     my $self    = shift;
     my $path    = shift;
     my $counter = shift;
-    my $sdmatch = qr{^\s*SUBDIR\s*\+=\s*(\S+)\s*(#.*)?$};
+    my $isPort  = 0;
     my @subdirs;
 
     # Hmmm... Using make(1) to print out the value of the variable
@@ -230,8 +230,16 @@ sub _scan_makefiles($$;$)
         return $self;    # Leave out this directory.
       };
     while (<MAKEFILE>) {
+        if (m/(PORTNAME|MASTERDIR|MASTER_PORT)/) {
+
+            # Ooops.  This directory actually contains a port rather than
+            # structural stuff.
+
+            $isPort = 1;
+            last;
+        }
         push @subdirs, "${path}/${1}"
-          if (m/$sdmatch/);
+          if (m/^\s+SUBDIR\s\+=\s(\S+)\s*(#.*)?$/);
     }
     close MAKEFILE
       or do {
@@ -248,7 +256,7 @@ sub _scan_makefiles($$;$)
     # Just append any SUBDIR settings onto the ones read from the
     # standard Makefile
 
-    if ( -e "${path}/Makefile.local" ) {
+    if ( !$isPort && -e "${path}/Makefile.local" ) {
       MAKEFILE_LOCAL: {
             open( MAKEFILE, '<', "${path}/Makefile.local" )
               or do {
@@ -260,7 +268,7 @@ sub _scan_makefiles($$;$)
               };
             while (<MAKEFILE>) {
                 push @subdirs, "${path}/${1}"
-                  if (m/$sdmatch/);
+                  if (m/^\s*SUBDIR\s*\+=\s*(\S+)\s*(#.*)?$/);
             }
             close MAKEFILE
               or do {
@@ -274,7 +282,7 @@ sub _scan_makefiles($$;$)
         }
     }
 
-    if (@subdirs) {
+    if ( !$isPort && @subdirs ) {
         for my $subdir (@subdirs) {
             $self->_scan_makefiles( $subdir, $counter );
         }
