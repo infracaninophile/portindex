@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.35 2006-05-06 22:55:43 matthew Exp $
+# @(#) $Id: Port.pm,v 1.36 2006-05-14 20:03:35 matthew Exp $
 #
 
 #
@@ -35,7 +35,9 @@
 # this is used for generating the ports INDEX.
 #
 package FreeBSD::Portindex::Port;
-our $VERSION = '1.5';    # Release
+our $VERSION = '1.6';    # Release
+
+our %directorycache;     # Remember all the directories we've ever seen
 
 use strict;
 use warnings;
@@ -131,29 +133,207 @@ sub new_from_description($$)
 }
 
 # This is a regular sub, not a method call.  Convert the space
-# separated dependency list into an array, plus clean up various
-# undesirable features.
+# separated dependency list into an array (unless it is one already),
+# plus clean up various undesirable features.
 sub _clean_depends ($)
 {
     my $deps = shift;
     my @deps;
 
-    # The make describe line may contain several undesirable
-    # constructs in the list of dependency origins.  Strip these
-    # out as follows:
-    #
-    #  /usr/ports/foo/bar/../../baz/blurfl -> /usr/ports/baz/blurfl
-    #  /usr/ports/foo/bar/../quux -> /usr/ports/foo/quux
-    #  /usr/ports/foo/bar/ -> /usr/ports/foo/bar
+    @deps = ( ref $deps ) ? @{$deps} : split( ' ', $deps );
 
-    for my $dep ( split ' ', $deps ) {
-        $dep =~ s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
-        $dep =~ s@/\w[^/]+/\.\./@/@g;
-        $dep =~ s@/\Z@@g;
-
-        push @deps, $dep;
-    }
+    _clean(@deps);
     return \@deps;
+}
+
+# The make describe line may contain several undesirable constructs in
+# the list of dependency origins.  Strip these out as follows:
+#
+#  /usr/ports/foo/bar/../../baz/blurfl -> /usr/ports/baz/blurfl
+#  /usr/ports/foo/bar/../quux -> /usr/ports/foo/quux
+#  /usr/ports/foo/bar/ -> /usr/ports/foo/bar
+#
+# This alters the arg list directly, so don't pass unassignables
+# to this sub.
+sub _clean ($)
+{
+    for (@_) {
+        chomp;
+        s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
+        s@/\w[^/]+/\.\./@/@g;
+        s@/\Z@@;
+    }
+    return wantarray ? @_ : $_[0];
+}
+
+# Generate the same result using the values of a number of variables
+# extracted from the port Makefile.  This effectively duplicates the
+# code in /usr/ports/Mk/bsd.ports.mk used to produce the 'make
+# describe' output. Instead of invoking perl repeatedly for all
+# 14,000+ ports, we just invoke it once, plus we cache all the results
+# of testing that referenced port directories exist -- so this should
+# be a bit more efficient.
+sub new_from_make_vars ($@)
+{
+    my $caller = shift;
+    my %args   = @_;
+    my $self;
+
+    my $pkgname;
+    my $origin;
+    my $stuff;
+    my $build_depends;
+    my $run_depends;
+    my $extract_depends;
+    my $patch_depends;
+    my $fetch_depends;
+    my $depends;
+    my $lib_depends;
+    my $descr;
+    my $www;
+
+    # %args should contain the value of the following port variables:
+    # PKGNAME, .CURDIR, PREFIX, COMMENT[*], DESCR, MAINTAINER,
+    # CATEGORIES, EXTRACT_DEPENDS, PATCH_DEPENDS, FETCH_DEPENDS,
+    # BUILD_DEPENDS, RUN_DEPENDS, DEPENDS, LIB_DEPENDS.
+    # Additionally, the file referenced by DESCR should be grepped to find
+    # the WWW value.
+
+    $pkgname = $args{PKGNAME};
+    $origin  = $args{'.CURDIR'};
+    ( $descr, $www ) = _www_descr( $args{DESCR} );
+    $stuff =
+      "$args{PREFIX}|$args{COMMENT}|$descr|$args{MAINTAINER}|$args{CATEGORIES}";
+
+    # [*] COMMENT doesn't need quoting to get it through several
+    # layers of shell.
+
+    $extract_depends = _split_xxx_depends( $args{EXTRACT_DEPENDS} );
+    $patch_depends   = _split_xxx_depends( $args{PATCH_DEPENDS} );
+    $fetch_depends   = _split_xxx_depends( $args{FETCH_DEPENDS} );
+    $build_depends   = _split_xxx_depends( $args{BUILD_DEPENDS} );
+    $run_depends     = _split_xxx_depends( $args{RUN_DEPENDS} );
+    $depends         = _split_depends( $args{DEPENDS} );
+    $lib_depends     = _split_xxx_depends( $args{LIB_DEPENDS} );
+
+    # On output:
+    # $extract_depends = EXTRACT_DEPENDS + DEPENDS
+    # $patch_depends   = PATCH_DEPENDS   + DEPENDS
+    # $fetch_depends   = FETCH_DEPENDS   + DEPENDS
+    # $build_depends   = BUILD_DEPENDS   + DEPENDS + LIB_DEPENDS
+    # $run_depends     = RUN_DEPENDS     + DEPENDS + LIB_DEPENDS
+    # The lists should be uniq'd -- sorting will happen later
+
+    $extract_depends = _uniquify( $extract_depends, $depends )
+      or die __PACKAGE__,
+      "::new_from_make_vars():$origin:$pkgname error in EXTRACT_DEPENDS\n";
+    $patch_depends = _uniquify( $patch_depends, $depends )
+      or die __PACKAGE__,
+      "::new_from_make_vars():$origin:$pkgname  error in PATCH_DEPENDS\n";
+    $fetch_depends = _uniquify( $fetch_depends, $depends )
+      or die __PACKAGE__,
+      "::new_from_make_vars():$origin:$pkgname  error in FETCH_DEPENDS\n";
+    $build_depends = _uniquify( $build_depends, $depends, $lib_depends )
+      or die __PACKAGE__,
+      "::new_from_make_vars():$origin:$pkgname  error in BUILD_DEPENDS\n";
+    $run_depends = _uniquify( $run_depends, $depends, $lib_depends )
+      or die __PACKAGE__,
+      "::new_from_make_vars():$origin:$pkgname  error in RUN_DEPENDS\n";
+
+    $self = $caller->new(
+        PKGNAME         => $pkgname,
+        ORIGIN          => $origin,
+        STUFF           => $stuff,
+        EXTRACT_DEPENDS => $extract_depends,
+        PATCH_DEPENDS   => $patch_depends,
+        FETCH_DEPENDS   => $fetch_depends,
+        BUILD_DEPENDS   => $build_depends,
+        RUN_DEPENDS     => $run_depends,
+        WWW             => $www,
+    );
+
+    return $self;
+}
+
+# Extract the port directories from the list of tuples emitted by make
+# for (EXTRACT|FETCH|BUILD|RUN|LIB)_DEPENDS.  These are space
+# separated lists of the form path:dir[:target] -- the 'dir' is what
+# we want.  Note: some of these fields can be empty.  See
+# math/asymptote BUILD_DEPENDS for example.
+sub _split_xxx_depends ($)
+{
+    my $deps = shift;
+    my @deps;
+
+    @deps = ( $deps =~ m{\s*[^\s:]*:([^\s:]+)(?::\S+)?}g );
+
+    return _clean_depends( \@deps );
+}
+
+# Ditto, except for the plain DEPENDS target.  This is a space
+# separated list of the form dir[:target] -- the dir is what we want,
+# again.
+sub _split_depends ($)
+{
+    my $deps = shift;
+    my @deps;
+
+    @deps = ( $deps =~ m{\s*([^\s:]+)(?::\S+)?}g );
+
+    return _clean_depends( \@deps );
+}
+
+# Test if the file referenced by DESCR exists -- otherwise return /dev/null
+# instead.  If it does exist, grep through it to find the WWW: reference.
+sub _www_descr ($)
+{
+    my $descr = shift;
+    my $www   = '';
+
+    if ( -f $descr ) {
+        open( DESCR, '<', $descr ) and do {
+            while (<DESCR>) {
+                if (m/^WWW:\s+(\S+)/) {
+                    $www = $1;
+                    last;
+                }
+            }
+            close DESCR;
+          }
+    } else {
+        $descr = '/dev/null';
+    }
+    return ( $descr, $www );
+}
+
+# Take a list of array references, expand them into a single
+# array. Strip out any duplicates entries in that array and test that
+# all entries correspond to extant directories.  'make index' dies
+# with an error in that case -- we do likewise, by returning undef to
+# signal the caller that thigs have gone horribly wrong. (Must be
+# careful -- empty lists are fine) One important optimization: keep a
+# cache of all the directories we've ever located, instead of
+# stat()'ing them again.
+sub _uniquify(@)
+{
+    my @args = @_;
+    my %seen;
+
+    # Expand the referenced arrays and strip out duplicates
+    @args = grep { !$seen{$_}++ } map { @{$_} } @args;
+
+    foreach my $arg (@args) {
+        unless ( $directorycache{$arg} ) {
+            if ( -d $arg ) {
+                $directorycache{$arg}++;
+            } else {
+                warn "\n", __PACKAGE__,
+                  "::new_from_make_vars(): $arg -- directory not found\n";
+                return undef;
+            }
+        }
+    }
+    return \@args;
 }
 
 # Bulk creation of accessor methods.
@@ -171,6 +351,50 @@ for my $slot (
         $self->{$slot} = shift if @_;
         return $self->{$slot};
     };
+}
+
+# Couple of accessor methods with added foo.
+sub masterdir ($$)
+{
+    my $self = shift;
+    my $masterdir;
+
+    if (@_) {
+        _clean( $masterdir = shift );
+
+        if ( $masterdir ne $self->ORIGIN() ) {
+            $self->MASTERDIR($masterdir);
+        } else {
+            $self->MASTERDIR(undef);
+        }
+    }
+    return $self->MASTERDIR();
+}
+
+sub makefile_list ($$$$)
+{
+    my $self          = shift;
+    my $makefile_list = shift;
+    my $keepers       = shift;    # MAKEFILE_LOCATIONS
+    my $discards      = shift;    # MAKEFILE_EXCEPTIONS
+
+    # List all of the makefiles under ${PORTSDIR} or /var/db/ports
+    # which affect the compilation of a port.  Don't include
+    # ${PORTSDIR}/Mk/bsd.port.mk, because that affects *everything*,
+    # nor include ${PORTSDIR}/Mk/bsd.sites.mk since that has no
+    # material effect on the resulting port/package.
+
+    my %seen = ();
+
+    $self->MAKEFILE_LIST(
+        [
+            _clean(
+                grep { !$seen{$_}++ && m/$keepers/ && !m/$discards/ }
+                  split( ' ', $makefile_list )
+            )
+        ]
+    );
+    return $self;
 }
 
 # Accumulate all of the various dependencies for this port.  If a port
