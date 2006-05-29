@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.4 2006-05-29 11:35:41 matthew Exp $
+# @(#) $Id: Category.pm,v 1.5 2006-05-29 11:44:04 matthew Exp $
 #
 
 #
@@ -137,7 +137,7 @@ sub new_from_makefile ($$$)
     return 0
       if ($isPort);
 
-    $self = $caller->new( ORIGIN => $path, SUBDIRS => \@subdirs );
+    $self = $caller->new( ORIGIN => $origin, SUBDIRS => \@subdirs );
     $tree->insert( $origin, $self );
     return $self;
 }
@@ -159,7 +159,6 @@ sub new_from_makefile_local ($$$)
     my $origin;
 
     $origin = "${path}/Makefile.local";
-
     open( MAKEFILE, '<', $origin )
       or do {
 
