@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.51 2006-05-29 15:23:53 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.52 2006-05-29 19:05:23 matthew Exp $
 #
 
 #
@@ -357,7 +357,7 @@ sub make_describe($$)
 # btree storage.  Return a reference to a hash containing refs to all
 # port objects. (Note: 'each' passes values by reference (implicitly)
 # -- modifying the returned value will affect the underlying hash)
-# Ignore category objects
+# Includes all of the categories too.
 #
 sub springtime($$)
 {
@@ -367,15 +367,14 @@ sub springtime($$)
 
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
         $thawedport = thaw($port);
-        $allports->{$origin} = $thawedport
-          if ( $thawedport->isa("FreeBSD::Portindex::Port") );
+        $allports->{$origin} = $thawedport;
     }
     return $allports;
 }
 
 #
 # Fill in the referenced hash with a list of all known ports (as keys)
-# and zero as values.  Ignore the category objects.
+# and zero as values.  Includes all of the categories too.
 #
 sub port_origins($$)
 {
@@ -383,8 +382,7 @@ sub port_origins($$)
     my $allports = shift;
 
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
-        $allports->{$origin} = 0
-          if ( $port->isa("FreeBSD::Portindex::Port") );
+        $allports->{$origin} = 0;
     }
     return $allports;
 }
@@ -403,6 +401,8 @@ sub masterslave($$)
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
         $thawedport = thaw($port);
 
+        # This skips over all of the Category objects, as well as
+        # ports that don't have MASTERDIR set.
         next unless $thawedport->can("MASTERDIR") && $thawedport->MASTERDIR();
 
         #print STDERR "Slave: $slave  Master: $master\n"
@@ -429,6 +429,7 @@ sub makefile_list ($$)
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
         $thawedport = thaw($port);
 
+        # This skips over all of the Category objects.
         next unless $thawedport->can("MAKEFILE_LIST");
 
         for my $makefile ( @{ $thawedport->MAKEFILE_LIST() } ) {
@@ -441,8 +442,8 @@ sub makefile_list ($$)
 }
 
 #
-# For all of the known ports, accumulate the various dependencies as
-# required for the INDEX file.  See
+# For all of the known ports (but not the categories), accumulate the
+# various dependencies as required for the INDEX file.  See
 # FreeBSD::Portindex::Port::accumulate_dependencies() for details.
 #
 sub accumulate_dependencies($$)
@@ -454,7 +455,8 @@ sub accumulate_dependencies($$)
     print STDERR "Accumulating dependency information: "
       if ( $::Config{Verbose} );
     for my $port ( values %{$allports} ) {
-        $port->accumulate_dependencies( $allports, 0, \$counter );
+        $port->accumulate_dependencies( $allports, 0, \$counter )
+          if ( ref($port) && $port->isa("FreeBSD::Portindex::Port") );
     }
     print STDERR "<${counter}>\n" if ( $::Config{Verbose} );
 
