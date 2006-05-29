@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.36 2006-05-14 20:03:35 matthew Exp $
+# @(#) $Id: Port.pm,v 1.37 2006-05-29 15:23:53 matthew Exp $
 #
 
 #
@@ -59,113 +59,7 @@ sub new ($@)
     return bless \%self, $class;
 }
 
-# Process the output from 'make describe' into a
-# FreeBSD::Portindex::Port object.  The 'make describe' format is very
-# similar to an index line, except that the fields are in a different
-# (more sendsible) order, and the dependencies are given using the
-# port ORIGIN, rather than PKGNAME.  Only the immediate dependencies
-# of any port are given, not the cumulative dependencies of the port
-# and all of its dependencies, etc.  Transforming the ORIGIN lines
-# into the PKGNAME form has to wait until all the port objects have
-# been created, ie. on output of the INDEX file.
-sub new_from_description($$)
-{
-    my $caller = shift;
-    my $desc   = shift;
-    my $self;
-
-    my $pkgname;
-    my $origin;
-    my $stuff;
-    my $build_depends;
-    my $run_depends;
-    my $extract_depends;
-    my $patch_depends;
-    my $fetch_depends;
-    my $www;
-
-    chomp($desc);
-
-    (
-        $pkgname,         $origin,        $stuff,
-        $extract_depends, $patch_depends, $fetch_depends,
-        $build_depends,   $run_depends,   $www
-      )
-      = (
-        $desc =~ m{
-             ^([^|]+)\|          # PKGNAME
-              ([^|]+)\|          # ORIGIN
-              ((?:[^|]*\|){4}[^|]*)\|
-                                 # PREFIX,COMMENT,DESCR,MAINTAINER,CATEGORIES
-              ([^|]*)\|          # EXTRACT_DEPENDS
-              ([^|]*)\|          # PATCH_DEPENDS
-              ([^|]*)\|          # FETCH_DEPENDS
-              ([^|]*)\|          # BUILD_DEPENDS
-              ([^|]*)\|          # RUN_DEPENDS
-              ([^|]*)$           # WWW
-          }x
-      )
-      or do {
-        warn __PACKAGE__,
-          "::new_from_description(): -- incorrect format: $desc\n";
-        return undef;
-      };
-
-    $extract_depends = _clean_depends($extract_depends);
-    $patch_depends   = _clean_depends($patch_depends);
-    $fetch_depends   = _clean_depends($fetch_depends);
-    $build_depends   = _clean_depends($build_depends);
-    $run_depends     = _clean_depends($run_depends);
-
-    $self = $caller->new(
-        PKGNAME         => $pkgname,
-        ORIGIN          => $origin,
-        STUFF           => $stuff,
-        EXTRACT_DEPENDS => $extract_depends,
-        PATCH_DEPENDS   => $patch_depends,
-        FETCH_DEPENDS   => $fetch_depends,
-        BUILD_DEPENDS   => $build_depends,
-        RUN_DEPENDS     => $run_depends,
-        WWW             => $www,
-    );
-
-    return $self;
-}
-
-# This is a regular sub, not a method call.  Convert the space
-# separated dependency list into an array (unless it is one already),
-# plus clean up various undesirable features.
-sub _clean_depends ($)
-{
-    my $deps = shift;
-    my @deps;
-
-    @deps = ( ref $deps ) ? @{$deps} : split( ' ', $deps );
-
-    _clean(@deps);
-    return \@deps;
-}
-
-# The make describe line may contain several undesirable constructs in
-# the list of dependency origins.  Strip these out as follows:
 #
-#  /usr/ports/foo/bar/../../baz/blurfl -> /usr/ports/baz/blurfl
-#  /usr/ports/foo/bar/../quux -> /usr/ports/foo/quux
-#  /usr/ports/foo/bar/ -> /usr/ports/foo/bar
-#
-# This alters the arg list directly, so don't pass unassignables
-# to this sub.
-sub _clean ($)
-{
-    for (@_) {
-        chomp;
-        s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
-        s@/\w[^/]+/\.\./@/@g;
-        s@/\Z@@;
-    }
-    return wantarray ? @_ : $_[0];
-}
-
 # Generate the same result using the values of a number of variables
 # extracted from the port Makefile.  This effectively duplicates the
 # code in /usr/ports/Mk/bsd.ports.mk used to produce the 'make
@@ -173,10 +67,11 @@ sub _clean ($)
 # 14,000+ ports, we just invoke it once, plus we cache all the results
 # of testing that referenced port directories exist -- so this should
 # be a bit more efficient.
-sub new_from_make_vars ($@)
+#
+sub new_from_make_vars ($$)
 {
     my $caller = shift;
-    my %args   = @_;
+    my $args   = shift;
     my $self;
 
     my $pkgname;
@@ -191,30 +86,37 @@ sub new_from_make_vars ($@)
     my $lib_depends;
     my $descr;
     my $www;
+    my $masterdir;
 
-    # %args should contain the value of the following port variables:
+    # %{$args} should contain the value of the following port variables:
     # PKGNAME, .CURDIR, PREFIX, COMMENT[*], DESCR, MAINTAINER,
     # CATEGORIES, EXTRACT_DEPENDS, PATCH_DEPENDS, FETCH_DEPENDS,
     # BUILD_DEPENDS, RUN_DEPENDS, DEPENDS, LIB_DEPENDS.
     # Additionally, the file referenced by DESCR should be grepped to find
     # the WWW value.
+    #
+    # To the usual ports index stuff we add the extra make variables:
+    # MASTERDIR and .MAKEFILE_LIST which are used to control
+    # incremental updating.
 
-    $pkgname = $args{PKGNAME};
-    $origin  = $args{'.CURDIR'};
-    ( $descr, $www ) = _www_descr( $args{DESCR} );
-    $stuff =
-      "$args{PREFIX}|$args{COMMENT}|$descr|$args{MAINTAINER}|$args{CATEGORIES}";
+    $pkgname = $args->{PKGNAME};
+    $origin  = $args->{'.CURDIR'};
+    ( $descr, $www ) = _www_descr( $args->{DESCR} );
+    $stuff = join( '|',
+        $args->{PREFIX}, $args->{COMMENT}, $descr, $args->{MAINTAINER},
+        $args->{CATEGORIES} );
+    $masterdir = $args->{MASTERDIR};
 
     # [*] COMMENT doesn't need quoting to get it through several
     # layers of shell.
 
-    $extract_depends = _split_xxx_depends( $args{EXTRACT_DEPENDS} );
-    $patch_depends   = _split_xxx_depends( $args{PATCH_DEPENDS} );
-    $fetch_depends   = _split_xxx_depends( $args{FETCH_DEPENDS} );
-    $build_depends   = _split_xxx_depends( $args{BUILD_DEPENDS} );
-    $run_depends     = _split_xxx_depends( $args{RUN_DEPENDS} );
-    $depends         = _split_depends( $args{DEPENDS} );
-    $lib_depends     = _split_xxx_depends( $args{LIB_DEPENDS} );
+    $extract_depends = _split_xxx_depends( $args->{EXTRACT_DEPENDS} );
+    $patch_depends   = _split_xxx_depends( $args->{PATCH_DEPENDS} );
+    $fetch_depends   = _split_xxx_depends( $args->{FETCH_DEPENDS} );
+    $build_depends   = _split_xxx_depends( $args->{BUILD_DEPENDS} );
+    $run_depends     = _split_xxx_depends( $args->{RUN_DEPENDS} );
+    $depends         = _split_depends( $args->{DEPENDS} );
+    $lib_depends     = _split_xxx_depends( $args->{LIB_DEPENDS} );
 
     # On output:
     # $extract_depends = EXTRACT_DEPENDS + DEPENDS
@@ -251,15 +153,56 @@ sub new_from_make_vars ($@)
         RUN_DEPENDS     => $run_depends,
         WWW             => $www,
     );
+    $self->masterdir($masterdir);
 
     return $self;
 }
 
+#
+# This is a regular sub, not a method call.  Convert the space
+# separated dependency list into an array (unless it is one already),
+# plus clean up various undesirable features.
+#
+sub _clean_depends ($)
+{
+    my $deps = shift;
+    my @deps;
+
+    @deps = ( ref $deps ) ? @{$deps} : split( ' ', $deps );
+
+    _clean(@deps);
+    return \@deps;
+}
+
+#
+# The make describe line may contain several undesirable constructs in
+# the list of dependency origins.  Strip these out as follows:
+#
+#  /usr/ports/foo/bar/../../baz/blurfl -> /usr/ports/baz/blurfl
+#  /usr/ports/foo/bar/../quux -> /usr/ports/foo/quux
+#  /usr/ports/foo/bar/ -> /usr/ports/foo/bar
+#
+# This alters the arg list directly, so don't pass unassignables
+# to this sub.
+#
+sub _clean (@)
+{
+    for (@_) {
+        chomp;
+        s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
+        s@/\w[^/]+/\.\./@/@g;
+        s@/\Z@@;
+    }
+    return wantarray ? @_ : $_[0];
+}
+
+#
 # Extract the port directories from the list of tuples emitted by make
 # for (EXTRACT|FETCH|BUILD|RUN|LIB)_DEPENDS.  These are space
 # separated lists of the form path:dir[:target] -- the 'dir' is what
 # we want.  Note: some of these fields can be empty.  See
 # math/asymptote BUILD_DEPENDS for example.
+#
 sub _split_xxx_depends ($)
 {
     my $deps = shift;
@@ -270,9 +213,11 @@ sub _split_xxx_depends ($)
     return _clean_depends( \@deps );
 }
 
+#
 # Ditto, except for the plain DEPENDS target.  This is a space
 # separated list of the form dir[:target] -- the dir is what we want,
 # again.
+#
 sub _split_depends ($)
 {
     my $deps = shift;
@@ -283,8 +228,10 @@ sub _split_depends ($)
     return _clean_depends( \@deps );
 }
 
+#
 # Test if the file referenced by DESCR exists -- otherwise return /dev/null
 # instead.  If it does exist, grep through it to find the WWW: reference.
+#
 sub _www_descr ($)
 {
     my $descr = shift;
@@ -306,6 +253,7 @@ sub _www_descr ($)
     return ( $descr, $www );
 }
 
+#
 # Take a list of array references, expand them into a single
 # array. Strip out any duplicates entries in that array and test that
 # all entries correspond to extant directories.  'make index' dies
@@ -314,6 +262,7 @@ sub _www_descr ($)
 # careful -- empty lists are fine) One important optimization: keep a
 # cache of all the directories we've ever located, instead of
 # stat()'ing them again.
+#
 sub _uniquify(@)
 {
     my @args = @_;
@@ -336,7 +285,9 @@ sub _uniquify(@)
     return \@args;
 }
 
+#
 # Bulk creation of accessor methods.
+#
 for my $slot (
     qw(PKGNAME ORIGIN STUFF BUILD_DEPENDS RUN_DEPENDS WWW
     EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS DEPENDENCIES_ACCUMULATED
@@ -353,7 +304,10 @@ for my $slot (
     };
 }
 
-# Couple of accessor methods with added foo.
+#
+# Accessor method with added foo: we're only interested in
+# MASTERDIR if it is different to ORIGIN
+#
 sub masterdir ($$)
 {
     my $self = shift;
@@ -362,7 +316,7 @@ sub masterdir ($$)
     if (@_) {
         _clean( $masterdir = shift );
 
-        if ( $masterdir ne $self->ORIGIN() ) {
+        unless ( $masterdir eq $self->ORIGIN() ) {
             $self->MASTERDIR($masterdir);
         } else {
             $self->MASTERDIR(undef);
@@ -371,6 +325,11 @@ sub masterdir ($$)
     return $self->MASTERDIR();
 }
 
+#
+# Accessor method with added foo: grep through the list of
+# makefiles given in .MAKEFILE_LIST and strip out what it does
+# not make sense to try and process.
+#
 sub makefile_list ($$$$)
 {
     my $self          = shift;
@@ -397,12 +356,14 @@ sub makefile_list ($$$$)
     return $self;
 }
 
+#
 # Accumulate all of the various dependencies for this port.  If a port
 # has a FOO_DEPENDS entry for /usr/ports/foo/bar, then the FOO_DEPENDS
 # entry should have all of the RUN_DEPENDS items for the foo/bar port
 # added to it.  Recursively.  Note: don't store
 # FreeBSD::Portindex::Port objects with accumulated dependencies in
 # the FreeBSD::Portindex::Tree structure.
+#
 sub accumulate_dependencies ($$$;$)
 {
     my $self     = shift;
@@ -454,7 +415,9 @@ sub accumulate_dependencies ($$$;$)
     return $self;
 }
 
+#
 # Print out one line of the INDEX file
+#
 sub print ($*;$)
 {
     my $self     = shift;
@@ -476,8 +439,10 @@ sub print ($*;$)
     return $self;
 }
 
+#
 # Currently, just turns the dependency array into a space separated
-# list.  Translate from ORIGINs into PKGNAMEs
+# list and translates from ORIGINs into PKGNAMEs
+#
 sub _chase_deps($$$)
 {
     my $self     = shift;

@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.50 2006-05-29 11:35:41 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.51 2006-05-29 15:23:53 matthew Exp $
 #
 
 #
@@ -80,9 +80,9 @@ sub new ($@)
     delete $args{-Env};
 
     # Tie the PORTS hashes to our cache file -- a DB btree file.  Keep
-    # three DBs in this cache -- the PORTS data, plus the data about
-    # master/slave relationships (the MAKEFILE_LIST stuff) and the tree
-    # of SUBDIR Categories.
+    # three sets of data in this objects in this cache -- the PORTS
+    # data, plus the data about master/slave relationships (the
+    # MAKEFILE_LIST stuff) and the tree of SUBDIR Categories.
 
     tie %{ $self->{PORTS} }, 'BerkeleyDB::Btree',
       -Env => $self->{ENV},
@@ -91,24 +91,8 @@ sub new ($@)
       or croak __PACKAGE__,
       "::new(): Can't access $portscachefile -- $! $BerkeleyDB::Error";
 
-    # Select which processing style will be used -- traditional, which
-    # is slower but uses the same method that 'make index' does -- or
-    # new (the default) which is faster.
-
-    if ( defined $::Config{MakeDescribeStyle}
-        && $::Config{MakeDescribeStyle} eq 'traditional' )
-    {
-        no strict qw{refs};
-
-        *make_describe = *make_describe_oldstyle;
-    } else {
-        no strict qw{refs};
-
-        *make_describe = *make_describe_newstyle;
-    }
-
-    # Save some regex definitions for use in the various
-    # make_describe() methods.
+    # Save some regex definitions for use in the make_describe()
+    # method.
 
     # Directories where ports-specific Makefiles are found.  Ignore
     # the effect of any Makefile not matching these locations.
@@ -150,9 +134,11 @@ sub DESTROY
     undef $self;
 }
 
+#
 # Insert FreeBSD::Portindex::Port or FreeBSD::Portindex::Category
 # object (ie. from 'make describe' output) into ports tree structure
 # according to the ORIGIN -- freeze the object for external storage.
+#
 sub insert ($$$)
 {
     my $self   = shift;
@@ -164,10 +150,12 @@ sub insert ($$$)
     return $self;
 }
 
+#
 # Return the cached FreeBSD::Portindex::Port or
 # FreeBSD::Portindex::Category object for a given origin path,
 # deleting the frozen version from the tree hash.  Return undef if
 # port not found in tree
+#
 sub delete ($$)
 {
     my $self   = shift;
@@ -183,8 +171,10 @@ sub delete ($$)
     return $thawedport;
 }
 
+#
 # Return the cached port description or category object for a given
 # origin path.  Return undef if port not found in tree.
+#
 sub get ($$)
 {
     my $self   = shift;
@@ -198,13 +188,16 @@ sub get ($$)
     return $thawedport;
 }
 
+#
 # Build the tree structure by scanning through the Makefiles of the
 # ports tree.  This is equivalent to the first part of 'make index' #
-# Recurse through all of the Makefiles -- expand the SUBDIR argument
-# from each Makefile, and all of the Makefiles in the referenced
-# directories.  If no SUBDIRs are found, but various other make
-# variable are set, then this is a leaf directory, in which case use
-# 'make describe' and cache that output for later processing.
+# Recurse through all of the Makefiles -- extract the values of
+# various make variables.  From that divine if this is a leaf
+# directory -- ie. a port, or a category directory.  Store either sort
+# of object in the cache, but for category objects, expand the SUBDIR
+# argument from each Makefile, and any Makefile.local in the
+# referenced directory and process each of those, recursively.
+#
 sub scan_makefiles($@)
 {
     my $self    = shift;
@@ -227,54 +220,24 @@ sub _scan_makefiles($$;$)
     my $self    = shift;
     my $path    = shift;
     my $counter = shift;
-    my $isPort  = 0;
-    my $category;
+    my $port;
 
     # Read the Makefile to extract the settings of some interesting
     # variables.  Possible results are -- no such file or directory or
     # other IO error (undef); not a category but a port (0); success
     # (new object reference)
 
-    $category = FreeBSD::Portindex::Category->new_from_makefile( $path, $self );
+    $port = $self->make_describe($path);
+    if ( defined $port ) {
+        if ( $port->isa("FreeBSD::Portindex::Port") ) {
 
-    # Couldn't open the Makefile for reading
-    if ( !defined $category ) {
+            # This is a port makefile, not a category one.
+            counter( \%::Config, $counter );
 
-        # If $path does not exist, or if there's no Makefile there,
-        # then make sure anything corresponding to $path is deleted
-        # from the cache.
-
-        if ( $self->delete($path) ) {
-            warn __PACKAGE__, "::_scan_makefiles():$path: deleted from cache\n";
         } else {
-            warn __PACKAGE__,
-              "::_scan_makefiles(): Can't open Makefile in $path -- $!\n";
-        }
-        return $self;
-    }
-    if ( $category == 0 ) {
 
-        # This is a port makefile, not a category one.
-        $isPort = 1;
-        $self->make_describe( $path, $counter );
-    } else {
-        for my $subdir ( @{ $category->SUBDIRS() } ) {
-            $self->_scan_makefiles( $subdir, $counter );
-        }
-    }
-
-    # bsd.ports.subdir.mk will automatically include Makefile.local
-    # if it exists, which permits locally added ports or categories
-    # Just append any SUBDIR settings onto the ones read from the
-    # standard Makefile
-
-    if ( !$isPort && -e "${path}/Makefile.local" ) {
-
-        $category =
-          FreeBSD::Portindex::Category->new_from_makefile_local( $path, $self );
-
-        if ($category) {
-            for my $subdir ( @{ $category->SUBDIRS() } ) {
+            # A category -- process the subdirs, recursively
+            for my $subdir ( @{ $port->SUBDIRS() } ) {
                 $self->_scan_makefiles( $subdir, $counter );
             }
         }
@@ -282,105 +245,24 @@ sub _scan_makefiles($$;$)
     return $self;
 }
 
-# Run 'make describe' -- takes the port directory as an argument, and
-# runs make describe in it.  Changes current working directory of the
-# process: bails out without updating tree if no such directory or
-# other problems. Deal gracefully with the case where the Makefile
-# without SUBDIR entries is a new category (non-leaf) Makefile,
-# without any ports in that category yet -- in which case, 'make
-# describe' will succeed but return no output.
-sub make_describe_oldstyle($$;$)
+#
+# Generate the port description or category subdir listing without
+# actually running 'make describe'.  Instead, extract the values of a
+# series of variables that are processed during 'make describe', and
+# perform equivalent processing ourselves.  Returns the a reference to
+# the port of category object generated and placed into the cache.
+# Changes current working directory of the process: bails out without
+# updating tree if no such directory or other problems -- returns
+# undef to signal problems to upper layers in that case.  Deals
+# gracefully with the case where the Makefile without SUBDIR entries
+# is a new category (non-leaf) Makefile, without any ports in that
+# category yet -- in which case, 'make describe' will succeed but
+# return an empty SUBDIR list.
+#
+sub make_describe($$)
 {
-    my $self    = shift;
-    my $path    = shift;
-    my $counter = shift;
-    my $desc;
-    my $masterdir;
-    my $makefile_list;
-    my $port;
-
-    chdir $path
-      or do {
-
-        # Make sure old cruft is deleted
-        if ( $self->delete($path) ) {
-            warn __PACKAGE__, "::make_describe():$path -- deleted from cache\n";
-        } else {
-            warn __PACKAGE__, "::make_describe():$path: can't chdir() -- $!\n";
-        }
-        return $self;
-      };
-    open MAKE, '/usr/bin/make describe|'
-      or do {
-        warn __PACKAGE__, "::make_describe():$path: can't run make -- $!\n";
-        return $self;
-      };
-    $desc = <MAKE>;
-    close MAKE
-      or do {
-
-        # There's a Makefile, but it's not a valid port.
-        if ( $? && $self->delete($path) ) {
-            warn __PACKAGE__, "::make_describe():$path -- deleted from cache\n";
-        } else {
-            warn __PACKAGE__, "::make_describe():$path: ",
-              ( $! ? "close failed -- $!\n" : "make: bad exit status -- $?\n" );
-        }
-        return $self;
-      };
-
-    return $self
-      unless ( defined $desc && $desc !~ m/\A\s*\Z/ );
-
-    counter( \%::Config, $counter );
-
-    $port = FreeBSD::Portindex::Port->new_from_description($desc)
-      or die __PACKAGE__,
-      "::make_describe():$path -- couldn't parse description $desc\n";
-
-    # Now do almost the same again, to extract the MASTERDIR value (so
-    # we can tell if this is a slave port or not) and the .MAKEFILE_LIST value
-    # so we can trigger an update if an included Makefile is modified.
-
-    open MAKE, '/usr/bin/make -V MASTERDIR -V .MAKEFILE_LIST|'
-      or do {
-        warn __PACKAGE__,
-          "::make_describe():$path: can't run make again -- $!\n";
-        return $self;
-      };
-    $masterdir     = <MAKE>;
-    $makefile_list = <MAKE>;
-    close MAKE
-      or do {
-        warn __PACKAGE__, "::make_describe():$path: ",
-          ( $! ? "close failed -- $!\n" : "make: bad exit status -- $?\n" );
-      };
-
-    $port->masterdir($masterdir);
-    $port->makefile_list(
-        $makefile_list,
-        $self->{MAKEFILE_LOCATIONS},
-        $self->{MAKEFILE_EXCEPTIONS}
-    );
-    $self->insert( $path, $port );
-
-    return $self;
-}
-
-# Generate the port description without actually running 'make
-# describe'.  Instead, extract the values of a series of variables
-# that are processed during 'make describe', and perform equivalent
-# processing ourselves.  Changes current working directory of the
-# process: bails out without updating tree if no such directory or
-# other problems. Deal gracefully with the case where the Makefile
-# without SUBDIR entries is a new category (non-leaf) Makefile,
-# without any ports in that category yet -- in which case, 'make
-# describe' will succeed but return no output.
-sub make_describe_newstyle($$;$)
-{
-    my $self    = shift;
-    my $path    = shift;
-    my $counter = shift;
+    my $self = shift;
+    my $path = shift;
     my $make_command;
     my $port;
 
@@ -401,6 +283,7 @@ sub make_describe_newstyle($$;$)
       LIB_DEPENDS
       MASTERDIR
       .MAKEFILE_LIST
+      SUBDIR
     };
     my %make_vars;
 
@@ -413,7 +296,7 @@ sub make_describe_newstyle($$;$)
         } else {
             warn __PACKAGE__, "::make_describe():$path: can't chdir() -- $!\n";
         }
-        return $self;
+        return undef;
       };
 
     # Run make, extracting the values of our list of variables into a
@@ -425,7 +308,7 @@ sub make_describe_newstyle($$;$)
     open MAKE, $make_command
       or do {
         warn __PACKAGE__, "::make_describe():$path: can't run make -- $!\n";
-        return $self;
+        return undef;
       };
     foreach my $mv (@make_var_list) {
         chomp( $make_vars{$mv} = <MAKE> );
@@ -433,38 +316,49 @@ sub make_describe_newstyle($$;$)
     close MAKE
       or do {
 
-        # There's a Makefile, but it's not a valid port.
+        # There's a Makefile, but it's not a valid one.
         if ( $? && $self->delete($path) ) {
             warn __PACKAGE__, "::make_describe():$path -- deleted from cache\n";
         } else {
             warn __PACKAGE__, "::make_describe():$path: ",
               ( $! ? "close failed -- $!\n" : "make: bad exit status -- $?\n" );
         }
-        return $self;
+        return undef;
       };
 
-    counter( \%::Config, $counter );
+    # Create the appropriate type of object (FreeBSD::Portindex::Port
+    # or FreeBSD::Portindex::Category) depending on the results of
+    # running the make command above.  Only real ports set PKGNAME
 
-    $port = FreeBSD::Portindex::Port->new_from_make_vars(%make_vars)
-      or die __PACKAGE__,
-      "::make_describe():$path -- error parsing make output -- $!\n";
+    if ( $make_vars{PKGNAME} ) {
 
-    $port->masterdir( $make_vars{MASTERDIR} );
-    $port->makefile_list(
-        $make_vars{'.MAKEFILE_LIST'},
-        $self->{MAKEFILE_LOCATIONS},
-        $self->{MAKEFILE_EXCEPTIONS}
-    );
+        # Unlike 'make index' we can benefit by pressing on even if there
+        # are errors.  Return undef to signal this to higher levels.
+
+        $port = FreeBSD::Portindex::Port->new_from_make_vars( \%make_vars )
+          or warn __PACKAGE__,
+          "::make_describe():$path -- error parsing make output -- $!\n";
+        $port->makefile_list(
+            $make_vars{'.MAKEFILE_LIST'},
+            $self->{MAKEFILE_LOCATIONS},
+            $self->{MAKEFILE_EXCEPTIONS}
+        );
+    } else {
+
+        # A category Makefile
+        $port = FreeBSD::Portindex::Category->new_from_make_vars( \%make_vars );
+    }
     $self->insert( $path, $port );
-
-    return $self;
+    return $port;
 }
 
+#
 # Unpack all of the frozen FreeBSD::Portindex::Ports objects from the
 # btree storage.  Return a reference to a hash containing refs to all
 # port objects. (Note: 'each' passes values by reference (implicitly)
 # -- modifying the returned value will affect the underlying hash)
 # Ignore category objects
+#
 sub springtime($$)
 {
     my $self     = shift;
@@ -479,8 +373,10 @@ sub springtime($$)
     return $allports;
 }
 
+#
 # Fill in the referenced hash with a list of all known ports (as keys)
 # and zero as values.  Ignore the category objects.
+#
 sub port_origins($$)
 {
     my $self     = shift;
@@ -493,9 +389,11 @@ sub port_origins($$)
     return $allports;
 }
 
+#
 # Invert all of the slave => master hash relationships, returning a
 # reference to a hash whose keys are the master port origins, and
 # whose values are refs to arrays of slave port origins.
+#
 sub masterslave($$)
 {
     my $self        = shift;
@@ -517,9 +415,11 @@ sub masterslave($$)
     return $masterslave;
 }
 
+#
 # Another form of inversion: invert the .MAKEFILE_LIST data, returning
 # a hash with keys being the various Makefiles and targets being an
 # array of port origins depending on those Makefiles.
+#
 sub makefile_list ($$)
 {
     my $self          = shift;
@@ -540,9 +440,11 @@ sub makefile_list ($$)
     return $makefile_list;
 }
 
+#
 # For all of the known ports, accumulate the various dependencies as
 # required for the INDEX file.  See
 # FreeBSD::Portindex::Port::accumulate_dependencies() for details.
+#
 sub accumulate_dependencies($$)
 {
     my $self     = shift;
@@ -559,8 +461,10 @@ sub accumulate_dependencies($$)
     return $self;
 }
 
+#
 # Print out whole INDEX file sorted by ORIGIN using $tree hash: since
 # this is stored as a BerkeleyDB Btree, it comes out already sorted
+#
 sub print_index($$*)
 {
     my $self     = shift;

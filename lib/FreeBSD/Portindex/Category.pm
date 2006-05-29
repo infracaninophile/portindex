@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.5 2006-05-29 11:44:04 matthew Exp $
+# @(#) $Id: Category.pm,v 1.6 2006-05-29 15:23:53 matthew Exp $
 #
 
 #
@@ -42,8 +42,6 @@ our $VERSION = '1.6';    # Release
 use strict;
 use warnings;
 use Carp;
-
-use FreeBSD::Portindex::Tree;
 
 #
 # The data held by this object are the ORIGIN -- where in the ports
@@ -77,119 +75,22 @@ sub new ($@)
 }
 
 #
-# Create a Category object from one of the standard ports Makefiles
-# This will quite regularly be passed the path to a *port* Makefile,
-# so returning 0 is just a signal to the upper layers to try something
-# different. Returning undef signals a real error.  Confusingly, this
-# same function also serves to delete references to the given Makefile
-# from the cache.
+# Create a Category object from the value of certain variables
+# extracted from one of the ports category Makefiles.
 #
-sub new_from_makefile ($$$)
+sub new_from_make_vars ($$)
 {
     my $caller = shift;
-    my $path   = shift;
-    my $tree   = shift;
+    my $args   = shift;
     my $self;
+
     my $origin;
     my @subdirs;
-    my $isPort = 0;
 
-    # Hmmm... Using make(1) to print out the value of the variable
-    # (make -V SUBDIRS) takes about 200 times as long as just scanning
-    # the Makefiles for definitions of the SUBDIR variable.  Be picky
-    # about the format of the SUBDIR assignment lines: SUBDIR is used
-    # in some of the leaf Makefiles, but in a different style.
-
-    $origin = "${path}/Makefile";
-    open( MAKEFILE, '<', $origin )
-      or do {
-
-        # Remove this entry from the cache
-        if ( $tree->delete($origin) ) {
-            warn __PACKAGE__,
-              "::new_from_makefile():$origin deleted from cache\n";
-        } else {
-            warn __PACKAGE__,
-              "::new_from_makefile(): Can't open $origin -- $!\n";
-        }
-        return undef;    # Leave out this directory.
-      };
-    while (<MAKEFILE>) {
-        if (m/(PORTNAME|MASTERDIR|MASTER_PORT)/) {
-
-            # Ooops.  This directory actually contains a port rather than
-            # structural category stuff.
-
-            $isPort = 1;
-            last;
-        }
-        push @subdirs, "${path}/${1}"
-          if (m/^\s*SUBDIR\s\+=\s(\S+)\s*(#.*)?$/);
-    }
-    close MAKEFILE
-      or do {
-
-        # Even if the close() errors out, we've got this far, so
-        # might as well carry on and try and process any output.
-
-        warn __PACKAGE__, "::new_from_makefile():$origin: close failed -- $!\n";
-      };
-    return 0
-      if ($isPort);
+    $origin  = $args->{'.CURDIR'};
+    @subdirs = map { "$origin/$_" } split ' ', $args->{SUBDIR};
 
     $self = $caller->new( ORIGIN => $origin, SUBDIRS => \@subdirs );
-    $tree->insert( $origin, $self );
-    return $self;
-}
-
-#
-# Create a Category object from a user defined Makefile.local -- this
-# is much the same as the previous method, with slightly different
-# regexp stuff.  This one should also never be confused with a port
-# Makefile.  Confusingly, this same function also serves to delete
-# references to the given Makefile.local from the cache.
-#
-sub new_from_makefile_local ($$$)
-{
-    my $caller = shift;
-    my $path   = shift;
-    my $tree   = shift;
-    my $self;
-    my @subdirs;
-    my $origin;
-
-    $origin = "${path}/Makefile.local";
-    open( MAKEFILE, '<', $origin )
-      or do {
-
-        # Remove this entry from the cache, if it is there already
-        if ( $tree->delete($origin) ) {
-            warn __PACKAGE__,
-              "::new_from_makefile_local():$origin deleted from cache\n";
-        } else {
-
-            # We can't read Makefile.local.  So just ignore it
-            warn __PACKAGE__,
-              "::new_from_makefile_local():Can't open $origin -- $!\n";
-        }
-        return undef;
-      };
-    while (<MAKEFILE>) {
-        push @subdirs, "${path}/${1}"
-          if (m/^\s*SUBDIR\s*\+=\s*(\S+)\s*(#.*)?$/);
-    }
-    close MAKEFILE
-      or do {
-
-        # Even if the close() errors out, we've got this far, so
-        # might as well carry on and try and process any output.
-
-        warn __PACKAGE__,
-          "::new_from_makefile_local():$origin close failed -- $!\n";
-      };
-
-    $self = $caller->new( ORIGIN => $origin, SUBDIRS => \@subdirs );
-    $tree->insert( $origin, $self );
     return $self;
 }
 
