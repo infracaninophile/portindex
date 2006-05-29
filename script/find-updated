@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright (c) 2004 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2006 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: find-updated,v 1.11 2006-01-29 14:01:10 matthew Exp $
+# @(#) $Id: find-updated,v 1.12 2006-05-29 17:10:36 matthew Exp $
 #
 
 # Scan through the ports tree, and pick out all ports containing files
@@ -52,12 +52,14 @@ our $pkgname = 'portindex';
 
 $0 =~ s@.*/@@;    # Script name for error messages
 
+#
 # Given a port origin, check for files with a more recent modification
 # time than the reference time. If one is found, add this path to the
 # list of paths to pass to cache-update.  Also add any ports that
 # include an updated Makefile.  Return once all files have been
 # checked.  Don't check ./work or other WRKDIR type directories, and
 # ignore README.html as those are generated files.
+#
 sub look_for_updated_files ($$$$)
 {
     my $path          = shift;
@@ -90,10 +92,12 @@ sub look_for_updated_files ($$$$)
     return $is_updated;
 }
 
+#
 # Scan through the port directories by reading the SUBDIR variables
 # out of port Makefiles.  Remarkably sumilar to
-# FreeBSD::Portindex::Tree::_scan_makefiles() -- that function and
-# this one should be amalgamated somehow.
+# FreeBSD::Portindex::Tree::make_describe() -- that function and this
+# one should be amalgamated somehow.
+#
 sub scan_makefiles ($$$$$)
 {
     my $path          = shift;
@@ -101,6 +105,8 @@ sub scan_makefiles ($$$$$)
     my $updaters      = shift;
     my $allports      = shift;
     my $makefile_list = shift;
+    my $pk;
+    my $sd;
     my @subdirs;
 
     # Hmmm... Using make(1) to print out the value of the variable
@@ -109,38 +115,38 @@ sub scan_makefiles ($$$$$)
     # about the format of the SUBDIR assignment lines: SUBDIR is used
     # in some of the leaf Makefiles, but in a different style.
 
-    open( MAKEFILE, '<', "${path}/Makefile" )
+    chdir $path
+      or do {
+        warn "$0: scan_makefiles(): Can't chdir() to $path -- $!\n";
+        return;
+      };
+
+    open( MAKE, "/usr/bin/make -V PKGNAME -V SUBDIR|" )
       or do {
 
         # If $path does not exist, or if there's no Makefile there,
         # then something has gone horribly wrong.  Give up trying to
         # recurse at this directory level.
 
-        warn "$0: scan_makefiles(): Can't open Makefile in $path -- $!";
+        warn "$0: scan_makefiles(): Can't run make at $path -- $!";
         return;    # Leave out this directory.
       };
-    while (<MAKEFILE>) {
-        push @subdirs, "${path}/${1}"
-          if (m/^\s*SUBDIR\s+\+=\s+(\S+)\s*(#.*)?$/);
-    }
-    close MAKEFILE
+    chomp( $pk = <MAKE> );    # If this is set, it's a port
+    chomp( $sd = <MAKE> );
+    close MAKE
       or do {
 
         # Even if the close() errors out, we've got this far, so
         # might as well carry on and try and process any output.
 
-        warn "$0: scan_makefiles(): $path/Makefile: close failed -- $!";
+        warn "$0: scan_makefiles(): $path: ",
+          ( $! ? "close failed -- $!\n" : "make -- bad exit status -- $?\n" );
       };
-    if (@subdirs) {
-        for my $subdir (@subdirs) {
 
-            # Recursion means never having to obey a function
-            # prototype.
+    # Note that we've been here.
+    $allports->{$path}++;
 
-            &scan_makefiles( $subdir, $refmtime, $updaters, $allports,
-                $makefile_list );
-        }
-    } else {
+    if ($pk) {
 
         # Keep track of which ports we've seen: anything we don't see
         # but that is known in the cache must be a deleted or
@@ -149,20 +155,34 @@ sub scan_makefiles ($$$$$)
 
         print STDERR "$0: $path -- new port\n"
           if ( $::Config{Verbose} && !exists $allports->{$path} );
-        $allports->{$path}++;
 
         # This is a real port directory, not a subdir.
 
         $updaters->{$path}++
           if look_for_updated_files( $path, $refmtime, $updaters,
             $makefile_list );
+
+    } else {
+
+        @subdirs = map { "${path}/$_" } split( ' ', $sd );
+
+        for my $subdir (@subdirs) {
+
+            # Recursion means never having to obey a function
+            # prototype.
+
+            &scan_makefiles( $subdir, $refmtime, $updaters, $allports,
+                $makefile_list );
+        }
     }
     return;
 }
 
+#
 # Add all of the port origins known in the cache, but not visited
 # during scan_makefiles() to the list updated stuff (on the basis that
 # those must be ports that have been deleted)
+#
 sub deleted_ports($$$$)
 {
     my $updaters      = shift;
