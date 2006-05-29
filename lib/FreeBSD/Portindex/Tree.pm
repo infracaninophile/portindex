@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.49 2006-05-29 08:43:53 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.50 2006-05-29 11:35:41 matthew Exp $
 #
 
 #
@@ -100,11 +100,11 @@ sub new ($@)
     {
         no strict qw{refs};
 
-        *make_describe{CODE} = *make_describe_oldstyle{CODE};
+        *make_describe = *make_describe_oldstyle;
     } else {
         no strict qw{refs};
 
-        *make_describe{CODE} = *make_describe_newstyle{CODE};
+        *make_describe = *make_describe_newstyle;
     }
 
     # Save some regex definitions for use in the various
@@ -235,7 +235,7 @@ sub _scan_makefiles($$;$)
     # other IO error (undef); not a category but a port (0); success
     # (new object reference)
 
-    $category = FreeBSD::Portindex::Category->new_from_makefile($path);
+    $category = FreeBSD::Portindex::Category->new_from_makefile( $path, $self );
 
     # Couldn't open the Makefile for reading
     if ( !defined $category ) {
@@ -474,7 +474,7 @@ sub springtime($$)
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
         $thawedport = thaw($port);
         $allports->{$origin} = $thawedport
-          if ( $thawedport->isa(FreeBSD::Portindex::Port) );
+          if ( $thawedport->isa("FreeBSD::Portindex::Port") );
     }
     return $allports;
 }
@@ -488,7 +488,7 @@ sub port_origins($$)
 
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
         $allports->{$origin} = 0
-          if ( $port->isa(FreeBSD::Portindex::Port) );
+          if ( $port->isa("FreeBSD::Portindex::Port") );
     }
     return $allports;
 }
@@ -505,7 +505,7 @@ sub masterslave($$)
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
         $thawedport = thaw($port);
 
-        next unless $thawedport->can(MASTERDIR) && $thawedport->MASTERDIR();
+        next unless $thawedport->can("MASTERDIR") && $thawedport->MASTERDIR();
 
         #print STDERR "Slave: $slave  Master: $master\n"
         #    if $::Config{Verbose};
@@ -529,7 +529,7 @@ sub makefile_list ($$)
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
         $thawedport = thaw($port);
 
-        next unless $thawedport->can(MAKEFILE_LIST);
+        next unless $thawedport->can("MAKEFILE_LIST");
 
         for my $makefile ( @{ $thawedport->MAKEFILE_LIST() } ) {
             $makefile_list->{$makefile} = []
@@ -572,7 +572,8 @@ sub print_index($$*)
 
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
         $allports->{$origin}->print( $fh, $allports, \$counter )
-          if ( $allports->{$origin}->isa(FreeBSD::Portindex::Port) );
+          if ( $allports->{$origin}
+            && $allports->{$origin}->isa("FreeBSD::Portindex::Port") );
     }
     print STDERR "<${counter}>\n" if ( $::Config{Verbose} );
 
