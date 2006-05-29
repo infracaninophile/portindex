@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright (c) 2004 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2006 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.30 2006-05-14 20:03:27 matthew Exp $
+# @(#) $Id: cache-update,v 1.31 2006-05-29 17:13:58 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,

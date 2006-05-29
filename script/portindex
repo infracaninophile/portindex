@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright (c) 2004 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2006 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: portindex,v 1.32 2005-01-16 11:19:13 matthew Exp $
+# @(#) $Id: portindex,v 1.33 2006-05-29 17:13:58 matthew Exp $
 #
 # Process the cached 'make describe' output to produce an INDEX file
 # Should be a lot quicker than 'make index'.
