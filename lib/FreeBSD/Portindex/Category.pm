@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.1 2006-05-29 08:42:55 matthew Exp $
+# @(#) $Id: Category.pm,v 1.2 2006-05-29 08:51:39 matthew Exp $
 #
 
 #
@@ -113,7 +113,8 @@ sub new_from_makefile ($$$)
               "::new_from_makefile(): Can't open $origin -- $!\n";
         }
         return undef;    # Leave out this directory.
-      } while (<MAKEFILE>) {
+      };
+    while (<MAKEFILE>) {
         if (m/(PORTNAME|MASTERDIR|MASTER_PORT)/) {
 
             # Ooops.  This directory actually contains a port rather than
@@ -220,6 +221,7 @@ sub compare($$)
 {
     my $self  = shift;
     my $other = shift;
+    my %seen;
 
     # Eliminate the easy cases
     return 0
@@ -227,14 +229,12 @@ sub compare($$)
     return 0
       unless @{ $self->SUBDIRS() } == @{ $self->SUBDIRS() };
 
-    my @self  = sort @{ $self->SUBDIRS() };
-    my @other = sort @{ $self->SUBDIRS() };
+    map { $seen{$_}++ } @{ $self->SUBDIRS() };
+    map { $seen{$_}++ } @{ $other->SUBDIRS() };
 
-    while ( @self && @other ) {
+    for my $k ( keys %seen ) {
         return 0
-          unless $self[0] eq $other[0];
-        shift @self;
-        shift @other;
+          unless $seen{$k} == 2;
     }
     return 1;    # They are the same...
 }
