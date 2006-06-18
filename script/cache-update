@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.32 2006-05-29 19:06:24 matthew Exp $
+# @(#) $Id: cache-update,v 1.33 2006-06-18 21:46:22 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -83,6 +83,23 @@ sub read_plain (*$)
     return $updates;
 }
 
+# Given a fully qualified path name that corresponds to one of the
+# file names that would be found in a port or category directory,
+# return the path of the enclosing port or category that can be passed
+# to 'make_describe to be checked out.  Otherwise, return undef
+sub port_directory_part ($$)
+{
+    my $portsdir = shift;
+    my $name     = shift;
+
+    if ( $name =~ m@^($portsdir\S*?)/(?:Makefile|distinfo|pkg-|files)@o ) {
+        return $1
+          unless $name =~
+          m@^$portsdir/(?:Mk|Templates|Tools|distfiles|packages)@o;
+    }
+    return undef;
+}
+
 # Process the data read from the given filehandle assuming it to be
 # the output of cvsup(1) [ need atleast -L 1 verbosity ].  Pick out
 # the names of updated files, then convert that into a list of port
@@ -95,6 +112,7 @@ sub read_cvsup_output (*$$$)
     my $portsdir      = shift;
     my $ports_location;
     my $name;
+    my $pdpart;
 
     # $portsdir is usually /usr/ports, but can be any path ending in
     # .../ports (cvsup(1) requires the top-level directory to be named
@@ -109,13 +127,10 @@ sub read_cvsup_output (*$$$)
           unless m@\s(ports/\S+)@;
 
         $name = "$ports_location/$1";
-        if ( $name =~ m@^($portsdir/[^/]+/[^/]+)/@o ) {
-            $updates->{$1}++
-              unless $name =~
-              m@^$portsdir/(?:Mk|Templates|Tools|distfiles|packages)@o;
-        }
-        map { $updates->{$_}++ } @{ $makefile_list->{$name} }
-          if defined $makefile_list->{$name};
+        $pdpart = port_directory_part( $portsdir, $name );
+        $updates->{$pdpart}++
+          if ( defined $pdpart );
+        map { $updates->{$_}++ } @{ $makefile_list->{$name} || [] };
     }
     return $updates;
 }
@@ -174,13 +189,12 @@ sub read_cvsup_checkouts (*$$$$)
         @rcs_attrs = decode_attrs($rcs_attr);
 
         if ( $rcs_attrs[2] > $cutofftime ) {
-            if ( $name =~ m@^($portsdir/[^/]+/[^/]+)/@o ) {
-                $updates->{$1}++
-                  unless $name =~
-                  m@^$portsdir/(?:Mk|Templates|Tools|distfiles|packages)@o;
-            }
-            map { $updates->{$_}++ } @{ $makefile_list->{$name} }
-              if defined $makefile_list->{$name};
+            my $pdpart;
+
+            $pdpart = port_directory_part( $portsdir, $name );
+            $updates->{$pdpart}++
+              if ( defined $pdpart );
+            map { $updates->{$_}++ } @{ $makefile_list->{$name} || [] };
         }
     }
     return $updates;
@@ -206,7 +220,6 @@ MAIN:
 {
     my $tree;
     my $allports;
-    my %masterslave;
     my %updates;
     my $counter = 0;
 
@@ -269,18 +282,40 @@ MAIN:
         exit 0;
     }
 
+    # Unfreeze the category objects stored on disk Any of the category
+    # directories where the Makefile or Makefile.local gets changed
+    # can mean ports being enabled or disabled, which should trigger a
+    # status check.
+
+    $tree->init_categories();
+
+    # If any of the entries to update consists of a category Makefile,
+    # then is should be replaced by a list of the differences to the
+    # SUBDIRS from that category since the last update.  After this
+    # process, %updates should contain only ports, without categories.
+
+    $counter = 0;
+    for my $path ( keys %updates ) {
+        if ( $tree->category_match($path) ) {
+            $counter++;
+            print STDERR "$0:$counter: Checking for category changes at $path\n"
+              if $Config{Verbose};
+            $tree->category_check( $path, \%updates );
+        }
+    }
+
     # If one of the ports given in the @updaters list is the master of
     # several slave ports, add all of those slave ports to the
     # @updaters list, unconditionally.  This only works if the cache
     # is largely complete.
 
-    $tree->masterslave( \%masterslave );
+    $tree->init_masterslave();
 
     # Include in the list of updated ports all of the suitable entries
     # from the ports read from STDIN, plus the slaves of any masters
     # listed.
 
-    map { $updates{$_}++ } map { @{ $masterslave{$_} || [] } } keys %updates;
+    map { $updates{$_}++ } map { @{ $tree->masterslave($_) } } keys %updates;
 
     # Mark the time at which the updates start
 
@@ -288,6 +323,7 @@ MAIN:
 
     # Regenerate the FreeBSD::Port objects for all listed ports
 
+    $counter = 0;
     for my $path ( sort keys %updates ) {
         $counter++;
         print STDERR "$0:$counter: Updating cached data for $path\n"

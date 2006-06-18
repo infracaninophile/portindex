@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.39 2006-05-14 20:03:35 matthew Exp $
+# @(#) $Id: Config.pm,v 1.40 2006-06-18 21:46:32 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -101,8 +101,7 @@ sub read_config ($)
             $config->{Format} = $optvalue;
         },
         'propagation-delay|P=i' => \$config->{PropagationDelay},
-      )
-      if ( $0 eq 'cache-update' );
+    ) if ( $0 eq 'cache-update' );
     push @optargs, (
         'ports-dir=s'              => \$config->{PortsDir},
         'scrub-environment|s!'     => \$config->{ScrubEnvironment},
@@ -130,8 +129,7 @@ sub read_config ($)
 
             push @{ $config->{EndemicMakefiles} }, $optvalue;
         },
-      )
-      if ( $0 eq 'cache-init' || $0 eq 'cache-update' );
+    ) if ( $0 eq 'cache-init' || $0 eq 'cache-update' );
     push @optargs, (
         'ports-dir=s' => \$config->{PortsDir},
         '<>'          => sub {
@@ -150,8 +148,7 @@ sub read_config ($)
 
             $::Config{ReferenceTime} = strftime '%s', @date;    # Localtime
         },
-      )
-      if ( $0 eq 'find-updated' );
+    ) if ( $0 eq 'find-updated' );
 
     for my $cf (
         "/usr/local/etc/${main::pkgname}.cfg",

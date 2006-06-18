@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.52 2006-05-29 19:05:23 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.53 2006-06-18 21:46:32 matthew Exp $
 #
 
 #
@@ -392,10 +392,9 @@ sub port_origins($$)
 # reference to a hash whose keys are the master port origins, and
 # whose values are refs to arrays of slave port origins.
 #
-sub masterslave($$)
+sub init_masterslave($)
 {
-    my $self        = shift;
-    my $masterslave = shift;
+    my $self = shift;
     my $thawedport;
 
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
@@ -405,14 +404,23 @@ sub masterslave($$)
         # ports that don't have MASTERDIR set.
         next unless $thawedport->can("MASTERDIR") && $thawedport->MASTERDIR();
 
-        #print STDERR "Slave: $slave  Master: $master\n"
-        #    if $::Config{Verbose};
-
-        $masterslave->{ $thawedport->MASTERDIR() } = []
-          unless defined $masterslave->{ $thawedport->MASTERDIR() };
-        push @{ $masterslave->{ $thawedport->MASTERDIR() } }, $origin;
+        $self->{MASTERSLAVE}->{ $thawedport->MASTERDIR() } = []
+          unless defined $self->{MASTERSLAVE}->{ $thawedport->MASTERDIR() };
+        push @{ $self->{MASTERSLAVE}->{ $thawedport->MASTERDIR() } }, $origin;
     }
-    return $masterslave;
+    return $self;
+}
+
+#
+# Return array ref with list of slave ports of the master given in the
+# arg -- or a ref to an empty array if no slave ports are known.
+#
+sub masterslave($$)
+{
+    my $self   = shift;
+    my $origin = shift;
+
+    return $self->{MASTERSLAVE}->{$origin} || [];
 }
 
 #
@@ -439,6 +447,72 @@ sub makefile_list ($$)
         }
     }
     return $makefile_list;
+}
+
+#
+# Unfreeze all of the Category objects and store a hash of them.
+#
+sub init_categories ($)
+{
+    my $self = shift;
+    my $thawedport;
+    my $catmatch;
+
+    while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
+        $thawedport = thaw($port);
+
+        next unless $thawedport->isa("FreeBSD::Portindex::Category");
+
+        $self->{CATEGORIES}->{$origin} = $thawedport;
+    }
+    return $self;
+}
+
+#
+# Test whether a given filename matches a known category type of thing.
+# Updates to a category Makefile mean we should compare the new and
+# old list of SUBDIRs carefully, as this can indicate a new port being
+# hooked up to the tree, or various other changes.
+#
+sub category_match ($$)
+{
+    my $self   = shift;
+    my $origin = shift;
+
+    return ( exists $self->{CATEGORIES}->{$origin}
+          && $self->{CATEGORIES}->{$origin}->isa("FreeBSD::Portindex::Category")
+    );
+}
+
+#
+# As a category Makefile has changed, regenerate the corresponding
+# category object, and compare it to the one from the cache.  Add
+# any differences to the list of ports to update, and replace the
+# category object in the cache.
+#
+sub category_check ($$$)
+{
+    my $self     = shift;
+    my $origin   = shift;
+    my $updaters = shift;
+
+    my $newcat;
+    my $comm;
+
+    $newcat = $self->make_describe($origin);
+    delete $updaters->{$origin};
+
+    $comm = $self->{CATEGORIES}->{$origin}->comm($newcat);
+
+    if ( @{ $comm->[0] } || @{ $comm->[2] } ) {
+
+        # Categories are different
+
+        foreach my $o ( @{ $comm->[0] }, @{ $comm->[2] } ) {
+            $updaters->{$o}++;
+        }
+    }
+    return $self;
 }
 
 #
