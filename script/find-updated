@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: find-updated,v 1.12 2006-05-29 17:10:36 matthew Exp $
+# @(#) $Id: find-updated,v 1.13 2006-06-25 14:17:34 matthew Exp $
 #
 
 # Scan through the ports tree, and pick out all ports containing files
@@ -62,11 +62,11 @@ $0 =~ s@.*/@@;    # Script name for error messages
 #
 sub look_for_updated_files ($$$$)
 {
-    my $path          = shift;
-    my $refmtime      = shift;
-    my $updaters      = shift;
-    my $makefile_list = shift;
-    my $is_updated    = 0;
+    my $path       = shift;
+    my $refmtime   = shift;
+    my $updaters   = shift;
+    my $tree       = shift;
+    my $is_updated = 0;
 
     File::Find::find(
         {
@@ -78,7 +78,7 @@ sub look_for_updated_files ($$$$)
                 if ( -f _ && $mtime > $refmtime ) {
                     $is_updated++;
                     map { $updaters->{$_}++ }
-                      @{ $makefile_list->{$File::Find::name} || [] };
+                      @{ $tree->makefile_list($File::Find::name) };
 
                     print STDERR "$0: ",
                       strftime( '%Y.%m.%d.%H.%M.%S', localtime($mtime) ),
@@ -100,11 +100,11 @@ sub look_for_updated_files ($$$$)
 #
 sub scan_makefiles ($$$$$)
 {
-    my $path          = shift;
-    my $refmtime      = shift;
-    my $updaters      = shift;
-    my $allports      = shift;
-    my $makefile_list = shift;
+    my $path     = shift;
+    my $refmtime = shift;
+    my $updaters = shift;
+    my $allports = shift;
+    my $tree     = shift;
     my $pk;
     my $sd;
     my @subdirs;
@@ -159,8 +159,7 @@ sub scan_makefiles ($$$$$)
         # This is a real port directory, not a subdir.
 
         $updaters->{$path}++
-          if look_for_updated_files( $path, $refmtime, $updaters,
-            $makefile_list );
+          if look_for_updated_files( $path, $refmtime, $updaters, $tree );
 
     } else {
 
@@ -171,8 +170,7 @@ sub scan_makefiles ($$$$$)
             # Recursion means never having to obey a function
             # prototype.
 
-            &scan_makefiles( $subdir, $refmtime, $updaters, $allports,
-                $makefile_list );
+            &scan_makefiles( $subdir, $refmtime, $updaters, $allports, $tree );
         }
     }
     return;
@@ -185,10 +183,10 @@ sub scan_makefiles ($$$$$)
 #
 sub deleted_ports($$$$)
 {
-    my $updaters      = shift;
-    my $allports      = shift;
-    my $makefile_list = shift;
-    my $refmtime      = shift;
+    my $updaters = shift;
+    my $allports = shift;
+    my $tree     = shift;
+    my $refmtime = shift;
 
     for my $origin ( keys %{$allports} ) {
         if ( $allports->{$origin} == 0 ) {
@@ -207,10 +205,7 @@ sub deleted_ports($$$$)
                 print STDERR "$0: $origin has been deleted\n"
                   if $::Config{Verbose};
             } elsif (
-                look_for_updated_files(
-                    $origin, $refmtime, $updaters, $makefile_list
-                )
-              )
+                look_for_updated_files( $origin, $refmtime, $updaters, $tree ) )
             {
                 $updaters->{$origin}++;
                 print STDERR
@@ -228,7 +223,6 @@ MAIN:
     my %updaters;
     my $reference_date;
     my %allports;
-    my %makefile_list;
 
     read_config( \%Config );
 
@@ -244,24 +238,23 @@ MAIN:
     }
 
     $tree->port_origins( \%allports );
-    $tree->makefile_list( \%makefile_list );
+    $tree->init_makefile_list();
 
     # Check the standard ports makefiles in /usr/ports/Mk -- updates
     # to these generally affect a lot of ports.
 
     look_for_updated_files( "$Config{PortsDir}/Mk", $Config{ReferenceTime},
-        \%updaters, \%makefile_list );
+        \%updaters, $tree );
 
     # Scan through all ports, looking for files newer than the cut-off
     # date.
 
     scan_makefiles( $Config{PortsDir}, $Config{ReferenceTime}, \%updaters,
-        \%allports, \%makefile_list );
+        \%allports, $tree );
 
     # Add all of the deleted ports to the list of stuff to update
 
-    deleted_ports( \%updaters, \%allports, \%makefile_list,
-        $Config{ReferenceTime} );
+    deleted_ports( \%updaters, \%allports, $tree, $Config{ReferenceTime} );
 
     print join( "\n", sort keys %updaters ), "\n"
       if %updaters;

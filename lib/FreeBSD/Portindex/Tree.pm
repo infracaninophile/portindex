@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.53 2006-06-18 21:46:32 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.54 2006-06-25 14:17:56 matthew Exp $
 #
 
 #
@@ -353,11 +353,12 @@ sub make_describe($$)
 }
 
 #
-# Unpack all of the frozen FreeBSD::Portindex::Ports objects from the
-# btree storage.  Return a reference to a hash containing refs to all
-# port objects. (Note: 'each' passes values by reference (implicitly)
-# -- modifying the returned value will affect the underlying hash)
-# Includes all of the categories too.
+# Unpack all of the frozen FreeBSD::Portindex::Ports or
+# FreeBSD::Portindex::Category objects from the btree storage.  Return
+# a reference to a hash containing refs to all port objects. (Note:
+# 'each' passes values by reference (implicitly) -- modifying the
+# returned value will affect the underlying hash) Includes all of the
+# categories too.
 #
 sub springtime($$)
 {
@@ -381,7 +382,7 @@ sub port_origins($$)
     my $self     = shift;
     my $allports = shift;
 
-    while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
+    foreach my $origin ( keys %{ $self->{PORTS} } ) {
         $allports->{$origin} = 0;
     }
     return $allports;
@@ -428,10 +429,9 @@ sub masterslave($$)
 # a hash with keys being the various Makefiles and targets being an
 # array of port origins depending on those Makefiles.
 #
-sub makefile_list ($$)
+sub init_makefile_list ($)
 {
-    my $self          = shift;
-    my $makefile_list = shift;
+    my $self = shift;
     my $thawedport;
 
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
@@ -441,12 +441,23 @@ sub makefile_list ($$)
         next unless $thawedport->can("MAKEFILE_LIST");
 
         for my $makefile ( @{ $thawedport->MAKEFILE_LIST() } ) {
-            $makefile_list->{$makefile} = []
-              unless defined $makefile_list->{$makefile};
-            push @{ $makefile_list->{$makefile} }, $origin;
+            $self->{MAKEFILE_LIST}->{$makefile} = []
+              unless defined $self->{MAKEFILE_LIST}->{$makefile};
+            push @{ $self->{MAKEFILE_LIST}->{$makefile} }, $origin;
         }
     }
-    return $makefile_list;
+    return $self;
+}
+
+#
+# Accessor for .MAKEFILE_LIST data
+#
+sub makefile_list($$)
+{
+    my $self = shift;
+    my $name = shift;
+
+    return $self->{MAKEFILE_LIST}->{$name} || [];
 }
 
 #
@@ -506,7 +517,7 @@ sub category_check ($$$)
 
     if ( @{ $comm->[0] } || @{ $comm->[2] } ) {
 
-        # Categories are different
+        # This category was modified: better check the contents
 
         foreach my $o ( @{ $comm->[0] }, @{ $comm->[2] } ) {
             $updaters->{$o}++;
