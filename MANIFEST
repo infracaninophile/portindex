@@ -6,6 +6,7 @@ Changes
 lib/FreeBSD/Portindex/Config.pm
 lib/FreeBSD/Portindex/Port.pm
 lib/FreeBSD/Portindex/Tree.pm
+lib/FreeBSD/Portindex/Category.pm
 Makefile.PL
 MANIFEST
 portindex.cfg.sample

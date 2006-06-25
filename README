@@ -1,17 +1,17 @@
 
-FreeBSD-Portindex version 1.0
+FreeBSD-Portindex version 1.6
 =============================
 
-$Id: README,v 1.7 2004-11-03 21:59:53 matthew Exp $
+$Id: README,v 1.8 2006-06-25 14:44:15 matthew Exp $
 
-   portindex, cache-init, cache-update and find-updated are a set of perl
-   scripts built around the common core of the FreeBSD::Portindex perl
-   modules. Their use is to generate and maintain the ports INDEX or
-   INDEX-5 files speedily and efficiently. Ultimately they work in a very
-   similar way to the standard make index command, except that the
-   FreeBSD::Portindex tools keep a cache of the make describe output from
-   each port, and can update that cached data incrementally as the ports
-   tree itself is updated.
+   portindex, cache-init, cache-update and find-updated are a set of
+   perl scripts built around the common core of the FreeBSD::Portindex
+   perl modules. Their use is to generate and maintain the ports INDEX
+   or INDEX-5 or INDEX-6 files speedily and efficiently. Ultimately
+   they work in a very similar way to the standard make index command,
+   except that the FreeBSD::Portindex tools keep a cache of the make
+   describe output from each port, and can update that cached data
+   incrementally as the ports tree itself is updated.
 
    Incremental updating is much faster than building the INDEX entirely
    from scratch every time. Once the cache has been initialised, all of
@@ -35,8 +35,8 @@ This module requires these other modules and libraries:
 
    0) Prerequisites: you will need to have installed perl-5.8.5
    (lang/perl5.8) p5-BerkeleyDB-0.25_1 (databases/p5-BerkeleyDB) and
-   db42-4.2.52_3 (databases/db42). Other perl or BDB versions may work,
-   but have not been tested.
+   db42-4.2.52_3 (databases/db42). Later versions will work, earlier
+   ones perl or BDB versions may work, but have not been tested.
 
 INSTALLATION
 
@@ -109,7 +109,7 @@ BUGS
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2004 by Matthew Seaman
+Copyright (C) 2004-2006 by Matthew Seaman
 
 This library is free software; you can redistribute it and/or modify
 it under the following 2-clause BSD style license:
