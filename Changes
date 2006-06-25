@@ -73,13 +73,14 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 
         - Add a new Category object type, and cope better with changes
           to categories (ie. ports being hooked up / unhooked from the
-          tree)
+          tree).  Problem pointed out by Colin Percival <cperciva (at)
+          freebsd.org>
 
-        - Instead of implicitly calling perl to compile exactly the
-          same bit of perl code from /usr/ports/Mk/bsd.ports.mk about
-          15,000 times (ie once per port) as a consequence of actually
-          running 'make describe', call perl just once, use make to
-          print out the basic variables from the port and replicate
-          the processing done ourselves.
+        - Instead of calling perl to compile exactly the same bit of
+          perl code from /usr/ports/Mk/bsd.ports.mk about 15,000 times
+          (ie once per port) as a consequence of actually running
+          'make describe', just call perl once, use make to print out
+          the basic variables from the port and replicate the
+          processing done ourselves.
 
           
