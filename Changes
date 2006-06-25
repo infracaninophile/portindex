@@ -61,7 +61,7 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           Wainwright <survive (at) masterrave.com>
 
 
-1.6 Sat May  7 00:17:00 2006
+1.6 Sun Jun 25 15:22:00 2006
 
         - Incorporate local ports/categories into the INDEX by
           scanning Makefile.local for additions to $SUBDIR.  Mentioned
@@ -70,3 +70,16 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 
         - Clean up error messages, and factor out common progress
           counter code.
+
+        - Add a new Category object type, and cope better with changes
+          to categories (ie. ports being hooked up / unhooked from the
+          tree)
+
+        - Instead of implicitly calling perl to compile exactly the
+          same bit of perl code from /usr/ports/Mk/bsd.ports.mk about
+          15,000 times (ie once per port) as a consequence of actually
+          running 'make describe', call perl just once, use make to
+          print out the basic variables from the port and replicate
+          the processing done ourselves.
+
+          
