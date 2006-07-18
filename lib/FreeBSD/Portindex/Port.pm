@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.38 2006-07-18 20:14:59 matthew Exp $
+# @(#) $Id: Port.pm,v 1.39 2006-07-18 20:17:00 matthew Exp $
 #
 
 #
@@ -105,11 +105,11 @@ sub new_from_make_vars ($$)
     ( $descr, $www ) = _www_descr( $args->{DESCR} );
     $stuff = join( '|',
         $args->{PREFIX}, $args->{COMMENT}, $descr, $args->{MAINTAINER},
-				   $args->{CATEGORIES} );
-	if ( $args->{MASTER_PORT} ) {
-		$master_port = "$::Config{PortsDir}/$args->{MASTER_PORT}";
-	}
-	
+        $args->{CATEGORIES} );
+    if ( $args->{MASTER_PORT} ) {
+        $master_port = "$::Config{PortsDir}/$args->{MASTER_PORT}";
+    }
+
 # If MASTER_PORT is not set, then check for MASTER_PORT instead.  (Setting MASTER_PORT will automatically set MASTER_PORT
 
     # [*] COMMENT doesn't need quoting to get it through several
