@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.34 2006-06-25 14:17:33 matthew Exp $
+# @(#) $Id: cache-update,v 1.35 2006-07-18 20:14:59 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -40,14 +40,18 @@
 # file).
 #
 # Running the make_describe method on a candidate port will chdir to
-# that path and run 'make describe' in the given directory, process
-# that output into a FreeBSD::Port object, and save a frozen version
-# into the ports cache.  It will also run 'make -V MASTERDIR -V
-# .MAKEFILE_LIST' and record that output in the cache file (MASTERDIR
-# only if it is not the same as CWD, and only MAKEFILE_LIST items
-# within the ports tree).  Failing to run 'make describe' successfully
-# results in that port data being removed from the cache -- which is
-# how deletions and port moves are handled.
+# that path and run 'make -V ...' in the given directory, from which
+# is extracts the values of a number of make variables.  Internal
+# processing of that output generates the equivalent of running 'make
+# describe' (but we have saved executing a whole perl process) and
+# that is converted into a FreeBSD::Port object, which is frozen
+# (serialized) and save in the ports cache.  It extracts the values of
+# a couple of other make variables: MASTER_PORT and .MAKEFILE_LIST and
+# records that output in the cached object as well (MASTER_PORT only
+# if it set, and not the same as CWD, and only MAKEFILE_LIST items
+# within the ports tree).  Failing to run make successfully results in
+# that port data being removed from the cache -- which is how
+# deletions and port moves are handled.
 #
 # The Master/Slave port relationships recorded from a previous run are
 # applied to force an update for all slave ports whenever the master
@@ -347,13 +351,13 @@ B<cache-update> [B<-hvqs>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-p>
 =head1 DESCRIPTION
 
 B<cache-update> processes a list of port origins, regenerating the
-C<make describe> and C<make -V MASTERDIR -V .MAKEFILE_LIST> output
-from each of them, and updating the record of thst data held in the
-B<portindex> cache.  If B<cache-update> is passed a port origin that
-no longer exists, it will delete any corresponding record from the
-cache. To handle a port that has been moved, it is necessary to pass
-B<cache-update> both the old and the new locations of the port for
-processing.
+index (C<make describe>) and F<Makefile> dependency data (C<make -V
+MASTER_PORT -V .MAKEFILE_LIST>) from each of them, and updating the
+record of thst data held in the B<portindex> cache.  If
+B<cache-update> is passed a port origin that no longer exists, it will
+delete any corresponding record from the cache. To handle a port that
+has been moved, it is necessary to pass B<cache-update> both the old
+and the new locations of the port for processing.
 
 The list of ports to be processed by B<cache-update> may be supplied
 in three formats:
@@ -569,11 +573,10 @@ F</var/db/portindex>.
 
 =item B<--cache-file>=F<file>
 
-Berkeley DB Btree file containing the cached output of C<make
-describe> and C<make -V MASTERDIR -V .MAKEFILE_LIST> for all of the
-ports in the tree.  This file name will be relative to the cache
-directory (B<-c> option above) unless an absolute path is given.
-Defaults to F<portindex-cache.db>.
+Berkeley DB Btree file containing the cached and processed values of a
+number of C<make> variables for all of the ports in the tree.  This
+file name will be relative to the cache directory (B<-c> option above)
+unless an absolute path is given.  Defaults to F<portindex-cache.db>.
 
 =item B<-T> F<file>
 

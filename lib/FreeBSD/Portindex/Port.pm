@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.37 2006-05-29 15:23:53 matthew Exp $
+# @(#) $Id: Port.pm,v 1.38 2006-07-18 20:14:59 matthew Exp $
 #
 
 #
@@ -35,7 +35,7 @@
 # this is used for generating the ports INDEX.
 #
 package FreeBSD::Portindex::Port;
-our $VERSION = '1.6';    # Release
+our $VERSION = '1.7';    # Release
 
 our %directorycache;     # Remember all the directories we've ever seen
 
@@ -86,7 +86,7 @@ sub new_from_make_vars ($$)
     my $lib_depends;
     my $descr;
     my $www;
-    my $masterdir;
+    my $master_port;
 
     # %{$args} should contain the value of the following port variables:
     # PKGNAME, .CURDIR, PREFIX, COMMENT[*], DESCR, MAINTAINER,
@@ -96,16 +96,21 @@ sub new_from_make_vars ($$)
     # the WWW value.
     #
     # To the usual ports index stuff we add the extra make variables:
-    # MASTERDIR and .MAKEFILE_LIST which are used to control
-    # incremental updating.
+    # MASTER_PORT and .MAKEFILE_LIST which are used to control
+    # incremental updating.  MASTER_PORT is usually null, and where it
+    # is set is given as a relative path to PORTSDIR
 
     $pkgname = $args->{PKGNAME};
     $origin  = $args->{'.CURDIR'};
     ( $descr, $www ) = _www_descr( $args->{DESCR} );
     $stuff = join( '|',
         $args->{PREFIX}, $args->{COMMENT}, $descr, $args->{MAINTAINER},
-        $args->{CATEGORIES} );
-    $masterdir = $args->{MASTERDIR};
+				   $args->{CATEGORIES} );
+	if ( $args->{MASTER_PORT} ) {
+		$master_port = "$::Config{PortsDir}/$args->{MASTER_PORT}";
+	}
+	
+# If MASTER_PORT is not set, then check for MASTER_PORT instead.  (Setting MASTER_PORT will automatically set MASTER_PORT
 
     # [*] COMMENT doesn't need quoting to get it through several
     # layers of shell.
@@ -153,7 +158,7 @@ sub new_from_make_vars ($$)
         RUN_DEPENDS     => $run_depends,
         WWW             => $www,
     );
-    $self->masterdir($masterdir);
+    $self->master_port($master_port);
 
     return $self;
 }
@@ -291,7 +296,7 @@ sub _uniquify(@)
 for my $slot (
     qw(PKGNAME ORIGIN STUFF BUILD_DEPENDS RUN_DEPENDS WWW
     EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS DEPENDENCIES_ACCUMULATED
-    MASTERDIR MAKEFILE_LIST)
+    MASTER_PORT MAKEFILE_LIST)
   )
 {
     no strict qw(refs);
@@ -306,23 +311,23 @@ for my $slot (
 
 #
 # Accessor method with added foo: we're only interested in
-# MASTERDIR if it is different to ORIGIN
+# MASTER_PORT if it is set and different to ORIGIN
 #
-sub masterdir ($$)
+sub master_port ($$)
 {
     my $self = shift;
-    my $masterdir;
+    my $master_port;
 
     if (@_) {
-        _clean( $masterdir = shift );
+        $master_port = shift;
 
-        unless ( $masterdir eq $self->ORIGIN() ) {
-            $self->MASTERDIR($masterdir);
+        if ( $master_port && $master_port ne $self->ORIGIN() ) {
+            $self->MASTER_PORT($master_port);
         } else {
-            $self->MASTERDIR(undef);
+            $self->MASTER_PORT(undef);
         }
     }
-    return $self->MASTERDIR();
+    return $self->MASTER_PORT();
 }
 
 #

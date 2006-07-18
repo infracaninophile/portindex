@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.54 2006-06-25 14:17:56 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.55 2006-07-18 20:14:59 matthew Exp $
 #
 
 #
@@ -36,7 +36,7 @@
 # supplied by using BerkeleyDB Btree for backing stores.
 #
 package FreeBSD::Portindex::Tree;
-our $VERSION = '1.6';    # Release
+our $VERSION = '1.7';    # Release
 
 use strict;
 use warnings;
@@ -281,7 +281,7 @@ sub make_describe($$)
       RUN_DEPENDS
       DEPENDS
       LIB_DEPENDS
-      MASTERDIR
+      MASTER_PORT
       .MAKEFILE_LIST
       SUBDIR
     };
@@ -402,12 +402,13 @@ sub init_masterslave($)
         $thawedport = thaw($port);
 
         # This skips over all of the Category objects, as well as
-        # ports that don't have MASTERDIR set.
-        next unless $thawedport->can("MASTERDIR") && $thawedport->MASTERDIR();
+        # ports that don't have MASTER_PORT set.
+        next
+          unless $thawedport->can("MASTER_PORT") && $thawedport->MASTER_PORT();
 
-        $self->{MASTERSLAVE}->{ $thawedport->MASTERDIR() } = []
-          unless defined $self->{MASTERSLAVE}->{ $thawedport->MASTERDIR() };
-        push @{ $self->{MASTERSLAVE}->{ $thawedport->MASTERDIR() } }, $origin;
+        $self->{MASTERSLAVE}->{ $thawedport->MASTER_PORT() } = []
+          unless defined $self->{MASTERSLAVE}->{ $thawedport->MASTER_PORT() };
+        push @{ $self->{MASTERSLAVE}->{ $thawedport->MASTER_PORT() } }, $origin;
     }
     return $self;
 }

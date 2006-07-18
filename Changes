@@ -83,4 +83,13 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           the basic variables from the port and replicate the
           processing done ourselves.
 
-          
+1.7 Tue Jul 18 19:45:00 2006
+
+        - Following some useful e-mail discussions with Mark Linimon
+          and Dan Langille, switch to using the MASTER_PORT variable
+          to detect master/slave relationships between ports.
+          MASTER_PORT will be set in every slave port whereas
+          MASTERDIR doesn't have to be.  Here a slave port is one
+          defined as using port metadata from some other port, and
+          doesn't have to go as far as requiring both master and slave
+          to use the same Makefile and other ports infrastructure.

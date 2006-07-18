@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: find-updated,v 1.13 2006-06-25 14:17:34 matthew Exp $
+# @(#) $Id: find-updated,v 1.14 2006-07-18 20:14:59 matthew Exp $
 #
 
 # Scan through the ports tree, and pick out all ports containing files
@@ -380,11 +380,11 @@ F</var/db/portindex>.
 
 =item B<--cache-file>=F<file>
 
-Berkeley DB Btree file containing the cached output of C<make
-describe> and C<make -V MASTERDIR -V .MAKEFILE_LIST> for all of the
-ports in the tree.  This file name will be relative to the cache
-directory (B<-c> option above) unless an absolute path is given.
-Defaults to F<portindex-cache.db>.
+Berkeley DB Btree file containing the cached and post-processed values
+of a number of C<make> variables for all of the ports in the tree.
+This file name will be relative to the cache directory (B<-c> option
+above) unless an absolute path is given.  Defaults to
+F<portindex-cache.db>.
 
 =item B<-T> F<file>
 
