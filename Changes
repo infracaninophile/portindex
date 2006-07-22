@@ -93,3 +93,10 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           defined as using port metadata from some other port, and
           doesn't have to go as far as requiring both master and slave
           to use the same Makefile and other ports infrastructure.
+
+1.7 Sat Jul 22 20:13:00 2006
+
+        - Keep track of the version of the software used to create the
+          cache, and prompt for a cache rebuild if the software has
+          been upgraded since.  A cache rebuild is definitely required
+          for the 1.6 -> 1.7 update.

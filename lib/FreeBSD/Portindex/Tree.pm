@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.55 2006-07-18 20:14:59 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.56 2006-07-22 19:18:24 matthew Exp $
 #
 
 #
@@ -54,7 +54,8 @@ sub new ($@)
     my $class  = ref($caller) || $caller;
     my %args   = @_;
     my $self;
-    my $portscachefile = $::Config{CacheFilename};
+    my $portscachefile  = $::Config{CacheFilename};
+    my $cachewascreated = 0;
 
     # Make sure that the certain defaults are set.
 
@@ -70,6 +71,13 @@ sub new ($@)
 
     $self = { PORTS => {}, };
 
+    # Test if the cache file name already exists.  If there is
+    # already a file there, then after we tie to it, check for
+    # a __CACHE_VERSION entry.  If this is a new file, insert
+    # the __CACHE_VERSION.
+
+    $cachewascreated = 1 unless ( -e "$::Config{CacheDir}/$portscachefile" );
+
     # Must turn on the DB locking system if we're storing more than
     # one DB per file.
 
@@ -80,9 +88,10 @@ sub new ($@)
     delete $args{-Env};
 
     # Tie the PORTS hashes to our cache file -- a DB btree file.  Keep
-    # three sets of data in this objects in this cache -- the PORTS
-    # data, plus the data about master/slave relationships (the
-    # MAKEFILE_LIST stuff) and the tree of SUBDIR Categories.
+    # two sets of data in this objects in this cache -- the PORTS
+    # data, plus the CATEGORY.  PORTS objects contain the data about
+    # master/slave relationships (the MAKEFILE_LIST and the
+    # MASTER_PORT stuff).
 
     tie %{ $self->{PORTS} }, 'BerkeleyDB::Btree',
       -Env => $self->{ENV},
@@ -90,6 +99,22 @@ sub new ($@)
       -Filename => $portscachefile
       or croak __PACKAGE__,
       "::new(): Can't access $portscachefile -- $! $BerkeleyDB::Error";
+
+    # Set the cache version number on creation.  Test the cache
+    # version number if we're re-opening a pre-existing cache, and
+    # make sure it's compatible.
+
+    if ($cachewascreated) {
+        $self->{PORTS}->{__CACHE_VERSION} = $VERSION;
+    } else {
+        unless ( exists $self->{PORTS}->{__CACHE_VERSION}
+            && $self->{PORTS}->{__CACHE_VERSION} == $VERSION )
+        {
+            croak __PACKAGE__,
+              "::new(): $portscachefile uses an old data format -- ",
+              "please run cache-init";
+        }
+    }
 
     # Save some regex definitions for use in the make_describe()
     # method.
@@ -145,8 +170,9 @@ sub insert ($$$)
     my $origin = shift;
     my $port   = shift;
 
-    $self->{PORTS}->{$origin} = freeze($port);
+    return undef if ( $origin eq '__CACHE_VERSION' );
 
+    $self->{PORTS}->{$origin} = freeze($port);
     return $self;
 }
 
@@ -162,6 +188,8 @@ sub delete ($$)
     my $origin = shift;
     my $port;
     my $thawedport;
+
+    return undef if ( $origin eq '__CACHE_VERSION' );
 
     $port = $self->{PORTS}->{$origin};
     if ( defined $port ) {
@@ -181,6 +209,8 @@ sub get ($$)
     my $origin = shift;
     my $port;
     my $thawedport;
+
+    return undef if ( $origin eq '__CACHE_VERSION' );
 
     $port       = $self->{PORTS}->{$origin};
     $thawedport = thaw($port)
@@ -367,6 +397,9 @@ sub springtime($$)
     my $thawedport;
 
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
+        next
+          if ( $origin eq '__CACHE_VERSION' );
+
         $thawedport = thaw($port);
         $allports->{$origin} = $thawedport;
     }
@@ -383,6 +416,9 @@ sub port_origins($$)
     my $allports = shift;
 
     foreach my $origin ( keys %{ $self->{PORTS} } ) {
+        next
+          if ( $origin eq '__CACHE_VERSION' );
+
         $allports->{$origin} = 0;
     }
     return $allports;
@@ -399,12 +435,16 @@ sub init_masterslave($)
     my $thawedport;
 
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
+        next
+          if ( $origin eq '__CACHE_VERSION' );
+
         $thawedport = thaw($port);
 
         # This skips over all of the Category objects, as well as
         # ports that don't have MASTER_PORT set.
         next
-          unless $thawedport->can("MASTER_PORT") && $thawedport->MASTER_PORT();
+          unless $thawedport->can("MASTER_PORT")
+          && $thawedport->MASTER_PORT();
 
         $self->{MASTERSLAVE}->{ $thawedport->MASTER_PORT() } = []
           unless defined $self->{MASTERSLAVE}->{ $thawedport->MASTER_PORT() };
@@ -436,6 +476,9 @@ sub init_makefile_list ($)
     my $thawedport;
 
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
+        next
+          if ( $origin eq '__CACHE_VERSION' );
+
         $thawedport = thaw($port);
 
         # This skips over all of the Category objects.
@@ -471,9 +514,13 @@ sub init_categories ($)
     my $catmatch;
 
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
+        next
+          if ( $origin eq '__CACHE_VERSION' );
+
         $thawedport = thaw($port);
 
-        next unless $thawedport->isa("FreeBSD::Portindex::Category");
+        next
+          unless $thawedport->isa("FreeBSD::Portindex::Category");
 
         $self->{CATEGORIES}->{$origin} = $thawedport;
     }
@@ -542,7 +589,8 @@ sub accumulate_dependencies($$)
       if ( $::Config{Verbose} );
     for my $port ( values %{$allports} ) {
         $port->accumulate_dependencies( $allports, 0, \$counter )
-          if ( ref($port) && $port->isa("FreeBSD::Portindex::Port") );
+          if ( ref($port)
+            && $port->isa("FreeBSD::Portindex::Port") );
     }
     print STDERR "<${counter}>\n" if ( $::Config{Verbose} );
 
@@ -560,14 +608,19 @@ sub print_index($$*)
     my $fh       = shift;
     my $counter  = 0;
 
-    print STDERR "Writing INDEX file: " if ( $::Config{Verbose} );
+    print STDERR "Writing INDEX file: "
+      if ( $::Config{Verbose} );
 
     while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
+        next
+          if ( $origin eq '__CACHE_VERSION' );
+
         $allports->{$origin}->print( $fh, $allports, \$counter )
           if ( $allports->{$origin}
             && $allports->{$origin}->isa("FreeBSD::Portindex::Port") );
     }
-    print STDERR "<${counter}>\n" if ( $::Config{Verbose} );
+    print STDERR "<${counter}>\n"
+      if ( $::Config{Verbose} );
 
     return $self;
 }
