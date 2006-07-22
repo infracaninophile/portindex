@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.56 2006-07-22 19:18:24 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.57 2006-07-22 20:24:47 matthew Exp $
 #
 
 #
@@ -111,8 +111,8 @@ sub new ($@)
             && $self->{PORTS}->{__CACHE_VERSION} == $VERSION )
         {
             croak __PACKAGE__,
-              "::new(): $portscachefile uses an old data format -- ",
-              "please run cache-init";
+              "::new(): The cache in $portscachefile contins an old ",
+              "data format -- please re-run cache-init\n";
         }
     }
 
