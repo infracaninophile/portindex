@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.40 2006-07-23 09:25:43 matthew Exp $
+# @(#) $Id: Port.pm,v 1.41 2006-07-23 16:33:17 matthew Exp $
 #
 
 #
@@ -107,7 +107,19 @@ sub new_from_make_vars ($$)
         $args->{PREFIX}, $args->{COMMENT}, $descr, $args->{MAINTAINER},
         $args->{CATEGORIES} );
     if ( $args->{MASTER_PORT} ) {
-        $master_port = "$::Config{PortsDir}/$args->{MASTER_PORT}";
+        if ( $args->{MASTER_PORT} =~ m@^[a-zA-Z0-9._+-]+/[a-zA-Z0-9._+-]+$@ ) {
+            $master_port = "$::Config{PortsDir}/$args->{MASTER_PORT}";
+        } else {
+
+            # This is probably caused by a trailing '/' character
+            # on a MASTERDIR setting. In which case the result is
+            # '/usr/ports/foo/bar/' rather than 'foo/bar'
+            ( $master_port = $args->{MASTER_PORT} ) =~ s@/?$@@;
+
+            warn __PACKAGE__, ":new_from_make_vars():$origin($pkgname) ",
+              "-- warning MASTER_PORT=$args->{MASTER_PORT} not in expected ",
+              "format\n";
+        }
     }
 
     # [*] COMMENT doesn't need quoting to get it through several
