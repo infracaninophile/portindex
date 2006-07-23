@@ -100,3 +100,10 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           cache, and prompt for a cache rebuild if the software has
           been upgraded since.  A cache rebuild is definitely required
           for the 1.6 -> 1.7 update.
+
+1.7 Sun Jul 23 10:56:00 2006
+
+        - Don't quit on errors parsing make variables at the cache-init
+          or cache-update stage.  Print copious error messages, but carry
+          on processing.  Entries for ports that fail at this stage will
+          not be created in the cache.
