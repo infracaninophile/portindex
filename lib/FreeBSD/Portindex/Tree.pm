@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.57 2006-07-22 20:24:47 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.58 2006-07-23 09:25:43 matthew Exp $
 #
 
 #
@@ -366,8 +366,11 @@ sub make_describe($$)
         # are errors.  Return undef to signal this to higher levels.
 
         $port = FreeBSD::Portindex::Port->new_from_make_vars( \%make_vars )
-          or warn __PACKAGE__,
-          "::make_describe():$path -- error parsing make output -- $!\n";
+          or do {
+            warn __PACKAGE__,
+              "::make_describe():$path -- error parsing make output -- $!\n";
+            return undef;
+          };
         $port->makefile_list(
             $make_vars{'.MAKEFILE_LIST'},
             $self->{MAKEFILE_LOCATIONS},

@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.39 2006-07-18 20:17:00 matthew Exp $
+# @(#) $Id: Port.pm,v 1.40 2006-07-23 09:25:43 matthew Exp $
 #
 
 #
@@ -64,7 +64,7 @@ sub new ($@)
 # extracted from the port Makefile.  This effectively duplicates the
 # code in /usr/ports/Mk/bsd.ports.mk used to produce the 'make
 # describe' output. Instead of invoking perl repeatedly for all
-# 14,000+ ports, we just invoke it once, plus we cache all the results
+# 15,000+ ports, we just invoke it once, plus we cache all the results
 # of testing that referenced port directories exist -- so this should
 # be a bit more efficient.
 #
@@ -110,18 +110,41 @@ sub new_from_make_vars ($$)
         $master_port = "$::Config{PortsDir}/$args->{MASTER_PORT}";
     }
 
-# If MASTER_PORT is not set, then check for MASTER_PORT instead.  (Setting MASTER_PORT will automatically set MASTER_PORT
-
     # [*] COMMENT doesn't need quoting to get it through several
     # layers of shell.
 
-    $extract_depends = _split_xxx_depends( $args->{EXTRACT_DEPENDS} );
-    $patch_depends   = _split_xxx_depends( $args->{PATCH_DEPENDS} );
-    $fetch_depends   = _split_xxx_depends( $args->{FETCH_DEPENDS} );
-    $build_depends   = _split_xxx_depends( $args->{BUILD_DEPENDS} );
-    $run_depends     = _split_xxx_depends( $args->{RUN_DEPENDS} );
-    $depends         = _split_depends( $args->{DEPENDS} );
-    $lib_depends     = _split_xxx_depends( $args->{LIB_DEPENDS} );
+    $extract_depends =
+      _sanatize( $origin, $pkgname, 'EXTRACT_DEPENDS',
+        _split_xxx_depends( $args->{EXTRACT_DEPENDS} ) );
+    $patch_depends =
+      _sanatize( $origin, $pkgname, 'PATCH_DEPENDS',
+        _split_xxx_depends( $args->{PATCH_DEPENDS} ) );
+    $fetch_depends =
+      _sanatize( $origin, $pkgname, 'FETCH_DEPENDS',
+        _split_xxx_depends( $args->{FETCH_DEPENDS} ) );
+    $build_depends =
+      _sanatize( $origin, $pkgname, 'BUILD_DEPENDS',
+        _split_xxx_depends( $args->{BUILD_DEPENDS} ) );
+    $run_depends =
+      _sanatize( $origin, $pkgname, 'RUN_DEPENDS',
+        _split_xxx_depends( $args->{RUN_DEPENDS} ) );
+    $depends =
+      _sanatize( $origin, $pkgname, 'DEPENDS',
+        _split_depends( $args->{DEPENDS} ) );
+    $lib_depends =
+      _sanatize( $origin, $pkgname, 'LIB_DEPENDS',
+        _split_xxx_depends( $args->{LIB_DEPENDS} ) );
+
+    # If any of the dependencies weren't there, then don't generate
+    # a Port object.
+    return undef
+      unless ( defined $extract_depends
+        && defined $patch_depends
+        && defined $fetch_depends
+        && defined $build_depends
+        && defined $run_depends
+        && defined $depends
+        && defined $lib_depends );
 
     # On output:
     # $extract_depends = EXTRACT_DEPENDS + DEPENDS
@@ -131,21 +154,11 @@ sub new_from_make_vars ($$)
     # $run_depends     = RUN_DEPENDS     + DEPENDS + LIB_DEPENDS
     # The lists should be uniq'd -- sorting will happen later
 
-    $extract_depends = _uniquify( $extract_depends, $depends )
-      or die __PACKAGE__,
-      "::new_from_make_vars():$origin:$pkgname error in EXTRACT_DEPENDS\n";
-    $patch_depends = _uniquify( $patch_depends, $depends )
-      or die __PACKAGE__,
-      "::new_from_make_vars():$origin:$pkgname  error in PATCH_DEPENDS\n";
-    $fetch_depends = _uniquify( $fetch_depends, $depends )
-      or die __PACKAGE__,
-      "::new_from_make_vars():$origin:$pkgname  error in FETCH_DEPENDS\n";
-    $build_depends = _uniquify( $build_depends, $depends, $lib_depends )
-      or die __PACKAGE__,
-      "::new_from_make_vars():$origin:$pkgname  error in BUILD_DEPENDS\n";
-    $run_depends = _uniquify( $run_depends, $depends, $lib_depends )
-      or die __PACKAGE__,
-      "::new_from_make_vars():$origin:$pkgname  error in RUN_DEPENDS\n";
+    $extract_depends = _uniquify( $extract_depends, $depends );
+    $patch_depends   = _uniquify( $patch_depends,   $depends );
+    $fetch_depends   = _uniquify( $fetch_depends,   $depends );
+    $build_depends   = _uniquify( $build_depends,   $depends, $lib_depends );
+    $run_depends     = _uniquify( $run_depends,     $depends, $lib_depends );
 
     $self = $caller->new(
         PKGNAME         => $pkgname,
@@ -260,13 +273,8 @@ sub _www_descr ($)
 
 #
 # Take a list of array references, expand them into a single
-# array. Strip out any duplicates entries in that array and test that
-# all entries correspond to extant directories.  'make index' dies
-# with an error in that case -- we do likewise, by returning undef to
-# signal the caller that thigs have gone horribly wrong. (Must be
-# careful -- empty lists are fine) One important optimization: keep a
-# cache of all the directories we've ever located, instead of
-# stat()'ing them again.
+# array. Strip out any duplicates entries in that array. Return
+# a reference to the result.
 #
 sub _uniquify(@)
 {
@@ -276,18 +284,42 @@ sub _uniquify(@)
     # Expand the referenced arrays and strip out duplicates
     @args = grep { !$seen{$_}++ } map { @{$_} } @args;
 
-    foreach my $arg (@args) {
+    return \@args;
+}
+
+#
+# Take the list of dependencies and ensure that all entries correspond
+# to extant directories.  'make index' dies with an error in that case
+# -- we don't die, but raise an error by returning undef to signal the
+# caller that thigs have gone horribly wrong. (Must be careful --
+# empty lists are fine) One important optimization: keep a cache of
+# all the directories we've ever located, instead of stat()'ing them
+# again.
+#
+sub _sanatize($$$$)
+{
+    my $origin    = shift;
+    my $pkgname   = shift;
+    my $whatdep   = shift;
+    my $deplist   = shift;
+    my $errorflag = 0;
+
+    foreach my $arg ( @{$deplist} ) {
         unless ( $directorycache{$arg} ) {
             if ( -d $arg ) {
                 $directorycache{$arg}++;
             } else {
-                warn "\n", __PACKAGE__,
-                  "::new_from_make_vars(): $arg -- directory not found\n";
-                return undef;
+                warn __PACKAGE__, "::new_from_make_vars(): ",
+                  "${origin}($pkgname):$whatdep $arg -- dependency not found\n";
+                $errorflag++;
             }
         }
     }
-    return \@args;
+    if ($errorflag) {
+        return undef;
+    } else {
+        return $deplist;
+    }
 }
 
 #
