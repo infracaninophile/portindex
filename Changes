@@ -107,3 +107,12 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           or cache-update stage.  Print copious error messages, but carry
           on processing.  Entries for ports that fail at this stage will
           not be created in the cache.
+
+1.8 Sun Sep 17 12:34:00 2006
+
+        - In the spirit of always plugging on and generating the best
+          INDEX file possible, catch port errors that lead to
+          dependencies showing some random part of the filesystem as
+          the port to install to fulfil themselves.  Instead of
+          falling over, complain bitterly and omit the broken
+          dependency from the output INDEX.
