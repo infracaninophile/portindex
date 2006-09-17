@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.41 2006-07-18 20:14:59 matthew Exp $
+# @(#) $Id: Config.pm,v 1.42 2006-09-17 11:33:43 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -39,7 +39,7 @@ our @ISA       = qw(Exporter);
 our @EXPORT_OK =
   qw(read_config update_timestamp get_timestamp compare_timestamps
   scrub_environment counter);
-our $VERSION = '1.7';    # Release
+our $VERSION = '1.8';    # Release
 
 use strict;
 use warnings;

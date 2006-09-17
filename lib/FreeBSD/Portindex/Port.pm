@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.41 2006-07-23 16:33:17 matthew Exp $
+# @(#) $Id: Port.pm,v 1.42 2006-09-17 11:33:43 matthew Exp $
 #
 
 #
@@ -35,7 +35,7 @@
 # this is used for generating the ports INDEX.
 #
 package FreeBSD::Portindex::Port;
-our $VERSION = '1.7';    # Release
+our $VERSION = '1.8';    # Release
 
 our %directorycache;     # Remember all the directories we've ever seen
 
@@ -436,8 +436,15 @@ sub accumulate_dependencies ($$$;$)
 
             for my $dep ( @{ $self->$whatdep() } ) {
                 if ( defined $allports->{$dep} ) {
-                    $allports->{$dep}
-                      ->accumulate_dependencies( $allports, $recdepth + 1 );
+                    if ( $allports->{$dep}->can("accumulate_dependencies") ) {
+                        $allports->{$dep}
+                          ->accumulate_dependencies( $allports, $recdepth + 1 );
+                    } else {
+                        warn "\n", __PACKAGE__, "::accumulate_dependencies: ",
+                          $self->PKGNAME(), " (", $self->ORIGIN(),
+") dependency on something ($dep) that is not a port\n";
+                        next DEPEND;
+                    }
                 } else {
                     warn "\n", __PACKAGE__, "::accumulate_dependencies: ",
                       $self->PKGNAME(), " (", $self->ORIGIN(),
@@ -500,7 +507,9 @@ sub _chase_deps($$$)
     my @dependencies;
 
     for my $origin ( @{ $self ->${dep}() } ) {
-        if ( defined $allports->{$origin} ) {
+        if ( defined $allports->{$origin}
+            && $allports->{$origin}->can("PKGNAME") )
+        {
             push @dependencies, $allports->{$origin}->PKGNAME();
         } else {
             warn "\n", __PACKAGE__, "::_chase_deps():", $self->PKGNAME(),

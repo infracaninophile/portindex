@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.58 2006-07-23 09:25:43 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.59 2006-09-17 11:33:43 matthew Exp $
 #
 
 #
@@ -36,7 +36,8 @@
 # supplied by using BerkeleyDB Btree for backing stores.
 #
 package FreeBSD::Portindex::Tree;
-our $VERSION = '1.7';    # Release
+our $VERSION = '1.8';    # Release
+our $CACHE_VERSION = '1.7';		# Earliest binary compat version
 
 use strict;
 use warnings;
@@ -108,10 +109,10 @@ sub new ($@)
         $self->{PORTS}->{__CACHE_VERSION} = $VERSION;
     } else {
         unless ( exists $self->{PORTS}->{__CACHE_VERSION}
-            && $self->{PORTS}->{__CACHE_VERSION} == $VERSION )
+            && $self->{PORTS}->{__CACHE_VERSION} >= $CACHE_VERSION )
         {
             croak __PACKAGE__,
-              "::new(): The cache in $portscachefile contins an old ",
+              "::new(): The cache in $portscachefile contins an incompatible ",
               "data format -- please re-run cache-init\n";
         }
     }
