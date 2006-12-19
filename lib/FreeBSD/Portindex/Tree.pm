@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.59 2006-09-17 11:33:43 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.60 2006-12-19 21:28:39 matthew Exp $
 #
 
 #
@@ -36,13 +36,13 @@
 # supplied by using BerkeleyDB Btree for backing stores.
 #
 package FreeBSD::Portindex::Tree;
-our $VERSION = '1.8';    # Release
-our $CACHE_VERSION = '1.7';		# Earliest binary compat version
+our $VERSION       = '1.8';    # Release
+our $CACHE_VERSION = '1.7';    # Earliest binary compat version
 
 use strict;
 use warnings;
 use Carp;
-use BerkeleyDB;          # BDB version 2, 3, 4, 41, 42, 43, 44
+use BerkeleyDB;                # BDB version 2, 3, 4, 41, 42, 43, 44
 use Storable qw(freeze thaw);
 
 use FreeBSD::Portindex::Port;
@@ -342,7 +342,9 @@ sub make_describe($$)
         return undef;
       };
     foreach my $mv (@make_var_list) {
-        chomp( $make_vars{$mv} = <MAKE> );
+        $make_vars{$mv} = <MAKE>;
+        last unless defined $make_vars{$m};
+        chomp( $make_vars{$mv} );
     }
     close MAKE
       or do {
