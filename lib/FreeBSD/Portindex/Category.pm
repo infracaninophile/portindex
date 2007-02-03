@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.8 2006-09-17 11:33:43 matthew Exp $
+# @(#) $Id: Category.pm,v 1.9 2007-02-03 15:06:08 matthew Exp $
 #
 
 #
@@ -87,7 +87,7 @@ sub new_from_make_vars ($$)
     my $origin;
     my @subdirs;
 
-    $origin  = $args->{'.CURDIR'};
+    $origin = $args->{'.CURDIR'};
     @subdirs = map { "$origin/$_" } split ' ', $args->{SUBDIR};
 
     $self = $caller->new( ORIGIN => $origin, SUBDIRS => \@subdirs );
@@ -97,10 +97,7 @@ sub new_from_make_vars ($$)
 #
 # Accessor methods
 #
-for my $slot (
-    qw(ORIGIN SUBDIRS)
-  )
-{
+for my $slot (qw(ORIGIN SUBDIRS)) {
     no strict qw(refs);
 
     *$slot = sub {

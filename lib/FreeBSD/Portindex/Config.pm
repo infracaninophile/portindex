@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.42 2006-09-17 11:33:43 matthew Exp $
+# @(#) $Id: Config.pm,v 1.43 2007-02-03 15:06:08 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -35,7 +35,7 @@
 package FreeBSD::Portindex::Config;
 require Exporter;
 
-our @ISA       = qw(Exporter);
+our @ISA = qw(Exporter);
 our @EXPORT_OK =
   qw(read_config update_timestamp get_timestamp compare_timestamps
   scrub_environment counter);

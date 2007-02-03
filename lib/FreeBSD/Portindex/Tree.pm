@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.60 2006-12-19 21:28:39 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.61 2007-02-03 15:06:08 matthew Exp $
 #
 
 #
@@ -310,7 +310,6 @@ sub make_describe($$)
       FETCH_DEPENDS
       BUILD_DEPENDS
       RUN_DEPENDS
-      DEPENDS
       LIB_DEPENDS
       MASTER_PORT
       .MAKEFILE_LIST
@@ -343,7 +342,7 @@ sub make_describe($$)
       };
     foreach my $mv (@make_var_list) {
         $make_vars{$mv} = <MAKE>;
-        last unless defined $make_vars{$m};
+        last unless defined $make_vars{$mv};
         chomp( $make_vars{$mv} );
     }
     close MAKE

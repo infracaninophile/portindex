@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.42 2006-09-17 11:33:43 matthew Exp $
+# @(#) $Id: Port.pm,v 1.43 2007-02-03 15:06:08 matthew Exp $
 #
 
 #
@@ -82,7 +82,6 @@ sub new_from_make_vars ($$)
     my $extract_depends;
     my $patch_depends;
     my $fetch_depends;
-    my $depends;
     my $lib_depends;
     my $descr;
     my $www;
@@ -91,7 +90,7 @@ sub new_from_make_vars ($$)
     # %{$args} should contain the value of the following port variables:
     # PKGNAME, .CURDIR, PREFIX, COMMENT[*], DESCR, MAINTAINER,
     # CATEGORIES, EXTRACT_DEPENDS, PATCH_DEPENDS, FETCH_DEPENDS,
-    # BUILD_DEPENDS, RUN_DEPENDS, DEPENDS, LIB_DEPENDS.
+    # BUILD_DEPENDS, RUN_DEPENDS, LIB_DEPENDS.
     # Additionally, the file referenced by DESCR should be grepped to find
     # the WWW value.
     #
@@ -140,9 +139,6 @@ sub new_from_make_vars ($$)
     $run_depends =
       _sanatize( $origin, $pkgname, 'RUN_DEPENDS',
         _split_xxx_depends( $args->{RUN_DEPENDS} ) );
-    $depends =
-      _sanatize( $origin, $pkgname, 'DEPENDS',
-        _split_depends( $args->{DEPENDS} ) );
     $lib_depends =
       _sanatize( $origin, $pkgname, 'LIB_DEPENDS',
         _split_xxx_depends( $args->{LIB_DEPENDS} ) );
@@ -155,22 +151,21 @@ sub new_from_make_vars ($$)
         && defined $fetch_depends
         && defined $build_depends
         && defined $run_depends
-        && defined $depends
         && defined $lib_depends );
 
     # On output:
-    # $extract_depends = EXTRACT_DEPENDS + DEPENDS
-    # $patch_depends   = PATCH_DEPENDS   + DEPENDS
-    # $fetch_depends   = FETCH_DEPENDS   + DEPENDS
-    # $build_depends   = BUILD_DEPENDS   + DEPENDS + LIB_DEPENDS
-    # $run_depends     = RUN_DEPENDS     + DEPENDS + LIB_DEPENDS
+    # $extract_depends = EXTRACT_DEPENDS
+    # $patch_depends   = PATCH_DEPENDS
+    # $fetch_depends   = FETCH_DEPENDS
+    # $build_depends   = BUILD_DEPENDS + LIB_DEPENDS
+    # $run_depends     = RUN_DEPENDS   + LIB_DEPENDS
     # The lists should be uniq'd -- sorting will happen later
 
-    $extract_depends = _uniquify( $extract_depends, $depends );
-    $patch_depends   = _uniquify( $patch_depends,   $depends );
-    $fetch_depends   = _uniquify( $fetch_depends,   $depends );
-    $build_depends   = _uniquify( $build_depends,   $depends, $lib_depends );
-    $run_depends     = _uniquify( $run_depends,     $depends, $lib_depends );
+    $extract_depends = _uniquify($extract_depends);
+    $patch_depends   = _uniquify($patch_depends);
+    $fetch_depends   = _uniquify($fetch_depends);
+    $build_depends   = _uniquify( $build_depends, $lib_depends );
+    $run_depends     = _uniquify( $run_depends, $lib_depends );
 
     $self = $caller->new(
         PKGNAME         => $pkgname,
@@ -239,21 +234,6 @@ sub _split_xxx_depends ($)
     my @deps;
 
     @deps = ( $deps =~ m{\s*[^\s:]*:([^\s:]+)(?::\S+)?}g );
-
-    return _clean_depends( \@deps );
-}
-
-#
-# Ditto, except for the plain DEPENDS target.  This is a space
-# separated list of the form dir[:target] -- the dir is what we want,
-# again.
-#
-sub _split_depends ($)
-{
-    my $deps = shift;
-    my @deps;
-
-    @deps = ( $deps =~ m{\s*([^\s:]+)(?::\S+)?}g );
 
     return _clean_depends( \@deps );
 }
