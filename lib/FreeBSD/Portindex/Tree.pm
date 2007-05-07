@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.62 2007-02-04 09:54:37 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.63 2007-05-07 10:04:20 matthew Exp $
 #
 
 #
@@ -566,14 +566,19 @@ sub category_check ($$$)
     $newcat = $self->make_describe($origin);
     delete $updaters->{$origin};
 
-    $comm = $self->{CATEGORIES}->{$origin}->comm($newcat);
+    # Sometimes a deleted port may be mixed up with a category.
+    # Filter out those cases.
 
-    if ( @{ $comm->[0] } || @{ $comm->[2] } ) {
+    if ( $newcat->isa("FreeBSD::Portindex::Category") ) {
+        $comm = $self->{CATEGORIES}->{$origin}->comm($newcat);
 
-        # This category was modified: better check the contents
+        if ( @{ $comm->[0] } || @{ $comm->[2] } ) {
 
-        foreach my $o ( @{ $comm->[0] }, @{ $comm->[2] } ) {
-            $updaters->{$o}++;
+            # This category was modified: better check the contents
+
+            foreach my $o ( @{ $comm->[0] }, @{ $comm->[2] } ) {
+                $updaters->{$o}++;
+            }
         }
     }
     return $self;

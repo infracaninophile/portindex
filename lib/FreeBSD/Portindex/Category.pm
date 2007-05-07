@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.10 2007-02-04 09:54:37 matthew Exp $
+# @(#) $Id: Category.pm,v 1.11 2007-05-07 10:04:20 matthew Exp $
 #
 
 #
@@ -149,14 +149,16 @@ sub comm($$)
     my $result = [ [], [], [] ];
     my %comm;
 
-    for my $sd ( @{ $self->SUBDIRS() } ) {
-        $comm{$sd}--;
-    }
-    for my $sd ( @{ $other->SUBDIRS() } ) {
-        $comm{$sd}++;
-    }
-    for my $sd ( keys %comm ) {
-        push @{ $result->[ $comm{$sd} + 1 ] }, $sd;
+    if ( defined $other && $other->can("SUBDIRS") ) {
+        for my $sd ( @{ $self->SUBDIRS() } ) {
+            $comm{$sd}--;
+        }
+        for my $sd ( @{ $other->SUBDIRS() } ) {
+            $comm{$sd}++;
+        }
+        for my $sd ( keys %comm ) {
+            push @{ $result->[ $comm{$sd} + 1 ] }, $sd;
+        }
     }
     return $result;
 }
