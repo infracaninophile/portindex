@@ -1,5 +1,5 @@
 
-   $Id: TODO,v 1.1 2007-06-10 09:15:36 matthew Exp $
+   $Id: TODO,v 1.2 2007-06-10 09:19:35 matthew Exp $
 
    TO DO
    -----
@@ -18,5 +18,10 @@
   * Roll our own 'serialization' of the perl objects to be stored in
     the cache.  Data should be stored in a format accessible from various
     different languages, not just Perl.
+
+  * Clean up the way errors and warnings are presented -- messages at
+    the moment contain too much extraneous stuff.  Also tie what is
+    produced into the 'quiet' vs. 'verbose' options better.  (Multiple
+    levels of verbosity?)
 
 
