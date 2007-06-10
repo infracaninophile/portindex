@@ -1,0 +1,22 @@
+
+   $Id: TODO,v 1.1 2007-06-10 09:15:36 matthew Exp $
+
+   TO DO
+   -----
+
+  * Handle changes to OPTIONS by keeping track of the contents of
+    /var/db/ports
+
+  * Strict mode: Allow only the ports that are hooked up to the Makefile
+    in the tree, plus enforce output changes to make what we produce as
+    identical to 'make index' as possible.
+
+  * Use multiple workers to gather port dependency data.  This should
+    result in a cache-init that is faster than 'make index' on the
+    right hardware.
+
+  * Roll our own 'serialization' of the perl objects to be stored in
+    the cache.  Data should be stored in a format accessible from various
+    different languages, not just Perl.
+
+
