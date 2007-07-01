@@ -1,11 +1,14 @@
 
-   $Id: TODO,v 1.2 2007-06-10 09:19:35 matthew Exp $
+   $Id: TODO,v 1.3 2007-07-01 10:27:09 matthew Exp $
 
    TO DO
    -----
 
   * Handle changes to OPTIONS by keeping track of the contents of
-    /var/db/ports
+    /var/db/ports.
+
+  * Store a 'last modified' date per port/category entry in the
+    cache.  Makes handling the OPTIONS stuff feasible. 
 
   * Strict mode: Allow only the ports that are hooked up to the Makefile
     in the tree, plus enforce output changes to make what we produce as
