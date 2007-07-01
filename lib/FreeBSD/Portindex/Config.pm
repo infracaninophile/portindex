@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2006 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2007 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.44 2007-02-04 09:54:37 matthew Exp $
+# @(#) $Id: Config.pm,v 1.45 2007-07-01 10:35:33 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -78,6 +78,7 @@ sub read_config ($)
         Verbose             => 1,
         UbiquitousMakefiles => [ "Mk/bsd.port.mk", "/etc/make.conf", ],
         EndemicMakefiles    => ["Mk/bsd.sites.mk"],
+        CrunchWhitespace    => 0,
     );
     @optargs = (
         'cache-dir|c=s'      => \$config->{CacheDir},
@@ -87,8 +88,11 @@ sub read_config ($)
         'quiet'              => sub { $config->{Verbose} = 0 },
         'verbose!'           => \$config->{Verbose},
     );
-    push @optargs, ( 'output=s' => \$config->{Output} )
-      if ( $0 eq 'portindex' );
+    push @optargs,
+      (
+        'output=s'      => \$config->{Output},
+        'crunch-white!' => \$config->{CrunchWhitespace},
+      ) if ( $0 eq 'portindex' );
     push @optargs, (
         'input|i=s'  => \$config->{Input},
         'format|f=s' => sub {
@@ -200,6 +204,7 @@ Current Configuration:
   Output (portindex, find-updated) ................ $config->{Output}
   TimestampFilename ............................... $config->{TimestampFilename}
   Verbose ......................................... $config->{Verbose}
+  CrunchWhitespace (portindex)..................... $config->{CrunchWhitespace}
 E_O_CONFIG
     for my $um ( @{ $config->{UbiquitousMakefiles} } ) {
         print $um_fmt, $um, "\n";
