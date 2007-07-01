@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2006 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2007 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.44 2007-02-04 09:54:37 matthew Exp $
+# @(#) $Id: Port.pm,v 1.45 2007-07-01 10:33:41 matthew Exp $
 #
 
 #
@@ -38,6 +38,7 @@ package FreeBSD::Portindex::Port;
 our $VERSION = '1.9';    # Release
 
 our %directorycache;     # Remember all the directories we've ever seen
+our %pkgnamecache;       # Remember all of the package names we've output
 
 use strict;
 use warnings;
@@ -64,7 +65,7 @@ sub new ($@)
 # extracted from the port Makefile.  This effectively duplicates the
 # code in /usr/ports/Mk/bsd.ports.mk used to produce the 'make
 # describe' output. Instead of invoking perl repeatedly for all
-# 15,000+ ports, we just invoke it once, plus we cache all the results
+# 17,000+ ports, we just invoke it once, plus we cache all the results
 # of testing that referenced port directories exist -- so this should
 # be a bit more efficient.
 #
@@ -116,8 +117,7 @@ sub new_from_make_vars ($$)
             ( $master_port = $args->{MASTER_PORT} ) =~ s@/?$@@;
 
             warn __PACKAGE__, ":new_from_make_vars():$origin($pkgname) ",
-              "-- warning MASTER_PORT=$args->{MASTER_PORT} not in expected ",
-              "format\n";
+"-- warning MASTER_PORT=$args->{MASTER_PORT} extraneous trailing /\n";
         }
     }
 
@@ -407,7 +407,8 @@ sub accumulate_dependencies ($$$;$)
     unless ( $self->DEPENDENCIES_ACCUMULATED() ) {
         $self->DEPENDENCIES_ACCUMULATED(1);    # Accumulation in progress
 
-      DEPEND: for my $whatdep (
+      DEPEND:
+        for my $whatdep (
             qw( EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS
             BUILD_DEPENDS RUN_DEPENDS )
           )
@@ -460,10 +461,22 @@ sub print ($*;$)
     my $fh       = shift;
     my $allports = shift;
     my $counter  = shift;
+    my $stuff;
+
+    if ( defined $pkgnamecache{ $self->PKGNAME() } ) {
+        warn "\n", __PACKAGE__, "::print(): warning: duplicate package name ",
+          $self->PKGNAME(), " (", $self->ORIGIN(), " and ",
+          $pkgnamecache{ $self->PKGNAME() }, ")\n";
+    } else {
+        $pkgnamecache{ $self->PKGNAME() } = $self->ORIGIN();
+    }
+
+    $stuff = $self->STUFF();
+    $stuff = _crunch_white($stuff) if ( $::Config{CrunchWhitespace} );
 
     print $fh $self->PKGNAME(), '|';
     print $fh $self->ORIGIN(),  '|';
-    print $fh $self->STUFF(),   '|';
+    print $fh $stuff, '|';
     print $fh $self->_chase_deps( $allports, 'BUILD_DEPENDS' ), '|';
     print $fh $self->_chase_deps( $allports, 'RUN_DEPENDS' ),   '|';
     print $fh $self->WWW(), '|';
@@ -473,6 +486,21 @@ sub print ($*;$)
 
     counter( \%::Config, $counter );
     return $self;
+}
+
+#
+# Modify the 'COMMENT' field in the same way that make index does:
+# replace any repeated whitespace with a single space. A regular sub,
+# not a method.
+#
+sub _crunch_white (@)
+{
+    my @args = @_;
+
+    for (@args) {
+        s@\s+@ @g;
+    }
+    return wantarray ? @args : $args[0];
 }
 
 #
