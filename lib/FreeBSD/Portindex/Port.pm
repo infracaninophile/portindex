@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.45 2007-07-01 10:33:41 matthew Exp $
+# @(#) $Id: Port.pm,v 1.46 2007-07-01 18:47:14 matthew Exp $
 #
 
 #
@@ -35,7 +35,7 @@
 # this is used for generating the ports INDEX.
 #
 package FreeBSD::Portindex::Port;
-our $VERSION = '1.9';    # Release
+our $VERSION = '2.0';    # Release
 
 our %directorycache;     # Remember all the directories we've ever seen
 our %pkgnamecache;       # Remember all of the package names we've output
@@ -50,14 +50,30 @@ sub new ($@)
 {
     my $caller = shift;
     my $class  = ref($caller) || $caller;
-    my %self   = @_;
+    my %args   = @_;
+    my $self;
 
     croak __PACKAGE__, "::new() -- PKGNAME missing\n"
-      unless defined $self{PKGNAME};
+      unless defined $args{PKGNAME};
     croak __PACKAGE__, "::new() -- ORIGIN missing\n"
-      unless defined $self{ORIGIN};
+      unless defined $args{ORIGIN};
 
-    return bless \%self, $class;
+    $self = {
+        PKGNAME         => $args{PKGNAME},
+        ORIGIN          => $args{ORIGIN},
+        STUFF           => $args{STUFF},
+        EXTRACT_DEPENDS => $args{EXTRACT_DEPENDS},
+        PATCH_DEPENDS   => $args{PATCH_DEPENDS},
+        FETCH_DEPENDS   => $args{FETCH_DEPENDS},
+        BUILD_DEPENDS   => $args{BUILD_DEPENDS},
+        RUN_DEPENDS     => $args{RUN_DEPENDS},
+        WWW             => $args{WWW},
+        MASTER_PORT     => $args{MASTER_PORT},
+        MAKEFILE_LIST   => $args{MAKEFILE_LIST},
+        MTIME           => time(),
+    };
+
+    return bless $self, $class;
 }
 
 #
@@ -69,10 +85,12 @@ sub new ($@)
 # of testing that referenced port directories exist -- so this should
 # be a bit more efficient.
 #
-sub new_from_make_vars ($$)
+sub new_from_make_vars ($$$$)
 {
-    my $caller = shift;
-    my $args   = shift;
+    my $caller              = shift;
+    my $args                = shift;
+    my $makefile_locations  = shift;
+    my $makefile_exceptions = shift;
     my $self;
 
     my $pkgname;
@@ -87,6 +105,7 @@ sub new_from_make_vars ($$)
     my $descr;
     my $www;
     my $master_port;
+    my $makefile_list;
 
     # %{$args} should contain the value of the following port variables:
     # PKGNAME, .CURDIR, PREFIX, COMMENT[*], DESCR, MAINTAINER,
@@ -106,6 +125,7 @@ sub new_from_make_vars ($$)
     $stuff = join( '|',
         $args->{PREFIX}, $args->{COMMENT}, $descr, $args->{MAINTAINER},
         $args->{CATEGORIES} );
+
     if ( $args->{MASTER_PORT} ) {
         if ( $args->{MASTER_PORT} =~ m@^[a-zA-Z0-9._+-]+/[a-zA-Z0-9._+-]+$@ ) {
             $master_port = "$::Config{PortsDir}/$args->{MASTER_PORT}";
@@ -120,6 +140,10 @@ sub new_from_make_vars ($$)
 "-- warning MASTER_PORT=$args->{MASTER_PORT} extraneous trailing /\n";
         }
     }
+    $master_port = _master_port( $args->{MASTER_PORT}, $origin );
+
+    $makefile_list = _makefile_list( $args->{'.MAKEFILE_LIST'},
+        $makefile_locations, $makefile_exceptions );
 
     # [*] COMMENT doesn't need quoting to get it through several
     # layers of shell.
@@ -177,8 +201,9 @@ sub new_from_make_vars ($$)
         BUILD_DEPENDS   => $build_depends,
         RUN_DEPENDS     => $run_depends,
         WWW             => $www,
+        MASTER_PORT     => $master_port,
+        MAKEFILE_LIST   => $makefile_list,
     );
-    $self->master_port($master_port);
 
     return $self;
 }
@@ -280,6 +305,45 @@ sub _uniquify(@)
 }
 
 #
+# Another non-method sub. We're only interested in MASTER_PORT if it
+# is set and different to ORIGIN
+#
+sub _master_port ($$)
+{
+    my $master_port = shift;
+    my $origin      = shift;
+
+    return ( $master_port ne $origin ) ? $master_port : undef;
+}
+
+#
+# Another non-method sub: grep through the list of
+# makefiles given in .MAKEFILE_LIST and strip out what it does
+# not make sense to try and process.  Return the list of interesting
+# Makefiles as array reference
+#
+sub _makefile_list ($$$)
+{
+    my $makefile_list = shift;
+    my $keepers       = shift;    # MAKEFILE_LOCATIONS
+    my $discards      = shift;    # MAKEFILE_EXCEPTIONS
+    my %seen;
+
+    # List all of the makefiles under ${PORTSDIR} or /var/db/ports
+    # which affect the compilation of a port.  Don't include
+    # ${PORTSDIR}/Mk/bsd.port.mk, because that affects *everything*,
+    # nor include ${PORTSDIR}/Mk/bsd.sites.mk since that has no
+    # material effect on the resulting port/package.
+
+    return [
+        _clean(
+            grep { !$seen{$_}++ && m/$keepers/ && !m/$discards/ }
+              split( ' ', $makefile_list )
+        )
+    ];
+}
+
+#
 # Take the list of dependencies and ensure that all entries correspond
 # to extant directories.  'make index' dies with an error in that case
 # -- we don't die, but raise an error by returning undef to signal the
@@ -334,55 +398,14 @@ for my $slot (
 }
 
 #
-# Accessor method with added foo: we're only interested in
-# MASTER_PORT if it is set and different to ORIGIN
+# MTIME can only be read or set to the current time. Any method
+# argument that evaluates to true will cause the value to be updated.
 #
-sub master_port ($$)
+sub MTIME ($$)
 {
     my $self = shift;
-    my $master_port;
-
-    if (@_) {
-        $master_port = shift;
-
-        if ( $master_port && $master_port ne $self->ORIGIN() ) {
-            $self->MASTER_PORT($master_port);
-        } else {
-            $self->MASTER_PORT(undef);
-        }
-    }
-    return $self->MASTER_PORT();
-}
-
-#
-# Accessor method with added foo: grep through the list of
-# makefiles given in .MAKEFILE_LIST and strip out what it does
-# not make sense to try and process.
-#
-sub makefile_list ($$$$)
-{
-    my $self          = shift;
-    my $makefile_list = shift;
-    my $keepers       = shift;    # MAKEFILE_LOCATIONS
-    my $discards      = shift;    # MAKEFILE_EXCEPTIONS
-
-    # List all of the makefiles under ${PORTSDIR} or /var/db/ports
-    # which affect the compilation of a port.  Don't include
-    # ${PORTSDIR}/Mk/bsd.port.mk, because that affects *everything*,
-    # nor include ${PORTSDIR}/Mk/bsd.sites.mk since that has no
-    # material effect on the resulting port/package.
-
-    my %seen = ();
-
-    $self->MAKEFILE_LIST(
-        [
-            _clean(
-                grep { !$seen{$_}++ && m/$keepers/ && !m/$discards/ }
-                  split( ' ', $makefile_list )
-            )
-        ]
-    );
-    return $self;
+    $self->{MTIME} = time() if ( @_ && $_[0] );
+    return $self->{MTIME};
 }
 
 #
@@ -463,6 +486,8 @@ sub print ($*;$)
     my $counter  = shift;
     my $stuff;
 
+    # Duplicate package names are an error to 'make index'.
+    # %%STRICT%% -- do stuff here.
     if ( defined $pkgnamecache{ $self->PKGNAME() } ) {
         warn "\n", __PACKAGE__, "::print(): warning: duplicate package name ",
           $self->PKGNAME(), " (", $self->ORIGIN(), " and ",

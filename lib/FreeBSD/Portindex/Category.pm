@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.12 2007-07-01 10:31:30 matthew Exp $
+# @(#) $Id: Category.pm,v 1.13 2007-07-01 18:47:14 matthew Exp $
 #
 
 #
@@ -37,7 +37,7 @@
 # running 'cache-init' and a subsequent 'cache-update'
 #
 package FreeBSD::Portindex::Category;
-our $VERSION = '1.9';    # Release
+our $VERSION = '2.0';    # Release
 
 use strict;
 use warnings;
@@ -46,9 +46,10 @@ use Carp;
 #
 # The data held by this object are the ORIGIN -- where in the ports
 # tree the Makefile being processed resides -- and SUBDIRS -- the list
-# of categories or portnames extracted from that Makefile.  Also contains
-# the equivalent data extracted from any Makefile.local additions to the
-# tree.
+# of categories or portnames extracted from that Makefile.  Also
+# contains the equivalent data extracted from any Makefile.local
+# additions to the tree.  MTIME is the unix time that this object was
+# created or that a modified object was committed to the cache.
 #
 sub new ($@)
 {
@@ -69,6 +70,7 @@ sub new ($@)
     $self = {
         ORIGIN  => $args{ORIGIN},
         SUBDIRS => $args{SUBDIRS},
+        MTIME   => time(),
     };
 
     return bless $self, $class;
@@ -109,6 +111,17 @@ for my $slot (qw(ORIGIN SUBDIRS)) {
 }
 
 #
+# MTIME can only be read or set to the current time. Any method
+# argument that evaluates to true will cause the value to be updated.
+#
+sub MTIME ($$)
+{
+    my $self = shift;
+    $self->{MTIME} = time() if ( @_ && $_[0] );
+    return $self->{MTIME};
+}
+
+#
 # Compare this Category object with that one: return true if
 # they are equal, false if not.  Equal means exactly the
 # same entries in the SUBDIRS list, but not necessarily in
@@ -126,12 +139,15 @@ sub compare($$)
     return 0
       unless @{ $self->SUBDIRS() } == @{ $other->SUBDIRS() };
 
+    # The SUBDIRS list should not contain any repeated entries, but
+    # that isn't enforced so deal reasonably with repeated elements.
+
     map { $seen{$_}++ } @{ $self->SUBDIRS() };
-    map { $seen{$_}++ } @{ $other->SUBDIRS() };
+    map { $seen{$_}-- } @{ $other->SUBDIRS() };
 
     for my $k ( keys %seen ) {
         return 0
-          unless $seen{$k} == 2;
+          unless $seen{$k} == 0;
     }
     return 1;    # They are the same...
 }
@@ -151,13 +167,23 @@ sub comm($$)
 
     if ( defined $other && $other->can("SUBDIRS") ) {
         for my $sd ( @{ $self->SUBDIRS() } ) {
-            $comm{$sd}--;
-        }
-        for my $sd ( @{ $other->SUBDIRS() } ) {
             $comm{$sd}++;
         }
-        for my $sd ( keys %comm ) {
-            push @{ $result->[ $comm{$sd} + 1 ] }, $sd;
+        for my $sd ( @{ $other->SUBDIRS() } ) {
+            $comm{$sd}--;
+        }
+        for my $sd ( sort keys %comm ) {
+
+            # The SUBDIRS list should not contain any repeated
+            # entries, but that isn't enforced so deal reasonably with
+            # repeated elements.
+            if ( $comm{$sd} >= 1 ) {
+                push @{ $result->[0] }, $sd;
+            } elsif ( $comm{$sd} == 0 ) {
+                push @{ $result->[1] }, $sd;
+            } else {
+                push @{ $result->[2] }, $sd;
+            }
         }
     }
     return $result;

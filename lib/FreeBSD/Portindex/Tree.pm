@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.64 2007-07-01 10:30:29 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.65 2007-07-01 18:47:14 matthew Exp $
 #
 
 #
@@ -36,8 +36,8 @@
 # supplied by using BerkeleyDB Btree for backing stores.
 #
 package FreeBSD::Portindex::Tree;
-our $VERSION       = '1.9';    # Release
-our $CACHE_VERSION = '1.7';    # Earliest binary compat version
+our $VERSION       = '2.0';    # Release
+our $CACHE_VERSION = '2.0';    # Earliest binary compat version
 
 use strict;
 use warnings;
@@ -221,7 +221,7 @@ sub get ($$)
 
 #
 # Build the tree structure by scanning through the Makefiles of the
-# ports tree.  This is equivalent to the first part of 'make index' #
+# ports tree.  This is equivalent to the first part of 'make index'
 # Recurse through all of the Makefiles -- extract the values of
 # various make variables.  From that divine if this is a leaf
 # directory -- ie. a port, or a category directory.  Store either sort
@@ -281,14 +281,14 @@ sub _scan_makefiles($$;$)
 # actually running 'make describe'.  Instead, extract the values of a
 # series of variables that are processed during 'make describe', and
 # perform equivalent processing ourselves.  Returns the a reference to
-# the port of category object generated and placed into the cache.
-# Changes current working directory of the process: bails out without
-# updating tree if no such directory or other problems -- returns
-# undef to signal problems to upper layers in that case.  Deals
-# gracefully with the case where the Makefile without SUBDIR entries
-# is a new category (non-leaf) Makefile, without any ports in that
-# category yet -- in which case, 'make describe' will succeed but
-# return an empty SUBDIR list.
+# the port or category object generated and placed into the cache.
+# Changes current working directory of the process: does nothing if
+# 'no such directory'.  For that and other problems,returns undef to
+# signal problems to upper layers in that case.  Deals gracefully with
+# the case where the Makefile without SUBDIR entries is a new category
+# (non-leaf) Makefile, without any ports in that category yet -- in
+# which case, 'make describe' will succeed but return an empty SUBDIR
+# list.
 #
 sub make_describe($$)
 {
@@ -367,17 +367,16 @@ sub make_describe($$)
         # Unlike 'make index' we can benefit by pressing on even if there
         # are errors.  Return undef to signal this to higher levels.
 
-        $port = FreeBSD::Portindex::Port->new_from_make_vars( \%make_vars )
+        $port = FreeBSD::Portindex::Port->new_from_make_vars(
+            \%make_vars,
+            $self->{MAKEFILE_LOCATIONS},
+            $self->{MAKEFILE_EXCEPTIONS}
+          )
           or do {
             warn __PACKAGE__,
               "::make_describe():$path -- error parsing make output -- $!\n";
             return undef;
           };
-        $port->makefile_list(
-            $make_vars{'.MAKEFILE_LIST'},
-            $self->{MAKEFILE_LOCATIONS},
-            $self->{MAKEFILE_EXCEPTIONS}
-        );
     } else {
 
         # A category Makefile
