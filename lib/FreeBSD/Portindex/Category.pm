@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2006 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2007 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.11 2007-05-07 10:04:20 matthew Exp $
+# @(#) $Id: Category.pm,v 1.12 2007-07-01 10:31:30 matthew Exp $
 #
 
 #
@@ -124,7 +124,7 @@ sub compare($$)
     return 0
       unless $self->ORIGIN() eq $other->ORIGIN();
     return 0
-      unless @{ $self->SUBDIRS() } == @{ $self->SUBDIRS() };
+      unless @{ $self->SUBDIRS() } == @{ $other->SUBDIRS() };
 
     map { $seen{$_}++ } @{ $self->SUBDIRS() };
     map { $seen{$_}++ } @{ $other->SUBDIRS() };
@@ -161,6 +161,23 @@ sub comm($$)
         }
     }
     return $result;
+}
+
+#
+# Given a port origin, is it referenced in this category Makefile?
+# Unless a port is listed in the SUBDIR variable in its category
+# Makefile, it's disconnected from the ports and shouldn't be indexed
+#
+sub is_known_subdir($$)
+{
+    my $self   = shift;
+    my $origin = shift;
+
+    for my $sd ( @{ $self->SUBDIRS() } ) {
+        return 1
+          if ( $sd eq $origin );    # Found it
+    }
+    return 0;                       # Unknown
 }
 
 1;

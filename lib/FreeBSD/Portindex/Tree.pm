@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2006 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2007 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.63 2007-05-07 10:04:20 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.64 2007-07-01 10:30:29 matthew Exp $
 #
 
 #
@@ -617,6 +617,7 @@ sub print_index($$*)
     my $allports = shift;
     my $fh       = shift;
     my $counter  = 0;
+    my $parentorigin;
 
     print STDERR "Writing INDEX file: "
       if ( $::Config{Verbose} );
@@ -625,9 +626,24 @@ sub print_index($$*)
         next
           if ( $origin eq '__CACHE_VERSION' );
 
-        $allports->{$origin}->print( $fh, $allports, \$counter )
-          if ( $allports->{$origin}
-            && $allports->{$origin}->isa("FreeBSD::Portindex::Port") );
+        if (   $allports->{$origin}
+            && $allports->{$origin}->isa("FreeBSD::Portindex::Port") )
+        {
+
+            ( $parentorigin = $origin ) =~ s@/[^/]*$@@;
+
+            if (   $allports->{$parentorigin}
+                && $allports->{$parentorigin}
+                ->isa("FreeBSD::Portindex::Category")
+                && $allports->{$parentorigin}->is_known_subdir($origin) )
+            {
+                $allports->{$origin}->print( $fh, $allports, \$counter );
+            } else {
+                warn "\n", __PACKAGE__, ":printindex(): $origin is not ",
+                  "referenced from the $parentorigin category -- ",
+                  "not added to INDEX\n";
+            }
+        }
     }
     print STDERR "<${counter}>\n"
       if ( $::Config{Verbose} );
