@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.65 2007-07-01 18:47:14 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.66 2007-07-18 14:33:21 matthew Exp $
 #
 
 #
@@ -255,8 +255,7 @@ sub _scan_makefiles($$;$)
 
     # Read the Makefile to extract the settings of some interesting
     # variables.  Possible results are -- no such file or directory or
-    # other IO error (undef); not a category but a port (0); success
-    # (new object reference)
+    # other IO error (undef); success (new object reference)
 
     $port = $self->make_describe($path);
     if ( defined $port ) {
@@ -280,10 +279,10 @@ sub _scan_makefiles($$;$)
 # Generate the port description or category subdir listing without
 # actually running 'make describe'.  Instead, extract the values of a
 # series of variables that are processed during 'make describe', and
-# perform equivalent processing ourselves.  Returns the a reference to
+# perform equivalent processing ourselves.  Returns a reference to
 # the port or category object generated and placed into the cache.
 # Changes current working directory of the process: does nothing if
-# 'no such directory'.  For that and other problems,returns undef to
+# 'no such directory'.  For that and other problems, returns undef to
 # signal problems to upper layers in that case.  Deals gracefully with
 # the case where the Makefile without SUBDIR entries is a new category
 # (non-leaf) Makefile, without any ports in that category yet -- in
