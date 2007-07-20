@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright (c) 2004-2006 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2007 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-init,v 1.23 2006-07-18 20:14:59 matthew Exp $
+# @(#) $Id: cache-init,v 1.24 2007-07-20 22:30:42 matthew Exp $
 #
 
 # Build the portindex cache from scratch by scanning through the whole
@@ -139,7 +139,7 @@ B<cache-init> is used to bootstrap the B<portindex> data cache on a
 new system.  It only needs to be run once, after which B<cache-update>
 may be used to apply incremental updates to the data cache.  As
 B<cache-init> is fairly slow to execute, dealing as it does with some
-12,000 separate ports, running it repeatedly is a handy way to waste a
+17,500 separate ports, running it repeatedly is a handy way to waste a
 great deal of time.
 
 B<cache-init> will preserve a backup copy of any pre-existing cache
@@ -358,7 +358,7 @@ The location of the data cache.
 
 Btree file containing cached C<make describe> and other output.
 
-=item F<__db.001>, F<__db.002>, F<__db.003>
+=item F<__db.001>, F<__db.002>, F<__db.003>, F<__db.004>
 
 Files used as part of the internal workings of BerkeleyDB, for memory
 pool management and DB locking.  Will be recreated automatically if

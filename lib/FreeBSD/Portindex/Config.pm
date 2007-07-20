@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.45 2007-07-01 10:35:33 matthew Exp $
+# @(#) $Id: Config.pm,v 1.46 2007-07-20 22:30:42 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -39,7 +39,7 @@ our @ISA = qw(Exporter);
 our @EXPORT_OK =
   qw(read_config update_timestamp get_timestamp compare_timestamps
   scrub_environment counter);
-our $VERSION = '1.9';    # Release
+our $VERSION = '2.0';    # Release
 
 use strict;
 use warnings;
@@ -70,9 +70,10 @@ sub read_config ($)
         CacheFilename       => "$::pkgname-cache.db",
         ScrubEnvironment    => 0,
         Input               => '-',
-        Format              => 'cvsup-output',
+        Format              => 'cvsup-output,options',
         Output              => '-',
         PortsDir            => $ENV{PORTSDIR} || '/usr/ports',
+        PortDBDir           => $ENV{PORT_DBDIR} || '/var/db/ports',
         PropagationDelay    => 3600,                                    # 1 hour
         TimestampFilename   => "$::pkgname-timestamp",
         Verbose             => 1,
@@ -90,8 +91,8 @@ sub read_config ($)
     );
     push @optargs,
       (
-        'output=s'      => \$config->{Output},
-        'crunch-white!' => \$config->{CrunchWhitespace},
+        'output=s'        => \$config->{Output},
+        'crunch-white|W!' => \$config->{CrunchWhitespace},
       ) if ( $0 eq 'portindex' );
     push @optargs, (
         'input|i=s'  => \$config->{Input},
@@ -100,11 +101,22 @@ sub read_config ($)
             my $optvalue = shift;
 
             die "$0: Option --$optname unrecognised argument: $optvalue\n"
-              unless $optvalue =~ m@^plain|cvsup-(output|checkouts)\Z@;
+              unless $optvalue =~ m@
+                  ^(
+                     (
+                      plain|cvsup-(output|checkouts)
+                     )
+                     (,options)?
+                   )
+                  |
+                   options
+                  \Z
+                  @x;
 
             $config->{Format} = $optvalue;
         },
         'propagation-delay|P=i' => \$config->{PropagationDelay},
+        'port-dbdir|d=s'        => \$config->{PortDBDir},
     ) if ( $0 eq 'cache-update' );
     push @optargs, (
         'ports-dir=s'              => \$config->{PortsDir},
@@ -195,6 +207,7 @@ Current Configuration:
   command line.  They apply to all programs, except as marked.
 
   PortsDir (cache-init, cache-update, find-updated) $config->{PortsDir}
+  PortDBDir (cache-update) ........................ $config->{PortDBDir}
   CacheDir ........................................ $config->{CacheDir}
   CacheFilename ................................... $config->{CacheFilename}
   ScrubEnvironment (cache-init, cache-update) ..... $config->{ScrubEnvironment}

@@ -1,6 +1,6 @@
 # This file contains -*- perl -*- code
 #
-# @(#) $Id: portindex.cfg.sample,v 1.11 2005-01-16 10:21:47 matthew Exp $
+# @(#) $Id: portindex.cfg.sample,v 1.12 2007-07-20 22:30:30 matthew Exp $
 #
 # Sample configuration file for portindex, cache-init, cache-update
 #
@@ -21,6 +21,11 @@
 ## variable.
 
 # $::Config{PortsDir} = $ENV{PORTSDIR} || '/usr/ports';
+
+## cache-update (-d, --ports-dbdir): Where OPTIONS settings are
+## stored, same as the PORTS_DBDIR environment variable.
+
+# $::Config{PortsDBDir} = $ENV{PORTS_DBDIR} || '/var/db/ports';
 
 ## all (-c, --cache-dir): Directory where BDB btree files containing
 ## the cache and master-slave relationships are stored.
@@ -59,13 +64,18 @@
 ##    plain           -- a list of port directory origins, one per line
 ##    cvsup-output    -- Output from running cvsup(1) with at least -L1
 ##    cvsup-checkouts -- The cvsup(1) checkouts or list file
-##
+##    options         -- Scan the contents of PORTS_DBDIR to find port
+##                       OPTIONS settings changed more recently than the
+##                       data in the ports cache.
+
+## Additionally you can append ',options' to any of the first three
+## make cache-update scan for changes to port OPTIONS as well as
+## using the primary input mechanism.
 
 ## If the cvsup-checkouts format is chosen, the input file will
-## usually be /usr/sup/ports-all/checkouts.cvs:. under FreeBSD 4.x, or
-## /var/db/sup/ports-all/checkouts.cvs:. under FreeBSD 5.x
+## usually be /var/db/sup/ports-all/checkouts.cvs:.
 
-# $::Config{Format} = 'cvsup-output';
+# $::Config{Format} = 'cvsup-output,options';
 
 ## cache-update (-P, --propagation-delay): A fudge factor to account
 ## for the time required between a change being committed to the
@@ -85,9 +95,10 @@
 ## cache-update, cache-init (-M, --ubiquitous-makefile): List of
 ## Makefiles included by all or the vast majority of ports.
 ## cache-update will emit a warning if any Makefile on this list has
-## been modified since the last time the cache was updated, that it
-## might be preferable to re-initialise the cache from scratch using
-## cache-init(1) rather than trying to do an incremental update.
+## been modified since the last time the cache was updated, saying
+## that it might be preferable to re-initialise the cache from scratch
+## using cache-init(1) rather than trying to do an incremental update.
+
 ## Neither cache-init(1) nor cache-update(1) will store any of these
 ## filenames within the cache.  Default: /usr/ports/Mk/bsd.port.mk,
 ## /etc/make.conf (Note: non-absolute paths are taken as relative to
@@ -102,6 +113,14 @@
 ## paths are taken as relative to $::Config{PortsDir})
 
 # $::Config{EndemicMakefiles} = [ 'Mk/bsd.sites.mk', ];
+
+## portindex (-W --crunch-white --nocrunch-white): Boolean. If true,
+## emulate 'make index' more closely by converting multiple whitespace
+## into single spaces in the port comment field.  This has a purely
+## cosmetic effect on the output INDEX and doesn't affect the cache
+## contents.
+
+# $::Config{CrunchWhitespace} = 0;
 
 ##
 ## That's All Folks!

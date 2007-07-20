@@ -1,17 +1,17 @@
 
-FreeBSD-Portindex version 1.6
+FreeBSD-Portindex version 2.0
 =============================
 
-$Id: README,v 1.9 2006-07-23 10:14:57 matthew Exp $
+$Id: README,v 1.10 2007-07-20 22:30:30 matthew Exp $
 
    portindex, cache-init, cache-update and find-updated are a set of
    perl scripts built around the common core of the FreeBSD::Portindex
-   perl modules. Their use is to generate and maintain the ports INDEX
-   or INDEX-N files speedily and efficiently (where N is one of 5, 6
-   or 7 depending on FreeBSD major version number.) Ultimately they
-   work in a very similar way to the standard make index command,
-   except that the FreeBSD::Portindex tools keep a cache of the make
-   describe output from each port, and can update that cached data
+   perl modules. Their use is to generate and maintain the ports
+   INDEX-N files speedily and efficiently (where N is one of 5, 6 or 7
+   depending on FreeBSD major version number.) Ultimately they work in
+   a very similar way to the standard make index command, except that
+   the FreeBSD::Portindex tools keep a cache of the make describe
+   output from each port, and can update that cached data
    incrementally as the ports tree itself is updated.
 
    Incremental updating is much faster than building the INDEX
@@ -24,15 +24,13 @@ $Id: README,v 1.9 2006-07-23 10:14:57 matthew Exp $
 
    The cache-update process can either take the output of running
    cvsup over the ports-all collection, or it can read cvsup's
-   checkouts file (usually /usr/sup/ports-all/checkouts.cvs:. in
-   FreeBSD 4.x or /var/db/sup/ports-all/checkouts.cvs:. in 5.x or
-   above) to work out which ports have been modified or deleted
-   recently \u2014 this include ports that have been affected
-   indirectly by a change to any of the ports Makefiles involved in
-   building them, and so need their cached description updated. Of
-   course, it can also just read a simple list of the port origins to
-   re-check, which you can generate using find-updated or how you
-   will.
+   checkouts file (usually /var/db/sup/ports-all/checkouts.cvs:.) to
+   work out which ports have been modified or deleted recently.  This
+   includes ports that have been affected indirectly by a change to
+   any of the ports Makefiles involved in building them, and so need
+   their cached description updated. Of course, it can also just read
+   a simple list of the port origins to re-check, which you can
+   generate using find-updated or how you will.
 
 DEPENDENCIES
 
@@ -43,17 +41,17 @@ DEPENDENCIES
 
    Additionally you will need
 
-     p5-BerkeleyDB-0.28 (databases/p5-BerkeleyDB)
+     p5-BerkeleyDB-0.32 (databases/p5-BerkeleyDB)
 
    and one of the Berkeley Database Library ports such as
    
-     db42-4.2.52_4 (databases/db42).
+     db44-4.4.20.4 (databases/db42).
 
    Other Perl or BDB versions probably will work, but have not been
    thoroughly tested. If you are using perl-5.6.1 or any Perl version
    earlier than 5.8.0 you will need to install
 
-     p5-Storable-2.15 (devel/p5-Storable).
+     p5-Storable-2.16 (devel/p5-Storable).
 
 INSTALLATION
 
@@ -82,7 +80,7 @@ INSTALLATION
         # chown user:group /var/db/portindex
         % cache-init
 
-   That creates the portindex cache file (about 14MiB currently)
+   That creates the portindex cache file (about 25MiB currently)
    containing all of the make describe output, as well as details of
    all ports Makefiles required to build the port and whether the port
    is a slave port of some other one. It also contains a timestamp
@@ -112,8 +110,8 @@ Then, for day to day use:
 
        # portindex -o /usr/ports/INDEX-N
 
-   Steps (iii) and (iv) together should take a minute or so \u2014
-   more if one of the commonly included Makefiles like
+   Steps (iii) and (iv) together should only take a few minutes or so
+   -- more if one of the commonly included Makefiles like
    /usr/ports/Mk/bsd.gnome.mk has been modified. Even so, it will be
    very much faster than building the INDEX-N file from scratch each
    time you update your ports.
@@ -125,14 +123,14 @@ BUGS
    possible so I can try and reproduce them. Please try and include:
 
        FreeBSD version -- uname -a output.
-       Perl version --' perl -V output.
+       Perl version -- perl -V output.
        Transcript of session showing how the problem occurs.
 
    As well as anything else you think is relevant.
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2004-2006 by Matthew Seaman
+Copyright (C) 2004-2007 by Matthew Seaman
 
 This library is free software; you can redistribute it and/or modify
 it under the following 2-clause BSD style license:

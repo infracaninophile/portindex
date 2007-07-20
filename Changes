@@ -116,3 +116,41 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           the port to install to fulfil themselves.  Instead of
           falling over, complain bitterly and omit the broken
           dependency from the output INDEX.
+
+2.0 Thu Jul 19 10:36:00 2007
+
+        - Update documentation.  Remove references specific to FreeBSD
+          4.x (should still work on that platform though)
+
+        - Preliminary work to support OPTIONS processing.  Make
+          'cvsup-output,options' the default input format for
+          cache-update.
+
+        - new CrunchWhitespace option
+
+        - new PortsDBDir option
+
+	- Numerous small changes to make the output more compatible
+          with what make index generates.
+
+2.0 Fri Jul 20 23:09:00 2007
+
+        - Finish OPTIONS processing.  As a side effect of this, we are
+          storing in the cache a timestamp of the last time the cache
+          entry was updated.  This enables a number of other nifty
+          changes: the whole find-updated program can just compare
+          against the cache.  cvsup-checkouts mode also.
+
+        - Internally, cache any port/category object unfrozen from the
+          cache for quick reference later. Remove the '%allports' hash
+          from the top level in portindex as that data is held in the
+          Tree object now.
+
+        - Internally only the get(), insert() and delete() methods of
+          Tree affect the on disk cache.  They also maintain in
+          parallel a hash of live objects for quick reference.
+
+        - Internally don't iterate over the tied BDB hash by 'each %{
+          $self->{PORTS} }' -- instead use a foreach loop over 'keys
+          %{ $self->{PORTS} }' and call the get() method to access each
+	  port/category object.

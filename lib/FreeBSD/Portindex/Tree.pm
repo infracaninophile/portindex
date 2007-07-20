@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.66 2007-07-18 14:33:21 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.67 2007-07-20 22:30:42 matthew Exp $
 #
 
 #
@@ -149,6 +149,11 @@ sub new ($@)
       . ')\Z';
     $self->{MAKEFILE_EXCEPTIONS} = qr{$me};
 
+    # Area for holding any copy of a live port or category object
+    # unfrozen from the cache.
+
+    $self->{LIVE_PORTS} = {};
+
     return bless $self, $class;
 }
 
@@ -163,8 +168,8 @@ sub DESTROY
 #
 # Insert FreeBSD::Portindex::Port or FreeBSD::Portindex::Category
 # object (ie. from 'make describe' output) into ports tree structure
-# according to the ORIGIN -- freeze the object for external storage.
-#
+# according to the ORIGIN -- freeze the object for external storage
+# and keep the live copy handy too.
 sub insert ($$$)
 {
     my $self   = shift;
@@ -173,7 +178,8 @@ sub insert ($$$)
 
     return undef if ( $origin eq '__CACHE_VERSION' );
 
-    $self->{PORTS}->{$origin} = freeze($port);
+    $self->{LIVE_PORTS}->{$origin} = $port;
+    $self->{PORTS}->{$origin}      = freeze($port);
     return $self;
 }
 
@@ -192,6 +198,11 @@ sub delete ($$)
 
     return undef if ( $origin eq '__CACHE_VERSION' );
 
+    $thawedport = $self->{LIVE_PORTS}->{$origin};
+    if ( defined $thawedport ) {
+        delete $self->{LIVE_PORTS}->{$origin};
+    }
+
     $port = $self->{PORTS}->{$origin};
     if ( defined $port ) {
         delete $self->{PORTS}->{$origin};
@@ -202,7 +213,8 @@ sub delete ($$)
 
 #
 # Return the cached port description or category object for a given
-# origin path.  Return undef if port not found in tree.
+# origin path.  Return undef if port not found in tree.  Stash a copy
+# of the live port for later use.
 #
 sub get ($$)
 {
@@ -213,9 +225,15 @@ sub get ($$)
 
     return undef if ( $origin eq '__CACHE_VERSION' );
 
-    $port       = $self->{PORTS}->{$origin};
-    $thawedport = thaw($port)
-      if ( defined $port );
+    $thawedport = $self->{LIVE_PORTS}->{$origin};
+    if ( !defined $thawedport ) {
+
+        $port       = $self->{PORTS}->{$origin};
+        $thawedport = thaw($port)
+          if ( defined $port );
+        $self->{LIVE_PORTS}->{$origin} = $thawedport
+          if ( defined $thawedport );
+    }
     return $thawedport;
 }
 
@@ -387,26 +405,21 @@ sub make_describe($$)
 
 #
 # Unpack all of the frozen FreeBSD::Portindex::Ports or
-# FreeBSD::Portindex::Category objects from the btree storage.  Return
-# a reference to a hash containing refs to all port objects. (Note:
-# 'each' passes values by reference (implicitly) -- modifying the
-# returned value will affect the underlying hash) Includes all of the
+# FreeBSD::Portindex::Category objects from the btree storage and
+# stash in an internal hash for later use.  Includes all of the
 # categories too.
 #
-sub springtime($$)
+sub springtime($)
 {
-    my $self     = shift;
-    my $allports = shift;
-    my $thawedport;
+    my $self = shift;
 
-    while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
+    foreach my $origin ( keys %{ $self->{PORTS} } ) {
         next
           if ( $origin eq '__CACHE_VERSION' );
 
-        $thawedport = thaw($port);
-        $allports->{$origin} = $thawedport;
+        $self->get($origin);
     }
-    return $allports;
+    return $self;
 }
 
 #
@@ -430,28 +443,30 @@ sub port_origins($$)
 #
 # Invert all of the slave => master hash relationships, returning a
 # reference to a hash whose keys are the master port origins, and
-# whose values are refs to arrays of slave port origins.
+# whose values are refs to arrays of slave port origins.  Only
+# initialise on the first call.
 #
 sub init_masterslave($)
 {
     my $self = shift;
-    my $thawedport;
+    my $port;
 
-    while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
-        next
-          if ( $origin eq '__CACHE_VERSION' );
+    if ( !defined $self->{MASTERSLAVE} ) {
+        foreach my $origin ( keys %{ $self->{PORTS} } ) {
+            next
+              if ( $origin eq '__CACHE_VERSION' );
 
-        $thawedport = thaw($port);
+            $port = $self->get($origin);
 
-        # This skips over all of the Category objects, as well as
-        # ports that don't have MASTER_PORT set.
-        next
-          unless $thawedport->can("MASTER_PORT")
-          && $thawedport->MASTER_PORT();
+            # This skips over all of the Category objects, as well as
+            # ports that don't have MASTER_PORT set.
+            next
+              unless ( $port->can("MASTER_PORT") && $port->MASTER_PORT() );
 
-        $self->{MASTERSLAVE}->{ $thawedport->MASTER_PORT() } = []
-          unless defined $self->{MASTERSLAVE}->{ $thawedport->MASTER_PORT() };
-        push @{ $self->{MASTERSLAVE}->{ $thawedport->MASTER_PORT() } }, $origin;
+            $self->{MASTERSLAVE}->{ $port->MASTER_PORT() } = []
+              unless ( defined $self->{MASTERSLAVE}->{ $port->MASTER_PORT() } );
+            push @{ $self->{MASTERSLAVE}->{ $port->MASTER_PORT() } }, $origin;
+        }
     }
     return $self;
 }
@@ -471,26 +486,29 @@ sub masterslave($$)
 #
 # Another form of inversion: invert the .MAKEFILE_LIST data, returning
 # a hash with keys being the various Makefiles and targets being an
-# array of port origins depending on those Makefiles.
+# array of port origins depending on those Makefiles.  Only initialise
+# on the first call.
 #
 sub init_makefile_list ($)
 {
     my $self = shift;
-    my $thawedport;
+    my $port;
 
-    while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
-        next
-          if ( $origin eq '__CACHE_VERSION' );
+    if ( !defined $self->{MAKEFILE_LIST} ) {
+        foreach my $origin ( keys %{ $self->{PORTS} } ) {
+            next
+              if ( $origin eq '__CACHE_VERSION' );
 
-        $thawedport = thaw($port);
+            $port = $self->get($origin);
 
-        # This skips over all of the Category objects.
-        next unless $thawedport->can("MAKEFILE_LIST");
+            # This skips over all of the Category objects.
+            next unless $port->can("MAKEFILE_LIST");
 
-        for my $makefile ( @{ $thawedport->MAKEFILE_LIST() } ) {
-            $self->{MAKEFILE_LIST}->{$makefile} = []
-              unless defined $self->{MAKEFILE_LIST}->{$makefile};
-            push @{ $self->{MAKEFILE_LIST}->{$makefile} }, $origin;
+            for my $makefile ( @{ $port->MAKEFILE_LIST() } ) {
+                $self->{MAKEFILE_LIST}->{$makefile} = []
+                  unless defined $self->{MAKEFILE_LIST}->{$makefile};
+                push @{ $self->{MAKEFILE_LIST}->{$makefile} }, $origin;
+            }
         }
     }
     return $self;
@@ -508,29 +526,6 @@ sub makefile_list($$)
 }
 
 #
-# Unfreeze all of the Category objects and store a hash of them.
-#
-sub init_categories ($)
-{
-    my $self = shift;
-    my $thawedport;
-    my $catmatch;
-
-    while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
-        next
-          if ( $origin eq '__CACHE_VERSION' );
-
-        $thawedport = thaw($port);
-
-        next
-          unless $thawedport->isa("FreeBSD::Portindex::Category");
-
-        $self->{CATEGORIES}->{$origin} = $thawedport;
-    }
-    return $self;
-}
-
-#
 # Test whether a given filename matches a known category type of thing.
 # Updates to a category Makefile mean we should compare the new and
 # old list of SUBDIRs carefully, as this can indicate a new port being
@@ -540,10 +535,11 @@ sub category_match ($$)
 {
     my $self   = shift;
     my $origin = shift;
+    my $port;
 
-    return ( exists $self->{CATEGORIES}->{$origin}
-          && $self->{CATEGORIES}->{$origin}->isa("FreeBSD::Portindex::Category")
-    );
+    $port = $self->get($origin);
+
+    return ( defined $port && $port->isa("FreeBSD::Portindex::Category") );
 }
 
 #
@@ -559,16 +555,18 @@ sub category_check ($$$)
     my $updaters = shift;
 
     my $newcat;
+    my $oldcat;
     my $comm;
 
     $newcat = $self->make_describe($origin);
+    $oldcat = $self->get($origin);
     delete $updaters->{$origin};
 
     # Sometimes a deleted port may be mixed up with a category.
     # Filter out those cases.
 
     if ( $newcat->isa("FreeBSD::Portindex::Category") ) {
-        $comm = $self->{CATEGORIES}->{$origin}->comm($newcat);
+        $comm = $oldcat->comm($newcat);
 
         if ( @{ $comm->[0] } || @{ $comm->[2] } ) {
 
@@ -584,19 +582,22 @@ sub category_check ($$$)
 
 #
 # For all of the known ports (but not the categories), accumulate the
-# various dependencies as required for the INDEX file.  See
+# various dependencies as required for the INDEX file.  Assumes
+# 'springtime' has been called to populate the LIVE_PORTS hash.  See
 # FreeBSD::Portindex::Port::accumulate_dependencies() for details.
 #
-sub accumulate_dependencies($$)
+# **Note** This alters the contents of LIVE_PORTS without pushing the
+# same changes into the on-disk cache.
+#
+sub accumulate_dependencies($)
 {
-    my $self     = shift;
-    my $allports = shift;
-    my $counter  = 0;
+    my $self    = shift;
+    my $counter = 0;
 
     print STDERR "Accumulating dependency information: "
       if ( $::Config{Verbose} );
-    for my $port ( values %{$allports} ) {
-        $port->accumulate_dependencies( $allports, 0, \$counter )
+    for my $port ( values %{ $self->{LIVE_PORTS} } ) {
+        $port->accumulate_dependencies( $self->{LIVE_PORTS}, 0, \$counter )
           if ( ref($port)
             && $port->isa("FreeBSD::Portindex::Port") );
     }
@@ -609,33 +610,34 @@ sub accumulate_dependencies($$)
 # Print out whole INDEX file sorted by ORIGIN using $tree hash: since
 # this is stored as a BerkeleyDB Btree, it comes out already sorted
 #
-sub print_index($$*)
+sub print_index($*)
 {
-    my $self     = shift;
-    my $allports = shift;
-    my $fh       = shift;
-    my $counter  = 0;
+    my $self    = shift;
+    my $fh      = shift;
+    my $counter = 0;
     my $parentorigin;
 
     print STDERR "Writing INDEX file: "
       if ( $::Config{Verbose} );
 
-    while ( my ( $origin, $port ) = each %{ $self->{PORTS} } ) {
+    foreach my $origin ( keys %{ $self->{PORTS} } ) {
         next
           if ( $origin eq '__CACHE_VERSION' );
 
-        if (   $allports->{$origin}
-            && $allports->{$origin}->isa("FreeBSD::Portindex::Port") )
+        if (   $self->{LIVE_PORTS}->{$origin}
+            && $self->{LIVE_PORTS}->{$origin}->isa("FreeBSD::Portindex::Port") )
         {
 
             ( $parentorigin = $origin ) =~ s@/[^/]*$@@;
 
-            if (   $allports->{$parentorigin}
-                && $allports->{$parentorigin}
+            if (   $self->{LIVE_PORTS}->{$parentorigin}
+                && $self->{LIVE_PORTS}->{$parentorigin}
                 ->isa("FreeBSD::Portindex::Category")
-                && $allports->{$parentorigin}->is_known_subdir($origin) )
+                && $self->{LIVE_PORTS}->{$parentorigin}
+                ->is_known_subdir($origin) )
             {
-                $allports->{$origin}->print( $fh, $allports, \$counter );
+                $self->{LIVE_PORTS}->{$origin}
+                  ->print( $fh, $self->{LIVE_PORTS}, \$counter );
             } else {
                 warn "\n", __PACKAGE__, ":printindex(): $origin is not ",
                   "referenced from the $parentorigin category -- ",
