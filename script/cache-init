@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-init,v 1.24 2007-07-20 22:30:42 matthew Exp $
+# @(#) $Id: cache-init,v 1.25 2007-07-21 21:40:00 matthew Exp $
 #
 
 # Build the portindex cache from scratch by scanning through the whole
@@ -69,7 +69,7 @@ MAIN:
       unless ( -d $Config{CacheDir} );
 
     chdir $Config{CacheDir}
-      or die "$0: Can't chdir to ", $Config{CacheDir}, " -- $!";
+      or die "$0: Can't change directory to ", $Config{CacheDir}, " -- $!";
     unlink <__db.0??>;
     for my $f (qw( CacheFilename TimestampFilename )) {
         if ( -e $Config{$f} ) {

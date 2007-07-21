@@ -154,3 +154,9 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           $self->{PORTS} }' -- instead use a foreach loop over 'keys
           %{ $self->{PORTS} }' and call the get() method to access each
 	  port/category object.
+
+2.0 Sat Jul 21 22:37:00 2007
+
+        - Tidied up all of the error and warning messages, hopefully
+          making it clearer what is going on.
+

@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: find-updated,v 1.15 2007-07-20 22:30:42 matthew Exp $
+# @(#) $Id: find-updated,v 1.16 2007-07-21 21:40:00 matthew Exp $
 #
 
 # Scan through the ports tree, and pick out all ports containing files
@@ -80,7 +80,7 @@ sub look_for_updated_files ($$$$)
                     map { $updaters->{$_}++ }
                       @{ $tree->makefile_list($File::Find::name) };
 
-                    print STDERR "$0: ",
+                    warn "$0: ",
                       strftime( '%Y.%m.%d.%H.%M.%S', localtime($mtime) ),
                       " $File::Find::name\n"
                       if $::Config{Verbose};
@@ -117,7 +117,7 @@ sub scan_makefiles ($$$$$)
 
     chdir $path
       or do {
-        warn "$0: scan_makefiles(): Can't chdir() to $path -- $!\n";
+        warn "$0: Can't change directory to $path -- $!\n";
         return;
       };
 
@@ -128,7 +128,7 @@ sub scan_makefiles ($$$$$)
         # then something has gone horribly wrong.  Give up trying to
         # recurse at this directory level.
 
-        warn "$0: scan_makefiles(): Can't run make at $path -- $!";
+        warn "$0: Can't run make at $path -- $!";
         return;    # Leave out this directory.
       };
     chomp( $pk = <MAKE> );    # If this is set, it's a port
@@ -139,7 +139,7 @@ sub scan_makefiles ($$$$$)
         # Even if the close() errors out, we've got this far, so
         # might as well carry on and try and process any output.
 
-        warn "$0: scan_makefiles(): $path: ",
+        warn "$0: $path: ",
           ( $! ? "close failed -- $!\n" : "make -- bad exit status -- $?\n" );
       };
 
@@ -153,7 +153,7 @@ sub scan_makefiles ($$$$$)
         # disconnected port.  Anything we do see, but that isn't known
         # in the cache must be a new port.
 
-        print STDERR "$0: $path -- new port\n"
+        warn "$0: new port found at \'$path\'\n"
           if ( $::Config{Verbose} && !exists $allports->{$path} );
 
         # This is a real port directory, not a subdir.
@@ -202,14 +202,14 @@ sub deleted_ports($$$$)
 
             if ( !-d $origin ) {
                 $updaters->{$origin}++;
-                print STDERR "$0: $origin has been deleted\n"
+                warn "$0: $origin has been deleted\n"
                   if $::Config{Verbose};
             } elsif (
                 look_for_updated_files( $origin, $refmtime, $updaters, $tree ) )
             {
                 $updaters->{$origin}++;
-                print STDERR
-                  "$0: $origin was updated but not connected to ports tree\n"
+                warn
+                  "$0: $origin was updated but is not connected to ports tree\n"
                   if $::Config{Verbose};
             }
         }
@@ -234,7 +234,7 @@ MAIN:
     # Redirect STDOUT if required
     if ( $Config{Output} ne '-' ) {
         open STDOUT, '>', $Config{Output}
-          or die "$0: Can't open output $Config{Output} -- $!\n";
+          or die "$0: Can't open output \'$Config{Output}\' -- $!\n";
     }
 
     $tree->port_origins( \%allports );

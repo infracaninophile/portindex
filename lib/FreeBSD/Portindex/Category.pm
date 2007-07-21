@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.13 2007-07-01 18:47:14 matthew Exp $
+# @(#) $Id: Category.pm,v 1.14 2007-07-21 21:40:00 matthew Exp $
 #
 
 #
@@ -58,13 +58,14 @@ sub new ($@)
     my %args   = @_;
     my $self;
 
-    croak __PACKAGE__, "::new() -- ORIGIN missing\n"
+    croak "$0: error instantiating Category object -- ORIGIN missing\n"
       unless defined $args{ORIGIN};
 
     # SUBDIRS should be an array ref, but can be empty or absent
     $args{SUBDIRS} = []
       unless ( defined $args{SUBDIRS} );
-    croak __PACKAGE__, "::new() -- SUBDIRS not an array ref\n"
+    croak
+      "$0: error instantiating Category object -- SUBDIRS not an array ref\n"
       unless ref $args{SUBDIRS} eq 'ARRAY';
 
     $self = {

@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.46 2007-07-01 18:47:14 matthew Exp $
+# @(#) $Id: Port.pm,v 1.47 2007-07-21 21:40:00 matthew Exp $
 #
 
 #
@@ -53,9 +53,9 @@ sub new ($@)
     my %args   = @_;
     my $self;
 
-    croak __PACKAGE__, "::new() -- PKGNAME missing\n"
+    croak "$0: error instantiating Port object -- PKGNAME missing\n"
       unless defined $args{PKGNAME};
-    croak __PACKAGE__, "::new() -- ORIGIN missing\n"
+    croak "$0: error instantiating Port object -- ORIGIN missing\n"
       unless defined $args{ORIGIN};
 
     $self = {
@@ -136,8 +136,8 @@ sub new_from_make_vars ($$$$)
             # '/usr/ports/foo/bar/' rather than 'foo/bar'
             ( $master_port = $args->{MASTER_PORT} ) =~ s@/?$@@;
 
-            warn __PACKAGE__, ":new_from_make_vars():$origin($pkgname) ",
-"-- warning MASTER_PORT=$args->{MASTER_PORT} extraneous trailing /\n";
+            warn "$0:$origin($pkgname) warning -- ",
+              "\'MASTER_PORT=$args->{MASTER_PORT}\' extraneous trailing /\n";
         }
     }
     $master_port = _master_port( $args->{MASTER_PORT}, $origin );
@@ -365,8 +365,8 @@ sub _sanatize($$$$)
             if ( -d $arg ) {
                 $directorycache{$arg}++;
             } else {
-                warn __PACKAGE__, "::new_from_make_vars(): ",
-                  "${origin}($pkgname):$whatdep $arg -- dependency not found\n";
+                warn "$0:${origin} ($pkgname) $whatdep $arg ",
+                  "-- dependency not found\n";
                 $errorflag++;
             }
         }
@@ -423,10 +423,6 @@ sub accumulate_dependencies ($$$;$)
     my $recdepth = shift;
     my $counter  = shift;
 
-    print STDERR ' ' x $recdepth, $self->ORIGIN(),
-      ( $self->DEPENDENCIES_ACCUMULATED() ? '+' : '' ), "\n"
-      if ( $::Config{Debug} );
-
     unless ( $self->DEPENDENCIES_ACCUMULATED() ) {
         $self->DEPENDENCIES_ACCUMULATED(1);    # Accumulation in progress
 
@@ -439,21 +435,14 @@ sub accumulate_dependencies ($$$;$)
             my %seen = ();
 
             for my $dep ( @{ $self->$whatdep() } ) {
-                if ( defined $allports->{$dep} ) {
-                    if ( $allports->{$dep}->can("accumulate_dependencies") ) {
-                        $allports->{$dep}
-                          ->accumulate_dependencies( $allports, $recdepth + 1 );
-                    } else {
-                        warn "\n", __PACKAGE__, "::accumulate_dependencies: ",
-                          $self->PKGNAME(), " (", $self->ORIGIN(),
-") dependency on something ($dep) that is not a port\n";
-                        next DEPEND;
-                    }
+                if ( defined $allports->{$dep}
+                    && $allports->{$dep}->can("accumulate_dependencies") )
+                {
+                    $allports->{$dep}
+                      ->accumulate_dependencies( $allports, $recdepth + 1 );
                 } else {
-                    warn "\n", __PACKAGE__, "::accumulate_dependencies: ",
-                      $self->PKGNAME(), " (", $self->ORIGIN(),
-                      ") claims to have a $whatdep dependency on $dep,",
-                      " but no such port is known\n";
+                    warn "$0:", $self->ORIGIN(), " (", $self->PKGNAME(),
+                      ") $whatdep on \'$dep\' not recognised as a port\n";
                     next DEPEND;
                 }
             }
@@ -468,8 +457,8 @@ sub accumulate_dependencies ($$$;$)
     } elsif ( $self->DEPENDENCIES_ACCUMULATED() == 1 ) {
 
         # We've got a dependency loop
-        warn __PACKAGE__, "::accumulate_dependencies(): ",
-          "dependency loop detected while processing ", $self->ORIGIN(), "\n";
+        warn "$0: dependency loop detected while processing ", $self->ORIGIN(),
+          "\n";
     }
     counter( \%::Config, $counter );
     return $self;
@@ -489,9 +478,8 @@ sub print ($*;$)
     # Duplicate package names are an error to 'make index'.
     # %%STRICT%% -- do stuff here.
     if ( defined $pkgnamecache{ $self->PKGNAME() } ) {
-        warn "\n", __PACKAGE__, "::print(): warning: duplicate package name ",
-          $self->PKGNAME(), " (", $self->ORIGIN(), " and ",
-          $pkgnamecache{ $self->PKGNAME() }, ")\n";
+        warn "$0: warning duplicate package name ", $self->PKGNAME(), " (",
+          $self->ORIGIN(), " and ", $pkgnamecache{ $self->PKGNAME() }, ")\n";
     } else {
         $pkgnamecache{ $self->PKGNAME() } = $self->ORIGIN();
     }
@@ -545,7 +533,7 @@ sub _chase_deps($$$)
         {
             push @dependencies, $allports->{$origin}->PKGNAME();
         } else {
-            warn "\n", __PACKAGE__, "::_chase_deps():", $self->PKGNAME(),
+            warn "$0: ", $self->PKGNAME(),
               " No PKGNAME found for ($dep) $origin\n";
         }
     }

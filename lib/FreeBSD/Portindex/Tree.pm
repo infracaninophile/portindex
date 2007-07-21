@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.67 2007-07-20 22:30:42 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.68 2007-07-21 21:40:00 matthew Exp $
 #
 
 #
@@ -96,10 +96,8 @@ sub new ($@)
 
     tie %{ $self->{PORTS} }, 'BerkeleyDB::Btree',
       -Env => $self->{ENV},
-      %args,
-      -Filename => $portscachefile
-      or croak __PACKAGE__,
-      "::new(): Can't access $portscachefile -- $! $BerkeleyDB::Error";
+      %args, -Filename => $portscachefile
+      or croak "$0: Can\'t access $portscachefile -- $! $BerkeleyDB::Error";
 
     # Set the cache version number on creation.  Test the cache
     # version number if we're re-opening a pre-existing cache, and
@@ -111,8 +109,7 @@ sub new ($@)
         unless ( exists $self->{PORTS}->{__CACHE_VERSION}
             && $self->{PORTS}->{__CACHE_VERSION} >= $CACHE_VERSION )
         {
-            croak __PACKAGE__,
-              "::new(): The cache in $portscachefile contins an incompatible ",
+            croak "$0: The cache in $portscachefile contins an incompatible ",
               "data format -- please re-run cache-init\n";
         }
     }
@@ -339,9 +336,9 @@ sub make_describe($$)
 
         # Make sure old cruft is deleted
         if ( $self->delete($path) ) {
-            warn __PACKAGE__, "::make_describe():$path -- deleted from cache\n";
+            warn "$0: $path -- deleted from cache\n";
         } else {
-            warn __PACKAGE__, "::make_describe():$path: can't chdir() -- $!\n";
+            warn "$0: can't change directory to \'$path\' -- $!\n";
         }
         return undef;
       };
@@ -354,7 +351,7 @@ sub make_describe($$)
 
     open MAKE, $make_command
       or do {
-        warn __PACKAGE__, "::make_describe():$path: can't run make -- $!\n";
+        warn "$0: can't run make in \'$path\' -- $!\n";
         return undef;
       };
     foreach my $mv (@make_var_list) {
@@ -367,9 +364,9 @@ sub make_describe($$)
 
         # There's a Makefile, but it's not a valid one.
         if ( $? && $self->delete($path) ) {
-            warn __PACKAGE__, "::make_describe():$path -- deleted from cache\n";
+            warn "$0: $path -- deleted from cache\n";
         } else {
-            warn __PACKAGE__, "::make_describe():$path: ",
+            warn "$0: $path -- ",
               ( $! ? "close failed -- $!\n" : "make: bad exit status -- $?\n" );
         }
         return undef;
@@ -390,8 +387,7 @@ sub make_describe($$)
             $self->{MAKEFILE_EXCEPTIONS}
           )
           or do {
-            warn __PACKAGE__,
-              "::make_describe():$path -- error parsing make output -- $!\n";
+            warn "$0: $path -- error parsing make output -- $!\n";
             return undef;
           };
     } else {
@@ -639,9 +635,8 @@ sub print_index($*)
                 $self->{LIVE_PORTS}->{$origin}
                   ->print( $fh, $self->{LIVE_PORTS}, \$counter );
             } else {
-                warn "\n", __PACKAGE__, ":printindex(): $origin is not ",
-                  "referenced from the $parentorigin category -- ",
-                  "not added to INDEX\n";
+                warn "$0: $origin is not referenced from the ",
+                  "$parentorigin category -- not added to INDEX\n";
             }
         }
     }
