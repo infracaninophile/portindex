@@ -160,3 +160,12 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
         - Tidied up all of the error and warning messages, hopefully
           making it clearer what is going on.
 
+2.0 Tue Jul 24 22:58:00 2007
+
+        - Open the BerkeleyDB environment with DB_INIT_CDB -- which is
+          a pre-canned configuration for multiple concurrent access to
+          a Berkeley DB, as described in
+          file:///usr/local/share/doc/db44/ref/cam/intro.html Requires
+          a complete cache reinit, unfortunately, but should mean it
+          is possible to have multiple processes cuncurrently updating
+          the same DB file.

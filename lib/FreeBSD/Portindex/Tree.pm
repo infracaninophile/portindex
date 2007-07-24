@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.68 2007-07-21 21:40:00 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.69 2007-07-24 22:21:35 matthew Exp $
 #
 
 #
@@ -83,7 +83,7 @@ sub new ($@)
     # one DB per file.
 
     $self->{ENV} = new BerkeleyDB::Env
-      -Flags => DB_CREATE | DB_INIT_MPOOL | DB_INIT_LOCK,
+      -Flags => DB_CREATE | DB_INIT_MPOOL | DB_INIT_CDB,
       -Home  => $::Config{CacheDir},
       %{ $args{-Env} };
     delete $args{-Env};
