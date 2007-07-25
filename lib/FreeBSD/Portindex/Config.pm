@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.46 2007-07-20 22:30:42 matthew Exp $
+# @(#) $Id: Config.pm,v 1.47 2007-07-25 16:49:38 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -80,6 +80,7 @@ sub read_config ($)
         UbiquitousMakefiles => [ "Mk/bsd.port.mk", "/etc/make.conf", ],
         EndemicMakefiles    => ["Mk/bsd.sites.mk"],
         CrunchWhitespace    => 0,
+        WorkerProcesses     => 3,
     );
     @optargs = (
         'cache-dir|c=s'      => \$config->{CacheDir},
@@ -119,8 +120,17 @@ sub read_config ($)
         'port-dbdir|d=s'        => \$config->{PortDBDir},
     ) if ( $0 eq 'cache-update' );
     push @optargs, (
-        'ports-dir=s'              => \$config->{PortsDir},
-        'scrub-environment|s!'     => \$config->{ScrubEnvironment},
+        'ports-dir=s'          => \$config->{PortsDir},
+        'scrub-environment|s!' => \$config->{ScrubEnvironment},
+        'workers|j=i'          => sub {
+            my $optname  = shift;
+            my $optvalue = shift;
+
+            die "$0: Option --$optname must be greater than zero\n"
+              unless $optvalue >= 1;
+
+            $config->{WorkerProcesses} = $optvalue;
+        },
         'ubiquitous-makefile|M=s@' => sub {
             my $optname  = shift;
             my $optvalue = shift;
@@ -218,6 +228,7 @@ Current Configuration:
   TimestampFilename ............................... $config->{TimestampFilename}
   Verbose ......................................... $config->{Verbose}
   CrunchWhitespace (portindex)..................... $config->{CrunchWhitespace}
+  WorkerProcesses (cache-init, cache-update) ...... $config->{WorkerProcesses}
 E_O_CONFIG
     for my $um ( @{ $config->{UbiquitousMakefiles} } ) {
         print $um_fmt, $um, "\n";
