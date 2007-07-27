@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2007 Matthew Seaman. All rights reserved.
+# Copyright (c) 2007 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: IPC.pm,v 1.1 2007-07-27 15:40:56 matthew Exp $
+# @(#) $Id: IPC.pm,v 1.2 2007-07-27 15:41:47 matthew Exp $
 #
 
 #
