@@ -1,6 +1,6 @@
 # This file contains -*- perl -*- code
 #
-# @(#) $Id: portindex.cfg.sample,v 1.13 2007-07-25 16:49:30 matthew Exp $
+# @(#) $Id: portindex.cfg.sample,v 1.14 2007-08-02 10:07:54 matthew Exp $
 #
 # Sample configuration file for portindex, cache-init, cache-update
 #
@@ -8,24 +8,15 @@
 ## Copy this file to any of /usr/local/etc/portindex.cfg,
 ## ${HOME}/.portindexrc or ./.portindexrc (ie. the CWD where any of
 ## the portindex processes are run), and edit the configuration
-## settings to taste, to set the appropriate entries in the global
-## %::Config hash.
+## settings to taste, which will set the appropriate entries in the
+## global %::Config hash.  Nothing in this file is obligatory, nor is
+## any configuration file required to be present: there are built-in
+## defaults for everything.
 
 ## Available configuration and command line options are listed,
 ## indicating which programs they affect.  The default values are
 ## shown, commented out.  All options can be overriden from the
 ## command line.
-
-## cache-init, cache-update, find-updated (-p, --ports-dir): Base
-## directory of the ports tree, same as the PORTSDIR environment
-## variable.
-
-# $::Config{PortsDir} = $ENV{PORTSDIR} || '/usr/ports';
-
-## cache-update (-d, --ports-dbdir): Where OPTIONS settings are
-## stored, same as the PORTS_DBDIR environment variable.
-
-# $::Config{PortsDBDir} = $ENV{PORTS_DBDIR} || '/var/db/ports';
 
 ## all (-c, --cache-dir): Directory where BDB btree files containing
 ## the cache and master-slave relationships are stored.
@@ -37,27 +28,21 @@
 
 # $::Config{CacheFilename} = 'portindex-cache.db';
 
-## cache-init, cache-update (-s, --scrub-environment,
-## --noscrub-environment): Boolean -- delete everything from the
-## environment except for USER, HOME, PATH, SHELL, TERM, TERMCAP if
-## true.  Default no or if value set to false.
+## portindex (-W --crunch-white --nocrunch-white): Boolean. If true,
+## emulate 'make index' more closely by converting multiple whitespace
+## into single spaces in the port comment field.  This has a purely
+## cosmetic effect on the output INDEX and doesn't affect the cache
+## contents.
 
-# $::Config{ScrubEnvironment} = 0;
+# $::Config{CrunchWhitespace} = 0;
 
-## all (-v, -q, --verbose, --noverbose, --quiet): Boolean -- turn on
-## verbose output if true, turn off if false or undef
+## cache-update, cache-init (-m --endemic-makefile): List of Makefiles
+## from within $::Config{PortsDir} whose inclusion or modification is
+## assumed to have no effect on the resulting INDEX file, hence those
+## file names will not be stored in the cache. (Note: non-absolute
+## paths are taken as relative to $::Config{PortsDir})
 
-# $::Config{Verbose} = 1;
-
-## cache-update (-i, --input): Filename to read input from, '-' for
-## STDIN
-
-# $::Config{Input} = '-';
-
-## portindex (-o, --output): Filename to write the INDEX data out to,
-## '-' for STDOUT
-
-# $::Config{Output} = '-';
+# $::Config{EndemicMakefiles} = [ 'Mk/bsd.sites.mk', ];
 
 ## cache-update (--input-format, --format): What format to treat the
 ## input data as.  Choices are:
@@ -69,13 +54,34 @@
 ##                       data in the ports cache.
 
 ## Additionally you can append ',options' to any of the first three
-## make cache-update scan for changes to port OPTIONS as well as
+## to make cache-update scan for changes to port OPTIONS as well as
 ## using the primary input mechanism.
 
 ## If the cvsup-checkouts format is chosen, the input file will
 ## usually be /var/db/sup/ports-all/checkouts.cvs:.
 
 # $::Config{Format} = 'cvsup-output,options';
+
+## cache-update (-i, --input): Filename to read input from, '-' for
+## STDIN
+
+# $::Config{Input} = '-';
+
+## portindex (-o, --output): Filename to write the INDEX data out to,
+## '-' for STDOUT
+
+# $::Config{Output} = '-';
+
+## cache-update (-d, --port-dbdir): Where OPTIONS settings are
+## stored, same as the PORT_DBDIR environment variable.
+
+# $::Config{PortDBDir} = $ENV{PORT_DBDIR} || '/var/db/ports';
+
+## cache-init, cache-update, find-updated (-p, --ports-dir): Base
+## directory of the ports tree, same as the PORTSDIR environment
+## variable.
+
+# $::Config{PortsDir} = $ENV{PORTSDIR} || '/usr/ports';
 
 ## cache-update (-P, --propagation-delay): A fudge factor to account
 ## for the time required between a change being committed to the
@@ -86,6 +92,13 @@
 ## seconds (1 hour) seems to be a good value.
 
 # $::Config{PropagationDelay} = 60 * 60;
+
+## cache-init, cache-update (-s, --scrub-environment,
+## --noscrub-environment): Boolean -- delete everything from the
+## environment except for USER, HOME, PATH, SHELL, TERM, TERMCAP if
+## true.  Default no or if value set to false.
+
+# $::Config{ScrubEnvironment} = 0;
 
 ## all (-T, --timestamp-file): Filename within CacheDir used to mark
 ## the last time any updates to the cache were made.
@@ -106,29 +119,10 @@
 
 # $::Config{UbiquitousMakefiles} = [ 'Mk/bsd.port.mk', '/etc/make.conf', ];
 
-## cache-update, cache-init (-m --endemic-makefile): List of Makefiles
-## from within $::Config{PortsDir} whose inclusion or modification is
-## assumed to have no effect on the resulting INDEX file, hence those
-## file names will not be stored in the cache. (Note: non-absolute
-## paths are taken as relative to $::Config{PortsDir})
+## all (-v, -q, --verbose, --noverbose, --quiet): Boolean -- turn on
+## verbose output if true, turn off if false or undef
 
-# $::Config{EndemicMakefiles} = [ 'Mk/bsd.sites.mk', ];
-
-## portindex (-W --crunch-white --nocrunch-white): Boolean. If true,
-## emulate 'make index' more closely by converting multiple whitespace
-## into single spaces in the port comment field.  This has a purely
-## cosmetic effect on the output INDEX and doesn't affect the cache
-## contents.
-
-# $::Config{CrunchWhitespace} = 0;
-
-## cache-init, cache-update (-j --workers): How many worker processes
-## to spawn.  This is purely a performance tuning control. Experiment
-## with this number to find the best result, which will depend on how
-## many processor cores you have available, the speed of your disk IO
-## and various other parameters.  Default: 3
-
-# $::Config{WorkerProcesses} = 3;
+# $::Config{Verbose} = 1;
 
 ##
 ## That's All Folks!
