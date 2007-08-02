@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.47 2007-07-25 16:49:38 matthew Exp $
+# @(#) $Id: Config.pm,v 1.48 2007-08-02 12:22:15 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -68,19 +68,18 @@ sub read_config ($)
     %{$config} = (
         CacheDir            => "/var/db/$::pkgname",
         CacheFilename       => "$::pkgname-cache.db",
-        ScrubEnvironment    => 0,
-        Input               => '-',
-        Format              => 'cvsup-output,options',
-        Output              => '-',
-        PortsDir            => $ENV{PORTSDIR} || '/usr/ports',
-        PortDBDir           => $ENV{PORT_DBDIR} || '/var/db/ports',
-        PropagationDelay    => 3600,                                    # 1 hour
-        TimestampFilename   => "$::pkgname-timestamp",
-        Verbose             => 1,
-        UbiquitousMakefiles => [ "Mk/bsd.port.mk", "/etc/make.conf", ],
-        EndemicMakefiles    => ["Mk/bsd.sites.mk"],
         CrunchWhitespace    => 0,
-        WorkerProcesses     => 3,
+        EndemicMakefiles    => ["Mk/bsd.sites.mk"],
+        Format              => 'cvsup-output,options',
+        Input               => '-',
+        Output              => '-',
+        PortDBDir           => $ENV{PORT_DBDIR} || '/var/db/ports',
+        PortsDir            => $ENV{PORTSDIR} || '/usr/ports',
+        PropagationDelay    => 3600,                                    # 1 hour
+        ScrubEnvironment    => 0,
+        TimestampFilename   => "$::pkgname-timestamp",
+        UbiquitousMakefiles => [ "Mk/bsd.port.mk", "/etc/make.conf", ],
+        Verbose             => 1,
     );
     @optargs = (
         'cache-dir|c=s'      => \$config->{CacheDir},
@@ -122,15 +121,6 @@ sub read_config ($)
     push @optargs, (
         'ports-dir=s'          => \$config->{PortsDir},
         'scrub-environment|s!' => \$config->{ScrubEnvironment},
-        'workers|j=i'          => sub {
-            my $optname  = shift;
-            my $optvalue = shift;
-
-            die "$0: Option --$optname must be greater than zero\n"
-              unless $optvalue >= 1;
-
-            $config->{WorkerProcesses} = $optvalue;
-        },
         'ubiquitous-makefile|M=s@' => sub {
             my $optname  = shift;
             my $optvalue = shift;
@@ -216,19 +206,18 @@ Current Configuration:
   Settings after reading all configuration files and parsing the
   command line.  They apply to all programs, except as marked.
 
-  PortsDir (cache-init, cache-update, find-updated) $config->{PortsDir}
-  PortDBDir (cache-update) ........................ $config->{PortDBDir}
   CacheDir ........................................ $config->{CacheDir}
   CacheFilename ................................... $config->{CacheFilename}
-  ScrubEnvironment (cache-init, cache-update) ..... $config->{ScrubEnvironment}
-  Input (cache-update) ............................ $config->{Input}
+  CrunchWhitespace (portindex)..................... $config->{CrunchWhitespace}
   Format (cache-update) ........................... $config->{Format}
-  PropagationDelay (cache-update) ................. $config->{PropagationDelay}
+  Input (cache-update) ............................ $config->{Input}
   Output (portindex, find-updated) ................ $config->{Output}
+  PortDBDir (cache-update) ........................ $config->{PortDBDir}
+  PortsDir (cache-init, cache-update, find-updated) $config->{PortsDir}
+  PropagationDelay (cache-update) ................. $config->{PropagationDelay}
+  ScrubEnvironment (cache-init, cache-update) ..... $config->{ScrubEnvironment}
   TimestampFilename ............................... $config->{TimestampFilename}
   Verbose ......................................... $config->{Verbose}
-  CrunchWhitespace (portindex)..................... $config->{CrunchWhitespace}
-  WorkerProcesses (cache-init, cache-update) ...... $config->{WorkerProcesses}
 E_O_CONFIG
     for my $um ( @{ $config->{UbiquitousMakefiles} } ) {
         print $um_fmt, $um, "\n";

@@ -167,5 +167,13 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           a Berkeley DB, as described in
           file:///usr/local/share/doc/db44/ref/cam/intro.html Requires
           a complete cache reinit, unfortunately, but should mean it
-          is possible to have multiple processes cuncurrently updating
+          is possible to have multiple processes concurrently updating
           the same DB file.
+
+2.0 Thu Aug  2 13:!6:00 2007
+
+        - Back out the multiple concurrent access changes.  It didn't
+          provide any speed advantage, and it never managed to create
+          a cache with all required entries unless there was only one
+          worker process.  After much experimentation, have concluded
+          the problem area is actually updating the Berkeley DB file.
