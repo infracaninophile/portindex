@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.48 2007-08-02 12:22:15 matthew Exp $
+# @(#) $Id: Config.pm,v 1.49 2007-08-04 20:28:58 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -66,10 +66,11 @@ sub read_config ($)
     my $endemic_makefiles_seen    = 0;
 
     %{$config} = (
-        CacheDir            => "/var/db/$::pkgname",
-        CacheFilename       => "$::pkgname-cache.db",
-        CrunchWhitespace    => 0,
-        EndemicMakefiles    => ["Mk/bsd.sites.mk"],
+        CacheDir         => "/var/db/$::pkgname",
+        CacheFilename    => "$::pkgname-cache.db",
+        CrunchWhitespace => 0,
+        EndemicMakefiles =>
+          [ "Mk/bsd.sites.mk", "Mk/bsd.commands.mk", "Mk/bsd.destdir.mk" ],
         Format              => 'cvsup-output,options',
         Input               => '-',
         Output              => '-',
@@ -119,8 +120,8 @@ sub read_config ($)
         'port-dbdir|d=s'        => \$config->{PortDBDir},
     ) if ( $0 eq 'cache-update' );
     push @optargs, (
-        'ports-dir=s'          => \$config->{PortsDir},
-        'scrub-environment|s!' => \$config->{ScrubEnvironment},
+        'ports-dir=s'              => \$config->{PortsDir},
+        'scrub-environment|s!'     => \$config->{ScrubEnvironment},
         'ubiquitous-makefile|M=s@' => sub {
             my $optname  = shift;
             my $optvalue = shift;

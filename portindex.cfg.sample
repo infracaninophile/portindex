@@ -1,6 +1,6 @@
 # This file contains -*- perl -*- code
 #
-# @(#) $Id: portindex.cfg.sample,v 1.14 2007-08-02 10:07:54 matthew Exp $
+# @(#) $Id: portindex.cfg.sample,v 1.15 2007-08-04 20:28:50 matthew Exp $
 #
 # Sample configuration file for portindex, cache-init, cache-update
 #
@@ -42,7 +42,9 @@
 ## file names will not be stored in the cache. (Note: non-absolute
 ## paths are taken as relative to $::Config{PortsDir})
 
-# $::Config{EndemicMakefiles} = [ 'Mk/bsd.sites.mk', ];
+# $::Config{EndemicMakefiles} = [ 'Mk/bsd.sites.mk',
+#                                 'Mk/bsd.commands.mk',
+#                                 'Mk/bsd.destdir.mk' ];
 
 ## cache-update (--input-format, --format): What format to treat the
 ## input data as.  Choices are:
