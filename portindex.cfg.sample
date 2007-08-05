@@ -1,6 +1,6 @@
 # This file contains -*- perl -*- code
 #
-# @(#) $Id: portindex.cfg.sample,v 1.15 2007-08-04 20:28:50 matthew Exp $
+# @(#) $Id: portindex.cfg.sample,v 1.16 2007-08-05 16:35:55 matthew Exp $
 #
 # Sample configuration file for portindex, cache-init, cache-update
 #
@@ -102,6 +102,13 @@
 
 # $::Config{ScrubEnvironment} = 0;
 
+## portindex (-S, --strict, --nostrict): Boolean -- currently 'strict'
+## mode enforces the check that ports are referenced from their
+## immediately superior category -- ie. that they are 'connected to
+## the ports.'  It may be extended in future.
+
+# $::Config{Strict} = 1;
+
 ## all (-T, --timestamp-file): Filename within CacheDir used to mark
 ## the last time any updates to the cache were made.
 
@@ -125,6 +132,12 @@
 ## verbose output if true, turn off if false or undef
 
 # $::Config{Verbose} = 1;
+
+## all (-w, --warnings, --nowarnings): Boolean -- turn on various
+## warning messages about a number of non-fatal problems if true, turn
+## off if false or undef
+
+# $::Config{Warnings} = 0;
 
 ##
 ## That's All Folks!

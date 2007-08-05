@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.70 2007-08-05 15:00:12 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.71 2007-08-05 16:35:55 matthew Exp $
 #
 
 #
@@ -41,7 +41,6 @@ our $CACHE_VERSION = '2.0';    # Earliest binary compat version
 
 use strict;
 use warnings;
-use Carp;
 use BerkeleyDB;                # BDB version 2, 3, 4, 41, 42, 43, 44
 
 use FreeBSD::Portindex::Port;
@@ -96,7 +95,7 @@ sub new ($@)
     tie %{ $self->{PORTS} }, 'BerkeleyDB::Btree',
       -Env => $self->{ENV},
       %args, -Filename => $portscachefile
-      or croak "$0: Can\'t access $portscachefile -- $! $BerkeleyDB::Error";
+      or die "$0: Can\'t access $portscachefile -- $! $BerkeleyDB::Error";
 
     # Set the cache version number on creation.  Test the cache
     # version number if we're re-opening a pre-existing cache, and
@@ -108,7 +107,7 @@ sub new ($@)
         unless ( exists $self->{PORTS}->{__CACHE_VERSION}
             && $self->{PORTS}->{__CACHE_VERSION} >= $CACHE_VERSION )
         {
-            croak "$0: The cache in $portscachefile contins an incompatible ",
+            die "$0: The cache in $portscachefile contains an incompatible ",
               "data format -- please re-run cache-init\n";
         }
     }
@@ -335,9 +334,11 @@ sub make_describe($$)
 
         # Make sure old cruft is deleted
         if ( $self->delete($path) ) {
-            warn "$0: $path -- deleted from cache\n";
+            warn "$0: $path -- deleted from cache\n"
+              if $::Config{Warnings};
         } else {
-            warn "$0: can't change directory to \'$path\' -- $!\n";
+            warn "$0: can't change directory to \'$path\' -- $!\n"
+              if $::Config{Warnings};
         }
         return undef;
       };
@@ -350,7 +351,7 @@ sub make_describe($$)
 
     open MAKE, $make_command
       or do {
-        warn "$0: can't run make in \'$path\' -- $!\n";
+        warn "$0: Error. Can\'t run make in \'$path\' -- $!\n";
         return undef;
       };
     foreach my $mv (@make_var_list) {
@@ -363,9 +364,9 @@ sub make_describe($$)
 
         # There's a Makefile, but it's not a valid one.
         if ( $? && $self->delete($path) ) {
-            warn "$0: $path -- deleted from cache\n";
+            warn "$0: $path Error. Invalid port deleted from cache\n";
         } else {
-            warn "$0: $path -- ",
+            warn "$0: $path Error. ",
               ( $! ? "close failed -- $!\n" : "make: bad exit status -- $?\n" );
         }
         return undef;
@@ -386,7 +387,7 @@ sub make_describe($$)
             $self->{MAKEFILE_EXCEPTIONS}
           )
           or do {
-            warn "$0: $path -- error parsing make output -- $!\n";
+            warn "$0: $path Error.  Can\'t parse make output -- $!\n";
             return undef;
           };
     } else {
@@ -623,19 +624,27 @@ sub print_index($*)
             && $self->{LIVE_PORTS}->{$origin}->isa("FreeBSD::Portindex::Port") )
         {
 
-            ( $parentorigin = $origin ) =~ s@/[^/]*$@@;
+            if ( $::Config{Strict} ) {
+                ( $parentorigin = $origin ) =~ s@/[^/]*$@@;
 
-            if (   $self->{LIVE_PORTS}->{$parentorigin}
-                && $self->{LIVE_PORTS}->{$parentorigin}
-                ->isa("FreeBSD::Portindex::Category")
-                && $self->{LIVE_PORTS}->{$parentorigin}
-                ->is_known_subdir($origin) )
-            {
+                if (   $self->{LIVE_PORTS}->{$parentorigin}
+                    && $self->{LIVE_PORTS}->{$parentorigin}
+                    ->isa("FreeBSD::Portindex::Category")
+                    && $self->{LIVE_PORTS}->{$parentorigin}
+                    ->is_known_subdir($origin) )
+                {
+                    $self->{LIVE_PORTS}->{$origin}
+                      ->print( $fh, $self->{LIVE_PORTS}, \$counter );
+                } else {
+                    warn "$0: $origin is not referenced from the ",
+                      "$parentorigin category -- not added to INDEX\n"
+                      if $::Config{Warnings};
+                }
+            } else {
+
+                # Not strict...
                 $self->{LIVE_PORTS}->{$origin}
                   ->print( $fh, $self->{LIVE_PORTS}, \$counter );
-            } else {
-                warn "$0: $origin is not referenced from the ",
-                  "$parentorigin category -- not added to INDEX\n";
             }
         }
     }

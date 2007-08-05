@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.50 2007-08-05 15:00:12 matthew Exp $
+# @(#) $Id: Config.pm,v 1.51 2007-08-05 16:35:55 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -43,7 +43,6 @@ our $VERSION = '2.0';    # Release
 
 use strict;
 use warnings;
-use Carp;
 use Getopt::Long qw(:config no_ignore_case);
 use Pod::Usage;
 use POSIX qw(strftime);
@@ -78,9 +77,11 @@ sub read_config ($)
         PortsDir            => $ENV{PORTSDIR} || '/usr/ports',
         PropagationDelay    => 3600,                                    # 1 hour
         ScrubEnvironment    => 0,
+        Strict              => 1,
         TimestampFilename   => "$::pkgname-timestamp",
         UbiquitousMakefiles => [ "Mk/bsd.port.mk", "/etc/make.conf", ],
         Verbose             => 1,
+        Warnings            => 0,
     );
     @optargs = (
         'cache-dir|c=s'      => \$config->{CacheDir},
@@ -89,11 +90,13 @@ sub read_config ($)
         'timestamp-file|T=s' => \$config->{TimestampFilename},
         'quiet'              => sub { $config->{Verbose} = 0 },
         'verbose!'           => \$config->{Verbose},
+        'warnings!'          => \$config->{Warnings},
     );
     push @optargs,
       (
         'output=s'        => \$config->{Output},
         'crunch-white|W!' => \$config->{CrunchWhitespace},
+        'strict!'         => \$config->{Strict},
       ) if ( $0 eq 'portindex' );
     push @optargs, (
         'input|i=s'  => \$config->{Input},
@@ -217,8 +220,10 @@ Current Configuration:
   PortsDir (cache-init, cache-update, find-updated) $config->{PortsDir}
   PropagationDelay (cache-update) ................. $config->{PropagationDelay}
   ScrubEnvironment (cache-init, cache-update) ..... $config->{ScrubEnvironment}
+  Strict (portindex) .............................. $config->{Strict}
   TimestampFilename ............................... $config->{TimestampFilename}
   Verbose ......................................... $config->{Verbose}
+  Warnings ........................................ $config->{Warnings} 
 E_O_CONFIG
     for my $um ( @{ $config->{UbiquitousMakefiles} } ) {
         print $um_fmt, $um, "\n";
@@ -355,7 +360,7 @@ sub thaw ($)
     %args = split( /\n/, $string );
 
     if ( !defined $args{__CLASS} ) {
-        warn "$0: Cannot regenerate object from stringified data\n";
+        warn "$0: Error. Cannot regenerate object from stringified data\n";
         return undef;
     }
 

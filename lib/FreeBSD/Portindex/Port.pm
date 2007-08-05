@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.48 2007-08-05 15:00:12 matthew Exp $
+# @(#) $Id: Port.pm,v 1.49 2007-08-05 16:35:55 matthew Exp $
 #
 
 #
@@ -42,7 +42,6 @@ our %pkgnamecache;       # Remember all of the package names we've output
 
 use strict;
 use warnings;
-use Carp;
 
 use FreeBSD::Portindex::Config qw{counter};
 
@@ -53,9 +52,9 @@ sub new ($@)
     my %args   = @_;
     my $self;
 
-    croak "$0: error instantiating Port object -- PKGNAME missing\n"
+    die "$0: error instantiating Port object -- PKGNAME missing\n"
       unless defined $args{PKGNAME};
-    croak "$0: error instantiating Port object -- ORIGIN missing\n"
+    die "$0: error instantiating Port object -- ORIGIN missing\n"
       unless defined $args{ORIGIN};
 
     $self = {
@@ -137,7 +136,8 @@ sub new_from_make_vars ($$$$)
             ( $master_port = $args->{MASTER_PORT} ) =~ s@/?$@@;
 
             warn "$0:$origin($pkgname) warning -- ",
-              "\'MASTER_PORT=$args->{MASTER_PORT}\' extraneous trailing /\n";
+              "\'MASTER_PORT=$args->{MASTER_PORT}\' extraneous trailing /\n"
+              if $::Config{Warnings};
         }
     }
     $master_port = _master_port( $args->{MASTER_PORT}, $origin );
@@ -365,7 +365,7 @@ sub _sanatize($$$$)
             if ( -d $arg ) {
                 $directorycache{$arg}++;
             } else {
-                warn "$0:${origin} ($pkgname) $whatdep $arg ",
+                warn "$0:${origin} ($pkgname) Error. $whatdep $arg ",
                   "-- dependency not found\n";
                 $errorflag++;
             }
@@ -442,7 +442,8 @@ sub accumulate_dependencies ($$$;$)
                       ->accumulate_dependencies( $allports, $recdepth + 1 );
                 } else {
                     warn "$0:", $self->ORIGIN(), " (", $self->PKGNAME(),
-                      ") $whatdep on \'$dep\' not recognised as a port\n";
+                      ") $whatdep on \'$dep\' not recognised as a port\n"
+                      if $::Config{Warnings};
                     next DEPEND;
                 }
             }
@@ -457,8 +458,8 @@ sub accumulate_dependencies ($$$;$)
     } elsif ( $self->DEPENDENCIES_ACCUMULATED() == 1 ) {
 
         # We've got a dependency loop
-        warn "$0: dependency loop detected while processing ", $self->ORIGIN(),
-          "\n";
+        warn "$0: Error. Dependency loop detected while processing ",
+          $self->ORIGIN(), "\n";
     }
     counter( \%::Config, $counter );
     return $self;
@@ -476,10 +477,10 @@ sub print ($*;$)
     my $stuff;
 
     # Duplicate package names are an error to 'make index'.
-    # %%STRICT%% -- do stuff here.
     if ( defined $pkgnamecache{ $self->PKGNAME() } ) {
         warn "$0: warning duplicate package name ", $self->PKGNAME(), " (",
-          $self->ORIGIN(), " and ", $pkgnamecache{ $self->PKGNAME() }, ")\n";
+          $self->ORIGIN(), " and ", $pkgnamecache{ $self->PKGNAME() }, ")\n"
+          if $::Config{Warnings};
     } else {
         $pkgnamecache{ $self->PKGNAME() } = $self->ORIGIN();
     }
@@ -534,7 +535,8 @@ sub _chase_deps($$$)
             push @dependencies, $allports->{$origin}->PKGNAME();
         } else {
             warn "$0: ", $self->PKGNAME(),
-              " No PKGNAME found for ($dep) $origin\n";
+              " No PKGNAME found for ($dep) $origin\n"
+              if $::Config{Warnings};
         }
     }
     return join ' ', sort @dependencies;

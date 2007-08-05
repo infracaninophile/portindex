@@ -176,8 +176,8 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           provide any speed advantage, and it never managed to create
           a cache with all required entries unless there was only one
           worker process.  After much experimentation, have concluded
-          the problem area is actually updating the Berkeley DB
-          file. FFR
+          the problem area is actually invoking make thousands and
+          thousands of times.
 
 2.0 Sun Aug  5 15:14:00 2007
 

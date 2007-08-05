@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.15 2007-08-05 15:00:12 matthew Exp $
+# @(#) $Id: Category.pm,v 1.16 2007-08-05 16:35:55 matthew Exp $
 #
 
 #
@@ -41,7 +41,6 @@ our $VERSION = '2.0';    # Release
 
 use strict;
 use warnings;
-use Carp;
 
 #
 # The data held by this object are the ORIGIN -- where in the ports
@@ -58,13 +57,13 @@ sub new ($@)
     my %args   = @_;
     my $self;
 
-    croak "$0: error instantiating Category object -- ORIGIN missing\n"
+    die "$0: error instantiating Category object -- ORIGIN missing\n"
       unless defined $args{ORIGIN};
 
     # SUBDIRS should be an array ref, but can be empty or absent
     $args{SUBDIRS} = []
       unless ( defined $args{SUBDIRS} );
-    croak
+    die
       "$0: error instantiating Category object -- SUBDIRS not an array ref\n"
       unless ref $args{SUBDIRS} eq 'ARRAY';
 
