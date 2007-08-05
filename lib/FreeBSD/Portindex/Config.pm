@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.49 2007-08-04 20:28:58 matthew Exp $
+# @(#) $Id: Config.pm,v 1.50 2007-08-05 15:00:12 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -38,7 +38,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK =
   qw(read_config update_timestamp get_timestamp compare_timestamps
-  scrub_environment counter);
+  scrub_environment counter freeze thaw);
 our $VERSION = '2.0';    # Release
 
 use strict;
@@ -313,6 +313,62 @@ sub counter ($$)
             print STDERR '.';
         }
     }
+}
+
+#
+# Create a stringified version of an object -- assumed to be a blessed
+# hash ref, whose values are either scalars or arrays.  The format is
+# __CLASS\nobjectclass\nTAG1\n[DATA1a DATA1b DATA1c]\n...TAGn\nDATAn\n
+# Where data represents an array it is transformed into a space
+# separated list enclosed in [square brackets].
+#
+sub freeze ($)
+{
+    my $self = shift;
+    my $string;
+
+    $string = "__CLASS\n" . ref($self) . "\n";
+
+    for my $k ( keys %{$self} ) {
+        if ( ref( $self->{$k} ) eq 'ARRAY' ) {
+
+            # Array valued item
+            $string .= "$k\n[" . join( ' ', @{ $self->{$k} } ) . "]\n";
+        } else {
+
+            # Scalar valued item
+            $string .= "$k\n$self->{$k}\n";
+        }
+    }
+    return $string;
+}
+
+#
+# Take a stringified object and turn it back into a full object
+#
+sub thaw ($)
+{
+    my $string = shift;
+    my $class;
+    my %args;
+
+    %args = split( /\n/, $string );
+
+    if ( !defined $args{__CLASS} ) {
+        warn "$0: Cannot regenerate object from stringified data\n";
+        return undef;
+    }
+
+    $class = $args{__CLASS};
+    delete $args{__CLASS};
+
+    for my $k ( keys %args ) {
+        next unless $args{$k} =~ m/^\[(.*)\]$/;
+
+        $args{$k} = [];
+        @{ $args{$k} } = split( ' ', $1 );
+    }
+    return $class->new(%args);
 }
 
 1;

@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.36 2007-07-20 22:30:42 matthew Exp $
+# @(#) $Id: cache-update,v 1.37 2007-08-05 15:00:12 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -514,8 +514,7 @@ file setting can be used to tell B<cache-update> of any other
 makefiles (ie. from within C<PortsDir>) to be considered to have no
 effect on the outcome of generating the F<INDEX> at all.  Again,
 non-absolute paths are taken to be relative to C<PortsDir>.  Repeat
-the option to add several entries.  The list defaults to one item:
-F</usr/ports/Mk/bsd.sites.mk>.
+the option to add several entries.
 
 =item *
 
@@ -679,11 +678,11 @@ F</usr/sup/ports-all/checkouts.cvs:.> or
 F</var/db/sup/ports-all/checkouts.cvs:.> depending on the FreeBSD
 version.
 
-=item B<-f> { I<plain> ... }
-
-=item B<--format>={ I<plain> | I<cvsup-output> | I<cvsup-checkouts> |
+=item B<-f> { I<plain> | I<cvsup-output> | I<cvsup-checkouts> |
  I<options> | I<plain,options> | I<cvsup-output,options> |
  I<cvsup-checkouts,options>}
+
+=item B<--format>={ I<plain> | ... }
 
 Which input formats B<cache-update> should parse to determine the list
 of ports to reprocess.
@@ -692,14 +691,14 @@ of ports to reprocess.
 
 =item B<--propagation-delay>=I<num>
 
-When I<cvsup-checkouts> format is in use, assume that any file with a
-modification time no more than I<num> seconds older than the
-F<portindex-timestamp> cache file, plus all files younger than the
-cache, were updated via B<cvsup> since the previous time
-B<cache-update> was run.  Use those file names as the basis on which
-to determine which ports B<cache-update> needs to reprocess.  Note:
-this does cover files deleted from the ports, as the checkouts file
-keeps a record of those.
+When I<cvsup-checkouts> or I<cvsup-checkouts,options> format is in
+use, assume that any file with a modification time no more than I<num>
+seconds older than the F<portindex-timestamp> cache file, plus all
+files younger than the cache, were updated via B<cvsup> since the
+previous time B<cache-update> was run.  Use those file names as the
+basis on which to determine which ports B<cache-update> needs to
+reprocess.  Note: this does cover files deleted from the ports, as the
+checkouts file keeps a record of those.
 
 Empirically a value of 3600 (1 hour) seems to be a reasonable first
 choice, but this may need to be adjusted depending on how frequently
@@ -720,7 +719,7 @@ running B<cache-init> instead would be a good idea.
 
 Repeat this option to add more ubiquitous makefiles to the list of
 files to have their modification times compared to the last cache
-update time.
+update time.  Default: F<Mk/bsd.port.mk>, F</etc/make.conf>.
 
 =item B<-m> F<file>
 
@@ -728,9 +727,9 @@ update time.
 
 Ignore this makefile as a trigger for re-checking the C<make describe>
 output for any ports.  Non-absolute paths will be taken as relative to
-C<PortsDir> -- indeed, it is pointless to specify any file located
-outside C<PortsDir>.  Repeat this option to add more makefiles to the
-list.
+C<PortsDir>.  Repeat this option to add more makefiles to the
+list. Default: F<Mk/bsd.sites.mk>, F<Mk/bsd.commands.mk>,
+F<Mk/bsd.destdir.mk>.
 
 =back
 

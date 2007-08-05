@@ -1,5 +1,5 @@
 
-   $Id: TODO,v 1.4 2007-07-20 22:30:30 matthew Exp $
+   $Id: TODO,v 1.5 2007-08-05 15:00:12 matthew Exp $
 
    TO DO
    -----
@@ -19,8 +19,9 @@
     right hardware.
 
   * Roll our own 'serialization' of the perl objects to be stored in
-    the cache.  Data should be stored in a format accessible from various
-    different languages, not just Perl.
+    the cache.  Data should be stored in a format accessible from
+    various different languages, not just Perl. DONE (and the whole
+    package no longer depends on Storable.pm)
 
   * Clean up the way errors and warnings are presented -- messages at
     the moment contain too much extraneous stuff.  Also tie what is

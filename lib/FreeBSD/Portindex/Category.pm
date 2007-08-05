@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.14 2007-07-21 21:40:00 matthew Exp $
+# @(#) $Id: Category.pm,v 1.15 2007-08-05 15:00:12 matthew Exp $
 #
 
 #
@@ -71,7 +71,7 @@ sub new ($@)
     $self = {
         ORIGIN  => $args{ORIGIN},
         SUBDIRS => $args{SUBDIRS},
-        MTIME   => time(),
+        MTIME   => defined( $args{MTIME} ) ? $args{MTIME} : time(),
     };
 
     return bless $self, $class;

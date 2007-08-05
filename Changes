@@ -170,10 +170,20 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           is possible to have multiple processes concurrently updating
           the same DB file.
 
-2.0 Thu Aug  2 13:!6:00 2007
+2.0 Thu Aug  2 13:16:00 2007
 
         - Back out the multiple concurrent access changes.  It didn't
           provide any speed advantage, and it never managed to create
           a cache with all required entries unless there was only one
           worker process.  After much experimentation, have concluded
-          the problem area is actually updating the Berkeley DB file.
+          the problem area is actually updating the Berkeley DB
+          file. FFR
+
+2.0 Sun Aug  5 15:14:00 2007
+
+        - Implement our own serialization (freeze, thaw) procedures.
+          Trivial results are that this has reduced the size of the
+          cache to 22MiB (~12% reduction) and removed the code
+          dependency on Storable.pm.  More importantly this will help
+          with future efforts at parallelizing the cache building
+          process.

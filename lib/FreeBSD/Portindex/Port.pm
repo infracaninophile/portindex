@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.47 2007-07-21 21:40:00 matthew Exp $
+# @(#) $Id: Port.pm,v 1.48 2007-08-05 15:00:12 matthew Exp $
 #
 
 #
@@ -70,7 +70,7 @@ sub new ($@)
         WWW             => $args{WWW},
         MASTER_PORT     => $args{MASTER_PORT},
         MAKEFILE_LIST   => $args{MAKEFILE_LIST},
-        MTIME           => time(),
+        MTIME           => defined( $args{MTIME} ) ? $args{MTIME} : time(),
     };
 
     return bless $self, $class;

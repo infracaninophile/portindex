@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: find-updated,v 1.16 2007-07-21 21:40:00 matthew Exp $
+# @(#) $Id: find-updated,v 1.17 2007-08-05 15:00:12 matthew Exp $
 #
 
 # Scan through the ports tree, and pick out all ports containing files
@@ -458,12 +458,10 @@ L<ports(7)>
 
 =head1 BUGS
 
-Any port already in the cache but which is disconnected from the ports
-tree rather than being deleted will remain listed in the cache, and so
-will still result in an entry in the F<INDEX> file.  B<find-updated>
-will check any known but disconnected ports for updates.  The only way
-to purge the cache of disconnected ports is by starting afresh using
-B<cache-init>.
+B<find-updated> does not distinguish ports that are I<not connected> --
+ie. that do not have an entry in the C<SUBDIR> list in the immediately
+superior category.  Such ports will have an entry in the cache, but the
+default is not to include them in the resulting F<INDEX>.
 
 =cut
 
