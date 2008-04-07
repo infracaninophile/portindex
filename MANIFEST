@@ -3,13 +3,14 @@ bin/cache-update
 bin/find-updated
 bin/portindex
 Changes
+lib/FreeBSD/Portindex/Category.pm
 lib/FreeBSD/Portindex/Config.pm
 lib/FreeBSD/Portindex/Port.pm
 lib/FreeBSD/Portindex/Tree.pm
-lib/FreeBSD/Portindex/Category.pm
 Makefile.PL
 MANIFEST
+META.yml			Module meta-data (added by MakeMaker)
 portindex.cfg.sample
 README
 t/FreeBSD-Portindex.t
-META.yml                                 Module meta-data (added by MakeMaker)
+TODO

@@ -1,5 +1,5 @@
 
-   $Id: TODO,v 1.5 2007-08-05 15:00:12 matthew Exp $
+   $Id: TODO,v 1.6 2008-04-07 20:00:19 matthew Exp $
 
    TO DO
    -----
@@ -12,7 +12,7 @@
 
   * Strict mode: Allow only the ports that are hooked up to the Makefile
     in the tree, plus enforce output changes to make what we produce as
-    identical to 'make index' as possible.
+    identical to 'make index' as possible. DONE
 
   * Use multiple workers to gather port dependency data.  This should
     result in a cache-init that is faster than 'make index' on the
@@ -26,7 +26,9 @@
   * Clean up the way errors and warnings are presented -- messages at
     the moment contain too much extraneous stuff.  Also tie what is
     produced into the 'quiet' vs. 'verbose' options better.  (Multiple
-    levels of verbosity?)
+    levels of verbosity?) DONE
 
   * Add a find-updated mode checking against the timestamps recorded
     in the cache.
+
+  * Process portsnap output. DONE
