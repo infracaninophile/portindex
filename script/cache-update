@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.39 2008-04-07 19:33:33 matthew Exp $
+# @(#) $Id: cache-update,v 1.40 2008-04-07 19:57:42 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -412,11 +412,13 @@ in four formats:
 
 =item B<plain>
 
-A list of port origin directories, one per line.  B<find-updated> may
-be used to generate a list in this format of all ports containing
-files modified after a given date and time, including deleted ports,
-slave ports or ports that include a Makefile modified after the given
-date and time.
+A list of port origin directories, one per line.  The output of
+B<portsnap update> can be passed directly to B<cache-update> or
+B<find-updated> may be used to generate a list in this format.  The
+generated list of ports to check for updates includes all listed in
+the input, plus all ports that are slave ports of those listed in the
+input, or ports that include any Makefile listed in the input.
+
 
 =item B<cvsup-output>
 
@@ -470,24 +472,23 @@ them.  However the C<make describe> output of a slave port may well be
 quite different after an update to its master port, even if none of
 the files within the slave port have been modified.
 
-Similarly, for input formats other than plain, where an update to a
-Makefile is detected, all ports where that Makefile is included will
-be added to the list of ports to reprocess.  Only Makefiles included
-from within the ports tree (ie. under F</usr/ports>, or F<$PORTSDIR>
-if it is set in the environment) and if C<OPTIONS> processing is
-enabled, from within the ports DB directory (ie under
-F</var/db/ports>, or F<$PORT_DBDIR>) are considered.  In certain
-circumstances it may be more advantageous to run B<cache-init> rather
-than B<cache-update>.
+Similarly, where an update to a Makefile is detected, all ports where
+that Makefile is included will be added to the list of ports to
+reprocess.  Only Makefiles included from within the ports tree
+(ie. under F</usr/ports>, or F<$PORTSDIR> if it is set in the
+environment) and if C<OPTIONS> processing is enabled, from within the
+ports DB directory (ie under F</var/db/ports>, or F<$PORT_DBDIR>) are
+considered.  In certain circumstances it may be more advantageous to
+run B<cache-init> rather than B<cache-update>.
 
 =head2 When to run B<cache-init> and when to run B<cache-update>
 
 Over time, successively updating the F<INDEX> file via B<cache-update>
-can inevitably produce minor inconsistencies and an F<INDEX> file that
-diverges slowly from equivalence to what starting afresh would produce. 
-For best results it will be necessary to occasionally re-run
-B<cache-init> and rebuild the cache from scratch.  Certain changes to
-your system should act as warnings that this needs to be done.
+can produce minor inconsistencies and an F<INDEX> file that diverges
+slowly from equivalence to what starting afresh would produce.  For
+best results it will be necessary to occasionally re-run B<cache-init>
+and rebuild the cache from scratch.  Certain changes to your system
+should act as warnings that this needs to be done.
 
 =over 8
 
@@ -508,11 +509,11 @@ environment, or whatever the C<PortsDir> configuration file setting
 contains.
 
 Technically there are a number of other makefiles located outside
-F</usr/ports> (C<$PORTSDIR>) which will can be included any time
-B<make> is invoked within the ports system, but these are ignored by
+F</usr/ports> (C<$PORTSDIR>) which will be included any time B<make>
+is invoked within the ports system, but these are ignored by
 B<cache-update> and B<cache-init>.  Most of those makefiles rarely
 change, and when they do, the changes are unlikely to have any
-material effect on the generated ports F<INDEX>.  
+material effect on the generated ports F<INDEX>.
 
 The C<--endemic-makefile> option or C<EndemicMakefiles> configuration
 file setting can be used to tell B<cache-update> of any other
@@ -542,9 +543,9 @@ will trump modifying C<%ENV>.
 Installing or updating certain software packages.  For instance, the
 simple presence of the Gnome libraries on the system will cause many
 packages to add a C<-gnome> suffix to their names.  The F<editors/vim>
-port is a good example of this behaviour.  Ports containing Linux
-software run under emulation will automatically detect which version
-of the F<linux-base> ports you have installed: changing to a different
+port is an example of this behaviour.  Ports containing Linux software
+run under emulation will automatically detect which version of the
+F<linux-base> ports you have installed: changing to a different
 F<linux-base> port will affect the dependency lists for all Linux
 software ports.  Unfortunately it is practically impossible to detect
 such changes and automatically update affected ports.  These are not

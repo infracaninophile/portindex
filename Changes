@@ -187,3 +187,9 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           dependency on Storable.pm.  More importantly this will help
           with future efforts at parallelizing the cache building
           process.
+
+2.1 Mon Apr  7 20:41:00 2008
+
+        - Process 'plain' input analogously to 'cvsup-output' or
+          'cvsup-checkouts', plus tweak things so that it can read the
+          output of a 'portsnap update' command.
