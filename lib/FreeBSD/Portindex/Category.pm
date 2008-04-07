@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.17 2008-04-07 19:33:33 matthew Exp $
+# @(#) $Id: Category.pm,v 1.18 2008-04-07 20:06:38 matthew Exp $
 #
 
 #
@@ -37,7 +37,7 @@
 # running 'cache-init' and a subsequent 'cache-update'
 #
 package FreeBSD::Portindex::Category;
-our $VERSION = '2.0';    # Release
+our $VERSION = '2.1';    # Release
 
 use strict;
 use warnings;

@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.72 2008-04-07 19:33:33 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.73 2008-04-07 20:06:38 matthew Exp $
 #
 
 #
@@ -36,12 +36,12 @@
 # supplied by using BerkeleyDB Btree for backing stores.
 #
 package FreeBSD::Portindex::Tree;
-our $VERSION       = '2.0';    # Release
+our $VERSION       = '2.1';    # Release
 our $CACHE_VERSION = '2.0';    # Earliest binary compat version
 
 use strict;
 use warnings;
-use BerkeleyDB;                # BDB version 2, 3, 4, 41, 42, 43, 44
+use BerkeleyDB;                # BDB version 2, 3, 4, 41, 42, 43, 44, 45, 46
 
 use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::Category;
