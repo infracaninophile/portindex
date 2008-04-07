@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2007 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2008 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.51 2007-08-05 16:35:55 matthew Exp $
+# @(#) $Id: Config.pm,v 1.52 2008-04-07 19:33:33 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.

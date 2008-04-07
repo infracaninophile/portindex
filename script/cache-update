@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright (c) 2004-2007 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2008 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.38 2007-08-05 16:35:55 matthew Exp $
+# @(#) $Id: cache-update,v 1.39 2008-04-07 19:33:33 matthew Exp $
 #
 
 # Generate an incremental update to the cached 'make describe' output,
@@ -72,35 +72,51 @@ our $pkgname = 'portindex';
 
 $0 =~ s@.*/@@;    # Script name for error messages
 
-# Just read a list of port origins, one per line, from the given file
-# handle (default STDIN).
-sub read_plain (*$)
-{
-    my $FH      = shift;
-    my $updates = shift;
+# Given a fully qualified path name that corresponds to one of the
+# file names that would be found in a port or category directory,
+# derive the path of the enclosing port or category and add it to the
+# list that will be passed to 'make_describe' to be checked for
+# updated info. Given a Makefile name, add all of the port directories
+# affected by that Makefile to the list of things to be described.
 
-    while (<$FH>) {
-        chomp;
-        $updates->{$_}++;
+sub add_to_updates_list ($$$$)
+{
+    my $updates  = shift;
+    my $tree     = shift;
+    my $portsdir = shift;
+    my $name     = shift;
+    my $pdpart;
+
+    if (   $name !~ m@^$portsdir/(?:Mk|Templates|Tools|distfiles|packages)@o
+        && $name =~
+        m@^($portsdir\S*?)/(?:Makefile|distinfo|pkg-[a-z]+|files|\z)@o )
+    {
+        $pdpart = $1;
+
+        $updates->{$pdpart}++
+          if defined $pdpart;
     }
+    map { $updates->{$_}++ } @{ $tree->makefile_list($name) };
     return $updates;
 }
 
-# Given a fully qualified path name that corresponds to one of the
-# file names that would be found in a port or category directory,
-# return the path of the enclosing port or category that can be passed
-# to 'make_describe to be checked out.  Otherwise, return undef
-sub port_directory_part ($$)
+# Just read a list of port origins, one per line, from the given file
+# handle (default STDIN).  Now accepts the output of 'portsnap update'
+sub read_plain (*$$$)
 {
+    my $FH       = shift;
+    my $updates  = shift;
+    my $tree     = shift;
     my $portsdir = shift;
-    my $name     = shift;
 
-    if ( $name =~ m@^($portsdir\S*?)/(?:Makefile|distinfo|pkg-|files)@o ) {
-        return $1
-          unless $name =~
-          m@^$portsdir/(?:Mk|Templates|Tools|distfiles|packages)@o;
+    while ( my $name = <$FH> ) {
+        next
+          unless $name =~ m/^$portsdir/;
+
+        $name =~ s/\s+\Z//;    # portsnap uses \r\n for EoL (???!)
+        $updates = add_to_updates_list( $updates, $tree, $portsdir, $name );
     }
-    return undef;
+    return $updates;
 }
 
 # Process the data read from the given filehandle assuming it to be
@@ -114,8 +130,6 @@ sub read_cvsup_output (*$$$)
     my $tree     = shift;
     my $portsdir = shift;
     my $ports_location;
-    my $name;
-    my $pdpart;
 
     # $portsdir is usually /usr/ports, but can be any path ending in
     # .../ports (cvsup(1) requires the top-level directory to be named
@@ -129,11 +143,8 @@ sub read_cvsup_output (*$$$)
         next
           unless m@\s(ports/\S+)@;
 
-        $name = "$ports_location/$1";
-        $pdpart = port_directory_part( $portsdir, $name );
-        $updates->{$pdpart}++
-          if ( defined $pdpart );
-        map { $updates->{$_}++ } @{ $tree->makefile_list($name) };
+        $updates = add_to_updates_list( $updates, $tree, $portsdir,
+            "$ports_location/$1" );
     }
     return $updates;
 }
@@ -191,14 +202,8 @@ sub read_cvsup_checkouts (*$$$$)
 
         @rcs_attrs = decode_attrs($rcs_attr);
 
-        if ( $rcs_attrs[2] > $cutofftime ) {
-            my $pdpart;
-
-            $pdpart = port_directory_part( $portsdir, $name );
-            $updates->{$pdpart}++
-              if ( defined $pdpart );
-            map { $updates->{$_}++ } @{ $tree->makefile_list($name) };
-        }
+        $updates = add_to_updates_list( $updates, $tree, $portsdir, $name )
+          if ( $rcs_attrs[2] > $cutofftime );
     }
     return $updates;
 }
@@ -302,18 +307,18 @@ MAIN:
 
     # Read the list of ports to re-check and update for the
     # appropriate input format.  GetOptions() will enforce correct
-    # $Config{Format} syntax.
+    # $Config{Format} syntax. 'plain' now works with the output from
+    # 'portsnap update'
 
+    $tree->init_makefile_list();
     if ( $Config{Format} =~ m/plain/ ) {
-        read_plain( *STDIN, \%updates );
+        read_plain( *STDIN, \%updates, $tree, $Config{PortsDir} );
     } elsif ( $Config{Format} =~ m/cvsup-output/ ) {
-        $tree->init_makefile_list();
         read_cvsup_output( *STDIN, \%updates, $tree, $Config{PortsDir} );
     } elsif ( $Config{Format} =~ m/cvsup-checkouts/ ) {
         my $cutofftime;
 
         $cutofftime = get_timestamp( \%Config ) - $Config{PropagationDelay};
-        $tree->init_makefile_list();
         read_cvsup_checkouts( *STDIN, \%updates, $tree, $cutofftime,
             $Config{PortsDir} );
     }
