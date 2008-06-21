@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.73 2008-04-07 20:06:38 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.74 2008-06-21 17:39:09 matthew Exp $
 #
 
 #
@@ -149,6 +149,9 @@ sub new ($@)
 
     $self->{LIVE_PORTS} = {};
 
+    # Result of the last check on a port / category
+    $self->{LAST_RESULT} = "none";
+
     return bless $self, $class;
 }
 
@@ -230,6 +233,28 @@ sub get ($$)
           if ( defined $thawedport );
     }
     return $thawedport;
+}
+
+#
+# Set or get what the last result of a check on a port was
+#
+sub last_result($;$)
+{
+    my $self   = shift;
+    my $result = shift;
+
+    my %results = (
+        none      => "none",
+        new       => "new",
+        deleted   => "deleted",
+        unchanged => "unchanged",
+        modified  => "modified",
+        error     => "error"
+    );
+    if ( $result && $results{$result} eq $result ) {
+        $self->{LAST_RESULT} = $result;
+    }
+    return $self->{LAST_RESULT};
 }
 
 #
