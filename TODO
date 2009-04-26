@@ -1,5 +1,5 @@
 
-   $Id: TODO,v 1.6 2008-04-07 20:00:19 matthew Exp $
+   $Id: TODO,v 1.7 2009-04-26 09:58:57 matthew Exp $
 
    TO DO
    -----
@@ -32,3 +32,12 @@
     in the cache.
 
   * Process portsnap output. DONE
+
+  * Record whether any differences were discovered during checking (?).
+
+  * RDBMS back-end rather than single BDB file for datastore.  This should
+    help with the multiple workers concept.
+
+  * LIBRARY_DEPENDS -- store this data as returned from port Makefiles
+    so that we have a handy way of knowing what ports need updating as a
+    result of a shlib bump.
