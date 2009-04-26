@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2008 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2009 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.18 2008-04-07 20:06:38 matthew Exp $
+# @(#) $Id: Category.pm,v 1.19 2009-04-26 19:13:53 matthew Exp $
 #
 
 #
@@ -41,6 +41,8 @@ our $VERSION = '2.1';    # Release
 
 use strict;
 use warnings;
+
+use FreeBSD::Portindex::Config qw{sort_uniq};
 
 #
 # The data held by this object are the ORIGIN -- where in the ports
@@ -63,13 +65,12 @@ sub new ($@)
     # SUBDIRS should be an array ref, but can be empty or absent
     $args{SUBDIRS} = []
       unless ( defined $args{SUBDIRS} );
-    die
-      "$0: error instantiating Category object -- SUBDIRS not an array ref\n"
+    die "$0: error instantiating Category object -- SUBDIRS not an array ref\n"
       unless ref $args{SUBDIRS} eq 'ARRAY';
 
     $self = {
         ORIGIN  => $args{ORIGIN},
-        SUBDIRS => $args{SUBDIRS},
+        SUBDIRS => sort_unique $args{SUBDIRS},
         MTIME   => defined( $args{MTIME} ) ? $args{MTIME} : time(),
     };
 
@@ -84,7 +85,6 @@ sub new_from_make_vars ($$)
 {
     my $caller = shift;
     my $args   = shift;
-    my $self;
 
     my $origin;
     my @subdirs;
@@ -92,29 +92,33 @@ sub new_from_make_vars ($$)
     $origin = $args->{'.CURDIR'};
     @subdirs = map { "$origin/$_" } split ' ', $args->{SUBDIR};
 
-    $self = $caller->new( ORIGIN => $origin, SUBDIRS => \@subdirs );
-    return $self;
+    return $caller->new( ORIGIN => $origin, SUBDIRS => \@subdirs );
 }
 
 #
 # Accessor methods
 #
-for my $slot (qw(ORIGIN SUBDIRS)) {
-    no strict qw(refs);
+sub ORIGIN ($;$)
+{
+    my $self = shift;
 
-    *$slot = sub {
-        my $self = shift;
+    $self->{ORIGIN} = shift if @_;
+    return $self->{ORIGIN};
+}
 
-        $self->{$slot} = shift if @_;
-        return $self->{$slot};
-    };
+sub SUBDIRS ($;@)
+{
+    my $self = shift;
+
+    $self->{SUBDIRS} = sort_unique @_ if @_;
+    return $self->{SUBDIRS};
 }
 
 #
 # MTIME can only be read or set to the current time. Any method
 # argument that evaluates to true will cause the value to be updated.
 #
-sub MTIME ($$)
+sub MTIME ($;$)
 {
     my $self = shift;
     $self->{MTIME} = time() if ( @_ && $_[0] );
@@ -122,33 +126,28 @@ sub MTIME ($$)
 }
 
 #
-# Compare this Category object with that one: return true if
-# they are equal, false if not.  Equal means exactly the
-# same entries in the SUBDIRS list, but not necessarily in
-# the same order.
+# Compare this Category object with that one: return true if they are
+# equal, false if not.  Equal means exactly the same ORIGIN and
+# entries in the SUBDIRS list, but not necessarily the same MTIME.
 #
 sub compare($$)
 {
     my $self  = shift;
     my $other = shift;
-    my %seen;
 
     # Eliminate the easy cases
     return 0
-      unless $self->ORIGIN() eq $other->ORIGIN();
+      unless $self->{ORIGIN} eq $other->{ORIGIN};
     return 0
-      unless @{ $self->SUBDIRS() } == @{ $other->SUBDIRS() };
+      unless @{ $self->{SUBDIRS} } == @{ $other->{SUBDIRS} };
 
-    # The SUBDIRS list should not contain any repeated entries, but
-    # that isn't enforced so deal reasonably with repeated elements.
-
-    map { $seen{$_}++ } @{ $self->SUBDIRS() };
-    map { $seen{$_}-- } @{ $other->SUBDIRS() };
-
-    for my $k ( keys %seen ) {
+    # Need to do an element by element comparison.  SUBDIRS lists
+    # guranteed sorted and uniqued
+    for ( my $i = 0 ; $i < @{ $self->{SUBDIRS} } ; $i++ ) {
         return 0
-          unless $seen{$k} == 0;
+          unless $self->{SUBDIRS}->[$i] eq $other->{SUBDIRS}->[$i];
     }
+
     return 1;    # They are the same...
 }
 
@@ -166,24 +165,16 @@ sub comm($$)
     my %comm;
 
     if ( defined $other && $other->can("SUBDIRS") ) {
-        for my $sd ( @{ $self->SUBDIRS() } ) {
-            $comm{$sd}++;
-        }
-        for my $sd ( @{ $other->SUBDIRS() } ) {
+        for my $sd ( @{ $self->{SUBDIRS} } ) {
             $comm{$sd}--;
         }
+        for my $sd ( @{ $other->{SUBDIRS} } ) {
+            $comm{$sd}++;
+        }
         for my $sd ( sort keys %comm ) {
-
-            # The SUBDIRS list should not contain any repeated
-            # entries, but that isn't enforced so deal reasonably with
-            # repeated elements.
-            if ( $comm{$sd} >= 1 ) {
-                push @{ $result->[0] }, $sd;
-            } elsif ( $comm{$sd} == 0 ) {
-                push @{ $result->[1] }, $sd;
-            } else {
-                push @{ $result->[2] }, $sd;
-            }
+            push @{
+                $result->[ $comm{$sd} + 1 ], $sd;
+              };
         }
     }
     return $result;
@@ -199,7 +190,7 @@ sub is_known_subdir($$)
     my $self   = shift;
     my $origin = shift;
 
-    for my $sd ( @{ $self->SUBDIRS() } ) {
+    for my $sd ( @{ $self->{SUBDIRS} } ) {
         return 1
           if ( $sd eq $origin );    # Found it
     }

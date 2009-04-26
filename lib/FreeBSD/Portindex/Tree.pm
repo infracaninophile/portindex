@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.74 2008-06-21 17:39:09 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.75 2009-04-26 19:13:53 matthew Exp $
 #
 
 #
@@ -59,7 +59,7 @@ sub new ($@)
     # Make sure that the certain defaults are set.
 
     if ( defined $args{-CacheFilename} ) {
-        $portscachefile = $args{-CacheFilename};
+        $portscachefile = "$::Config{CacheDir}/$args{-CacheFilename}";
         delete $args{-CacheFilename};
     }
 
@@ -75,7 +75,7 @@ sub new ($@)
     # a __CACHE_VERSION entry.  If this is a new file, insert
     # the __CACHE_VERSION.
 
-    $cachewascreated = 1 unless ( -e "$::Config{CacheDir}/$portscachefile" );
+    $cachewascreated = 1 unless ( -e "$portscachefile" );
 
     # Must turn on the DB locking system if we're storing more than
     # one DB per file.

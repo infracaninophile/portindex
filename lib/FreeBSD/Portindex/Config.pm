@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.53 2008-04-07 20:06:38 matthew Exp $
+# @(#) $Id: Config.pm,v 1.54 2009-04-26 19:13:53 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -38,7 +38,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK =
   qw(read_config update_timestamp get_timestamp compare_timestamps
-  scrub_environment counter freeze thaw);
+  scrub_environment counter freeze thaw sort_uniq);
 our $VERSION = '2.1';    # Release
 
 use strict;
@@ -158,7 +158,7 @@ sub read_config ($)
 
             die "$0: Incorrect time specification $optval\n"
               unless $optval =~
-              m@^(\d\d\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\Z@;
+                  m@^(\d\d\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\Z@;
             $date[5] = $1 - 1900;    # Year
             $date[4] = $2 - 1;       # Month
             $date[3] = $3;           # Day
@@ -374,6 +374,21 @@ sub thaw ($)
         @{ $args{$k} } = split( ' ', $1 );
     }
     return $class->new(%args);
+}
+
+#
+# Take a list of scalars or list of refs to list of scalars and turn
+# it into a sorted list, removing duplicates.  Enforcing this in the
+# stored data reduces later work.
+#
+sub _sort_unique (@)
+{
+    my %seen;
+
+    return [
+        sort grep { !$seen{$_}++ }
+          map { ref $_ eq 'ARRAY' ? @{$_} : $_ } @_
+    ];
 }
 
 1;

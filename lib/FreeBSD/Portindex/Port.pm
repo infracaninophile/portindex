@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2008 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2009 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.51 2008-04-07 20:06:38 matthew Exp $
+# @(#) $Id: Port.pm,v 1.52 2009-04-26 19:13:53 matthew Exp $
 #
 
 #
@@ -43,7 +43,7 @@ our %pkgnamecache;       # Remember all of the package names we've output
 use strict;
 use warnings;
 
-use FreeBSD::Portindex::Config qw{counter};
+use FreeBSD::Portindex::Config qw{counter sort_uniq};
 
 sub new ($@)
 {
@@ -61,17 +61,17 @@ sub new ($@)
         PKGNAME         => $args{PKGNAME},
         ORIGIN          => $args{ORIGIN},
         STUFF           => $args{STUFF},
-        EXTRACT_DEPENDS => $args{EXTRACT_DEPENDS},
-        PATCH_DEPENDS   => $args{PATCH_DEPENDS},
-        FETCH_DEPENDS   => $args{FETCH_DEPENDS},
-        BUILD_DEPENDS   => $args{BUILD_DEPENDS},
-        RUN_DEPENDS     => $args{RUN_DEPENDS},
+        EXTRACT_DEPENDS => sort_unique $args{EXTRACT_DEPENDS},
+        PATCH_DEPENDS   => sort_unique $args{PATCH_DEPENDS},
+        FETCH_DEPENDS   => sort_unique $args{FETCH_DEPENDS},
+        BUILD_DEPENDS   => sort_unique $args{BUILD_DEPENDS},
+        RUN_DEPENDS     => sort_unique $args{RUN_DEPENDS},
+        LIB_DEPENDS     => sort_unique $args{LIB_DEPENDS},
         WWW             => $args{WWW},
         MASTER_PORT     => $args{MASTER_PORT},
-        MAKEFILE_LIST   => $args{MAKEFILE_LIST},
+        MAKEFILE_LIST   => sort_unique $args{MAKEFILE_LIST},
         MTIME           => defined( $args{MTIME} ) ? $args{MTIME} : time(),
     };
-
     return bless $self, $class;
 }
 
@@ -121,75 +121,44 @@ sub new_from_make_vars ($$$$)
     $pkgname = $args->{PKGNAME};
     $origin  = $args->{'.CURDIR'};
     ( $descr, $www ) = _www_descr( $args->{DESCR} );
+
+    # [*] COMMENT doesn't need quoting to get it through several
+    # layers of shell.
+
     $stuff = join( '|',
         $args->{PREFIX}, $args->{COMMENT}, $descr, $args->{MAINTAINER},
         $args->{CATEGORIES} );
 
-    if ( $args->{MASTER_PORT} ) {
-        if ( $args->{MASTER_PORT} =~ m@^[a-zA-Z0-9._+-]+/[a-zA-Z0-9._+-]+$@ ) {
-            $master_port = "$::Config{PortsDir}/$args->{MASTER_PORT}";
-        } else {
-
-            # This is probably caused by a trailing '/' character
-            # on a MASTERDIR setting. In which case the result is
-            # '/usr/ports/foo/bar/' rather than 'foo/bar'
-            ( $master_port = $args->{MASTER_PORT} ) =~ s@/?$@@;
-
-            warn "$0:$origin($pkgname) warning -- ",
-              "\'MASTER_PORT=$args->{MASTER_PORT}\' extraneous trailing /\n"
-              if $::Config{Warnings};
-        }
-    }
     $master_port = _master_port( $args->{MASTER_PORT}, $origin );
 
     $makefile_list = _makefile_list( $args->{'.MAKEFILE_LIST'},
         $makefile_locations, $makefile_exceptions );
 
-    # [*] COMMENT doesn't need quoting to get it through several
-    # layers of shell.
+    # If any of the dependencies aren't there, then don't generate
+    # a Port object.
 
     $extract_depends =
-      _sanatize( $origin, $pkgname, 'EXTRACT_DEPENDS',
-        _split_xxx_depends( $args->{EXTRACT_DEPENDS} ) );
+      _depends_list( $origin, $pkgname, 'EXTRACT_DEPENDS',
+        $args->{EXTRACT_DEPENDS} )
+      or return undef;
     $patch_depends =
-      _sanatize( $origin, $pkgname, 'PATCH_DEPENDS',
-        _split_xxx_depends( $args->{PATCH_DEPENDS} ) );
+      _depends_list( $origin, $pkgname, 'PATCH_DEPENDS',
+        $args->{PATCH_DEPENDS} )
+      or return undef;
     $fetch_depends =
-      _sanatize( $origin, $pkgname, 'FETCH_DEPENDS',
-        _split_xxx_depends( $args->{FETCH_DEPENDS} ) );
+      _depends_list( $origin, $pkgname, 'FETCH_DEPENDS',
+        $args->{FETCH_DEPENDS} )
+      or return undef;
     $build_depends =
-      _sanatize( $origin, $pkgname, 'BUILD_DEPENDS',
-        _split_xxx_depends( $args->{BUILD_DEPENDS} ) );
+      _depends_list( $origin, $pkgname, 'BUILD_DEPENDS',
+        $args->{BUILD_DEPENDS} )
+      or return undef;
     $run_depends =
-      _sanatize( $origin, $pkgname, 'RUN_DEPENDS',
-        _split_xxx_depends( $args->{RUN_DEPENDS} ) );
+      _depends_list( $origin, $pkgname, 'RUN_DEPENDS', $args->{RUN_DEPENDS} )
+      or return undef;
     $lib_depends =
-      _sanatize( $origin, $pkgname, 'LIB_DEPENDS',
-        _split_xxx_depends( $args->{LIB_DEPENDS} ) );
-
-    # If any of the dependencies weren't there, then don't generate
-    # a Port object.
-    return undef
-      unless ( defined $extract_depends
-        && defined $patch_depends
-        && defined $fetch_depends
-        && defined $build_depends
-        && defined $run_depends
-        && defined $lib_depends );
-
-    # On output:
-    # $extract_depends = EXTRACT_DEPENDS
-    # $patch_depends   = PATCH_DEPENDS
-    # $fetch_depends   = FETCH_DEPENDS
-    # $build_depends   = BUILD_DEPENDS + LIB_DEPENDS
-    # $run_depends     = RUN_DEPENDS   + LIB_DEPENDS
-    # The lists should be uniq'd -- sorting will happen later
-
-    $extract_depends = _uniquify($extract_depends);
-    $patch_depends   = _uniquify($patch_depends);
-    $fetch_depends   = _uniquify($fetch_depends);
-    $build_depends   = _uniquify( $build_depends, $lib_depends );
-    $run_depends     = _uniquify( $run_depends, $lib_depends );
+      _depends_list( $origin, $pkgname, 'LIB_DEPENDS', $args->{LIB_DEPENDS} )
+      or return undef;
 
     $self = $caller->new(
         PKGNAME         => $pkgname,
@@ -200,28 +169,13 @@ sub new_from_make_vars ($$$$)
         FETCH_DEPENDS   => $fetch_depends,
         BUILD_DEPENDS   => $build_depends,
         RUN_DEPENDS     => $run_depends,
+        LIB_DEPENDS     => $lib_depends,
         WWW             => $www,
         MASTER_PORT     => $master_port,
         MAKEFILE_LIST   => $makefile_list,
     );
 
     return $self;
-}
-
-#
-# This is a regular sub, not a method call.  Convert the space
-# separated dependency list into an array (unless it is one already),
-# plus clean up various undesirable features.
-#
-sub _clean_depends ($)
-{
-    my $deps = shift;
-    my @deps;
-
-    @deps = ( ref $deps ) ? @{$deps} : split( ' ', $deps );
-
-    _clean(@deps);
-    return \@deps;
 }
 
 #
@@ -232,35 +186,17 @@ sub _clean_depends ($)
 #  /usr/ports/foo/bar/../quux -> /usr/ports/foo/quux
 #  /usr/ports/foo/bar/ -> /usr/ports/foo/bar
 #
-# This alters the arg list directly, so don't pass unassignables
+# This alters the argument directly, so don't pass unassignables
 # to this sub.
 #
-sub _clean (@)
+sub _clean ($)
 {
-    for (@_) {
-        chomp;
-        s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
-        s@/\w[^/]+/\.\./@/@g;
-        s@/\Z@@;
-    }
-    return wantarray ? @_ : $_[0];
-}
+    chomp $_[0];
+    $_[0] =~ s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
+    $_[0] =~ s@/\w[^/]+/\.\./@/@g;
+    $_[0] =~ s@/\Z@@;
 
-#
-# Extract the port directories from the list of tuples emitted by make
-# for (EXTRACT|FETCH|BUILD|RUN|LIB)_DEPENDS.  These are space
-# separated lists of the form path:dir[:target] -- the 'dir' is what
-# we want.  Note: some of these fields can be empty.  See
-# math/asymptote BUILD_DEPENDS for example.
-#
-sub _split_xxx_depends ($)
-{
-    my $deps = shift;
-    my @deps;
-
-    @deps = ( $deps =~ m{\s*[^\s:]*:([^\s:]+)(?::\S+)?}g );
-
-    return _clean_depends( \@deps );
+    return $_[0];
 }
 
 #
@@ -288,32 +224,32 @@ sub _www_descr ($)
     return ( $descr, $www );
 }
 
-#
-# Take a list of array references, expand them into a single
-# array. Strip out any duplicates entries in that array. Return
-# a reference to the result.
-#
-sub _uniquify(@)
-{
-    my @args = @_;
-    my %seen;
-
-    # Expand the referenced arrays and strip out duplicates
-    @args = grep { !$seen{$_}++ } map { @{$_} } @args;
-
-    return \@args;
-}
-
-#
-# Another non-method sub. We're only interested in MASTER_PORT if it
-# is set and different to ORIGIN
-#
-sub _master_port ($$)
+# We're only interested in MASTER_PORT if it is set and different to
+# ORIGIN
+sub _master_port($$)
 {
     my $master_port = shift;
     my $origin      = shift;
 
-    return ( $master_port ne $origin ) ? $master_port : undef;
+    if ($master_port) {
+        if ( $master_port =~ m@^[a-zA-Z0-9._+-]+/[a-zA-Z0-9._+-]+$@ ) {
+            $master_port = "$::Config{PortsDir}/$master_port";
+        } else {
+
+            # This is probably caused by a trailing '/' character
+            # on a MASTERDIR setting. In which case the result is
+            # '/usr/ports/foo/bar/' rather than 'foo/bar'
+            $master_port =~ s@/?$@@;
+
+            warn "$0:$origin($pkgname) warning -- ",
+              "\'MASTER_PORT=$master_port\' extraneous trailing /\n"
+              if $::Config{Warnings};
+        }
+        if ( $master_port eq $origin ) {
+            $master_port = undef;
+        }
+    }
+    return $master_port;
 }
 
 #
@@ -336,10 +272,10 @@ sub _makefile_list ($$$)
     # material effect on the resulting port/package.
 
     return [
-        _clean(
-            grep { !$seen{$_}++ && m/$keepers/ && !m/$discards/ }
-              split( ' ', $makefile_list )
-        )
+        grep { !$seen{$_}++ && m/$keepers/ && !m/$discards/ }
+          map { _clean $_ }
+          split( ' ', $makefile_list )
+
     ];
 }
 
@@ -352,15 +288,25 @@ sub _makefile_list ($$$)
 # all the directories we've ever located, instead of stat()'ing them
 # again.
 #
-sub _sanatize($$$$)
+sub _depends_list($$$$)
 {
     my $origin    = shift;
     my $pkgname   = shift;
     my $whatdep   = shift;
     my $deplist   = shift;
     my $errorflag = 0;
+    my @deps;
 
-    foreach my $arg ( @{$deplist} ) {
+    # Extract the port directories from the list of tuples emitted by
+    # make for (EXTRACT|FETCH|BUILD|RUN|LIB)_DEPENDS.  These are space
+    # separated lists of the form path:dir[:target] -- the 'dir' is
+    # what we want.  Note: some of these fields can be empty.  See
+    # math/asymptote BUILD_DEPENDS for example.
+
+    @deps =
+      map { _clean $_ } ( $deplist =~ m{\s*[^\s:]*:([^\s:]+)(?::\S+)?}g );
+
+    foreach my $arg (@deps) {
         unless ( $directorycache{$arg} ) {
             if ( -d $arg ) {
                 $directorycache{$arg}++;
@@ -379,13 +325,9 @@ sub _sanatize($$$$)
 }
 
 #
-# Bulk creation of accessor methods.
+# Bulk creation of accessor methods -- SCALARs.
 #
-for my $slot (
-    qw(PKGNAME ORIGIN STUFF BUILD_DEPENDS RUN_DEPENDS WWW
-    EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS DEPENDENCIES_ACCUMULATED
-    MASTER_PORT MAKEFILE_LIST)
-  )
+for my $slot (qw(PKGNAME ORIGIN STUFF WWW DEPENDENCIES_ACCUMULATED MASTER_PORT))
 {
     no strict qw(refs);
 
@@ -393,6 +335,24 @@ for my $slot (
         my $self = shift;
 
         $self->{$slot} = shift if @_;
+        return $self->{$slot};
+    };
+}
+
+#
+# Bulk creation of accessor methods -- ARRAYs.
+#
+for my $slot (
+    qw(BUILD_DEPENDS RUN_DEPENDS EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS
+    LIB_DEPENDS MAKEFILE_LIST)
+  )
+{
+    no strict qw(refs);
+
+    *$slot = sub {
+        my $self = shift;
+
+        $self->{$slot} = sort_unique @_ if @_;
         return $self->{$slot};
     };
 }
@@ -406,6 +366,45 @@ sub MTIME ($$)
     my $self = shift;
     $self->{MTIME} = time() if ( @_ && $_[0] );
     return $self->{MTIME};
+}
+
+#
+# Compare this Port object with that one: return true if they are
+# equal false if not.  Equal means identical contents of all values
+# set in the new() method above, except for MTIME.
+#
+sub compare($$)
+{
+    my $self  = shift;
+    my $other = shift;
+    my %seen;
+
+    my @lists = qw{EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS
+      BUILD_DEPENDS RUN_DEPENDS LIB_DEPENDS MAKEFILE_LIST };
+
+    # Eliminate the easy cases -- scalar values
+    for my $v (qw{ PKGNAME ORIGIN STUFF WWW MASTER_PORT }) {
+        return 0
+          unless $self->{$v} eq $other->{$v};
+    }
+
+    # The middling cases -- compare array sizes
+    for my $v (@lists) {
+        return 0
+          unless @{ $self->{$v} } == @{ $other->{$v} };
+    }
+
+    # The hard way: need to do an element by element comparison
+    # of the array valued items.  Arrays are guaranteed sorted
+    # and uniqued
+    for my $v (@lists) {
+        for ( my $i = 0 ; $i < @{ $self->{$v} } ; $i++ ) {
+            return 0
+              unless $self->{$v}->[$i] eq $other->{$v}->[$i];
+        }
+    }
+
+    return 1;    # They are the same
 }
 
 #
@@ -423,39 +422,53 @@ sub accumulate_dependencies ($$$;$)
     my $recdepth = shift;
     my $counter  = shift;
 
-    unless ( $self->DEPENDENCIES_ACCUMULATED() ) {
-        $self->DEPENDENCIES_ACCUMULATED(1);    # Accumulation in progress
+    # On output:
+    # EXTRACT_DEPENDS             <-- RUN_DEPENDS
+    # PATCH_DEPENDS               <-- RUN_DEPENDS
+    # FETCH_DEPENDS               <-- RUN_DEPENDS
+    # BUILD_DEPENDS + LIB_DEPENDS <-- RUN_DEPENDS
+    # RUN_DEPENDS   + LIB_DEPENDS <-- RUN_DEPENDS
+
+    my %dep = (
+        EXTRACT_DEPENDS => ["EXTRACT_DEPENDS"],
+        PATCH_DEPENDS   => ["PATCH_DEPENDS"],
+        FETCH_DEPENDS   => ["FETCH_DEPENDS"],
+        BUILD_DEPENDS   => [ "BUILD_DEPENDS", "LIB_DEPENDS" ],
+        RUN_DEPENDS     => [ "RUN_DEPENDS", "LIB_DEPENDS" ],
+    );
+
+    unless ( $self->{DEPENDENCIES_ACCUMULATED} ) {
+        $self->{DEPENDENCIES_ACCUMULATED} = 1;    # Accumulation in progress
 
       DEPEND:
-        for my $whatdep (
-            qw( EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS
-            BUILD_DEPENDS RUN_DEPENDS )
-          )
-        {
+        for my $whatdep ( keys %dep ) {
             my %seen = ();
 
-            for my $dep ( @{ $self->$whatdep() } ) {
+            for my $wd ( @{ $dep{$whatdep} } ) {
+                grep { $seen{$_}++ } @{ $self->{$wd} };
+            }
+
+            for my $dep ( keys %seen ) {
                 if ( defined $allports->{$dep}
                     && $allports->{$dep}->can("accumulate_dependencies") )
                 {
                     $allports->{$dep}
                       ->accumulate_dependencies( $allports, $recdepth + 1 );
                 } else {
-                    warn "$0:", $self->ORIGIN(), " (", $self->PKGNAME(),
+                    warn "$0:", $self->{ORIGIN}, " (", $self->{PKGNAME},
                       ") $whatdep on \'$dep\' not recognised as a port\n"
                       if $::Config{Warnings};
                     next DEPEND;
                 }
             }
 
-            grep { $seen{$_}++ } @{ $self->$whatdep() };
-            for my $dep ( @{ $self->$whatdep() } ) {
-                grep { $seen{$_}++ } @{ $allports->{$dep}->RUN_DEPENDS() };
+            for my $dep ( keys %seen ) {
+                grep { $seen{$_}++ } @{ $allports->{$dep}->{RUN_DEPENDS} };
             }
-            $self->$whatdep( [ keys %seen ] );
+            $self->{$whatdep} = [ sort keys %seen ];
         }
-        $self->DEPENDENCIES_ACCUMULATED(2);    # Accumulation done
-    } elsif ( $self->DEPENDENCIES_ACCUMULATED() == 1 ) {
+        $self->{DEPENDENCIES_ACCUMULATED} = 2;    # Accumulation done
+    } elsif ( $self->{DEPENDENCIES_ACCUMULATED} == 1 ) {
 
         # We've got a dependency loop
         warn "$0: Error. Dependency loop detected while processing ",
@@ -477,44 +490,29 @@ sub print ($*;$)
     my $stuff;
 
     # Duplicate package names are an error to 'make index'.
-    if ( defined $pkgnamecache{ $self->PKGNAME() } ) {
-        warn "$0: warning duplicate package name ", $self->PKGNAME(), " (",
-          $self->ORIGIN(), " and ", $pkgnamecache{ $self->PKGNAME() }, ")\n"
+    if ( defined $pkgnamecache{ $self->{PKGNAME} } ) {
+        warn "$0: warning duplicate package name ", $self->{PKGNAME}, " (",
+          $self->{ORIGIN}, " and ", $pkgnamecache{ $self->{PKGNAME} }, ")\n"
           if $::Config{Warnings};
     } else {
-        $pkgnamecache{ $self->PKGNAME() } = $self->ORIGIN();
+        $pkgnamecache{ $self->{PKGNAME} } = $self->{ORIGIN};
     }
 
-    $stuff = $self->STUFF();
-    $stuff = _crunch_white($stuff) if ( $::Config{CrunchWhitespace} );
+    $stuff = $self->{STUFF};
+    $stuff =~ s@\s+@ @g if ( $::Config{CrunchWhitespace} );
 
-    print $fh $self->PKGNAME(), '|';
-    print $fh $self->ORIGIN(),  '|';
+    print $fh $self->{PKGNAME}, '|';
+    print $fh $self->{ORIGIN},  '|';
     print $fh $stuff, '|';
     print $fh $self->_chase_deps( $allports, 'BUILD_DEPENDS' ), '|';
     print $fh $self->_chase_deps( $allports, 'RUN_DEPENDS' ),   '|';
-    print $fh $self->WWW(), '|';
+    print $fh $self->{WWW}, '|';
     print $fh $self->_chase_deps( $allports, 'EXTRACT_DEPENDS' ), '|';
     print $fh $self->_chase_deps( $allports, 'PATCH_DEPENDS' ),   '|';
     print $fh $self->_chase_deps( $allports, 'FETCH_DEPENDS' ),   "\n";
 
     counter( \%::Config, $counter );
     return $self;
-}
-
-#
-# Modify the 'COMMENT' field in the same way that make index does:
-# replace any repeated whitespace with a single space. A regular sub,
-# not a method.
-#
-sub _crunch_white (@)
-{
-    my @args = @_;
-
-    for (@args) {
-        s@\s+@ @g;
-    }
-    return wantarray ? @args : $args[0];
 }
 
 #
@@ -528,13 +526,12 @@ sub _chase_deps($$$)
     my $dep      = shift;
     my @dependencies;
 
-    for my $origin ( @{ $self ->${dep}() } ) {
-        if ( defined $allports->{$origin}
-            && $allports->{$origin}->can("PKGNAME") )
-        {
-            push @dependencies, $allports->{$origin}->PKGNAME();
+    # This should be done earlier...
+    for my $origin ( @{ $self->{ ${dep} } } ) {
+        if ( defined $allports->{$origin}->{PKGNAME} ) {
+            push @dependencies, $allports->{$origin}->{PKGNAME};
         } else {
-            warn "$0: ", $self->PKGNAME(),
+            warn "$0: ", $self->{PKGNAME},
               " No PKGNAME found for ($dep) $origin\n"
               if $::Config{Warnings};
         }
