@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.54 2009-04-26 20:11:15 matthew Exp $
+# @(#) $Id: Port.pm,v 1.55 2009-04-26 20:16:12 matthew Exp $
 #
 
 #
@@ -139,26 +139,31 @@ sub new_from_make_vars ($$$$)
 
     $extract_depends =
       _depends_list( $origin, $pkgname, 'EXTRACT_DEPENDS',
-        $args->{EXTRACT_DEPENDS} )
-      or return undef;
+					 $args->{EXTRACT_DEPENDS} );
+	return undef unless defined $extract_depends;
+	
     $patch_depends =
       _depends_list( $origin, $pkgname, 'PATCH_DEPENDS',
-        $args->{PATCH_DEPENDS} )
-      or return undef;
+					 $args->{PATCH_DEPENDS} );
+	return undef unless defined $patch_depends;
+	
     $fetch_depends =
       _depends_list( $origin, $pkgname, 'FETCH_DEPENDS',
-        $args->{FETCH_DEPENDS} )
-      or return undef;
+					 $args->{FETCH_DEPENDS} );
+	return undef unless defined $fetch_depends;
+	
     $build_depends =
       _depends_list( $origin, $pkgname, 'BUILD_DEPENDS',
-        $args->{BUILD_DEPENDS} )
-      or return undef;
+					 $args->{BUILD_DEPENDS} );
+	return undef unless defined $build_depends;
+	
     $run_depends =
-      _depends_list( $origin, $pkgname, 'RUN_DEPENDS', $args->{RUN_DEPENDS} )
-      or return undef;
+		_depends_list( $origin, $pkgname, 'RUN_DEPENDS', $args->{RUN_DEPENDS} );
+	return undef unless defined $run_depends;
+	
     $lib_depends =
-      _depends_list( $origin, $pkgname, 'LIB_DEPENDS', $args->{LIB_DEPENDS} )
-      or return undef;
+		_depends_list( $origin, $pkgname, 'LIB_DEPENDS', $args->{LIB_DEPENDS} );
+	return undef unless defined $lib_depends;
 
     $self = $caller->new(
         PKGNAME         => $pkgname,
