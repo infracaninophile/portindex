@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.20 2009-04-26 20:05:02 matthew Exp $
+# @(#) $Id: Category.pm,v 1.21 2009-04-26 20:11:15 matthew Exp $
 #
 
 #
@@ -172,9 +172,7 @@ sub comm($$)
             $comm{$sd}++;
         }
         for my $sd ( sort keys %comm ) {
-            push @{
-                $result->[ $comm{$sd} + 1 ], $sd;
-              };
+            push @{ $result->[ $comm{$sd} + 1 ] }, $sd;
         }
     }
     return $result;

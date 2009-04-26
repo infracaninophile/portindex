@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.53 2009-04-26 20:05:03 matthew Exp $
+# @(#) $Id: Port.pm,v 1.54 2009-04-26 20:11:15 matthew Exp $
 #
 
 #
@@ -129,7 +129,7 @@ sub new_from_make_vars ($$$$)
         $args->{PREFIX}, $args->{COMMENT}, $descr, $args->{MAINTAINER},
         $args->{CATEGORIES} );
 
-    $master_port = _master_port( $args->{MASTER_PORT}, $origin );
+    $master_port = _master_port( $args->{MASTER_PORT}, $origin, $pkgname );
 
     $makefile_list = _makefile_list( $args->{'.MAKEFILE_LIST'},
         $makefile_locations, $makefile_exceptions );
@@ -226,11 +226,12 @@ sub _www_descr ($)
 
 # We're only interested in MASTER_PORT if it is set and different to
 # ORIGIN
-sub _master_port($$)
+sub _master_port($$$)
 {
     my $master_port = shift;
     my $origin      = shift;
-
+	my $pkgname     = shift;
+	
     if ($master_port) {
         if ( $master_port =~ m@^[a-zA-Z0-9._+-]+/[a-zA-Z0-9._+-]+$@ ) {
             $master_port = "$::Config{PortsDir}/$master_port";
