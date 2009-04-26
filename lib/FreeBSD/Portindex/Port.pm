@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.52 2009-04-26 19:13:53 matthew Exp $
+# @(#) $Id: Port.pm,v 1.53 2009-04-26 20:05:03 matthew Exp $
 #
 
 #
@@ -43,7 +43,7 @@ our %pkgnamecache;       # Remember all of the package names we've output
 use strict;
 use warnings;
 
-use FreeBSD::Portindex::Config qw{counter sort_uniq};
+use FreeBSD::Portindex::Config qw{counter sort_unique};
 
 sub new ($@)
 {

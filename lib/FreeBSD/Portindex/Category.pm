@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.19 2009-04-26 19:13:53 matthew Exp $
+# @(#) $Id: Category.pm,v 1.20 2009-04-26 20:05:02 matthew Exp $
 #
 
 #
@@ -42,7 +42,7 @@ our $VERSION = '2.1';    # Release
 use strict;
 use warnings;
 
-use FreeBSD::Portindex::Config qw{sort_uniq};
+use FreeBSD::Portindex::Config qw{sort_unique};
 
 #
 # The data held by this object are the ORIGIN -- where in the ports

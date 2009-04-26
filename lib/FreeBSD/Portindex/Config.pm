@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.54 2009-04-26 19:13:53 matthew Exp $
+# @(#) $Id: Config.pm,v 1.55 2009-04-26 20:05:02 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -381,7 +381,7 @@ sub thaw ($)
 # it into a sorted list, removing duplicates.  Enforcing this in the
 # stored data reduces later work.
 #
-sub _sort_unique (@)
+sub sort_unique (@)
 {
     my %seen;
 
