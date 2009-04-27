@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.57 2009-04-27 06:21:02 matthew Exp $
+# @(#) $Id: Port.pm,v 1.58 2009-04-27 06:28:36 matthew Exp $
 #
 
 #
@@ -308,10 +308,12 @@ sub _depends_list($$$$)
     # what we want.  Note: some of these fields can be empty.  See
     # math/asymptote BUILD_DEPENDS for example.
 
-    @deps = ( $deplist =~ m{\s*[^\s:]*:([^\s:]+)(?::\S+)?}g );
-    @deps = map { _clean $_ } @deps;
+    @deps = split /\s+/, $deplist;    # =~ m{\s*[^\s:]*:([^\s:]+)(?::\S+)?}g );
 
     foreach my $arg (@deps) {
+        $arg =~ s/^[^\s:]*:([^\s:]+)(?::\S+)?$/$1/;
+        $arg = _clean $arg;
+
         unless ( $directorycache{$arg} ) {
             if ( -d $arg ) {
                 $directorycache{$arg}++;
@@ -325,7 +327,7 @@ sub _depends_list($$$$)
     if ($errorflag) {
         return undef;
     } else {
-        return $deplist;
+        return \@deps;
     }
 }
 
