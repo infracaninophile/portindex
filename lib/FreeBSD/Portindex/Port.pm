@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.56 2009-04-26 20:19:11 matthew Exp $
+# @(#) $Id: Port.pm,v 1.57 2009-04-27 06:21:02 matthew Exp $
 #
 
 #
@@ -191,17 +191,16 @@ sub new_from_make_vars ($$$$)
 #  /usr/ports/foo/bar/../quux -> /usr/ports/foo/quux
 #  /usr/ports/foo/bar/ -> /usr/ports/foo/bar
 #
-# This alters the argument directly, so don't pass unassignables
-# to this sub.
-#
 sub _clean ($)
 {
-    chomp $_[0];
-    $_[0] =~ s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
-    $_[0] =~ s@/\w[^/]+/\.\./@/@g;
-    $_[0] =~ s@/\Z@@;
+    my $d = shift;
 
-    return $_[0];
+    chomp $d;
+    $d =~ s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
+    $d =~ s@/\w[^/]+/\.\./@/@g;
+    $d =~ s@/\Z@@;
+
+    return $d;
 }
 
 #
@@ -309,8 +308,8 @@ sub _depends_list($$$$)
     # what we want.  Note: some of these fields can be empty.  See
     # math/asymptote BUILD_DEPENDS for example.
 
-    @deps =
-      map { _clean $_ } ( $deplist =~ m{\s*[^\s:]*:([^\s:]+)(?::\S+)?}g );
+    @deps = ( $deplist =~ m{\s*[^\s:]*:([^\s:]+)(?::\S+)?}g );
+    @deps = map { _clean $_ } @deps;
 
     foreach my $arg (@deps) {
         unless ( $directorycache{$arg} ) {
