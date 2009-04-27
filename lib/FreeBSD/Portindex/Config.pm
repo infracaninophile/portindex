@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.56 2009-04-26 20:06:32 matthew Exp $
+# @(#) $Id: Config.pm,v 1.57 2009-04-27 04:44:10 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -377,17 +377,16 @@ sub thaw ($)
 }
 
 #
-# Take a list of scalars or list of refs to list of scalars and turn
-# it into a sorted list, removing duplicates.  Enforcing this in the
-# stored data reduces later work.
+# Take a ref to a list of scalars and turn it into a sorted list,
+# removing duplicates.  Enforcing this in the stored data reduces
+# later work.
 #
-sub sort_unique (@)
+sub sort_unique ($)
 {
     my %seen;
 
     return [
-        sort grep { !$seen{$_}++ }
-          map { ref $_ eq 'ARRAY' ? @{$_} : $_ } @_
+        sort grep { !$seen{$_}++ } @{ $_[0] }
     ];
 }
 
