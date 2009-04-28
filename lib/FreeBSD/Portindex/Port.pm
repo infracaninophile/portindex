@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.58 2009-04-27 06:28:36 matthew Exp $
+# @(#) $Id: Port.pm,v 1.59 2009-04-28 05:41:52 matthew Exp $
 #
 
 #
@@ -311,7 +311,10 @@ sub _depends_list($$$$)
     @deps = split /\s+/, $deplist;    # =~ m{\s*[^\s:]*:([^\s:]+)(?::\S+)?}g );
 
     foreach my $arg (@deps) {
-        $arg =~ s/^[^\s:]*:([^\s:]+)(?::\S+)?$/$1/;
+		next
+			unless $arg;		# Leading whitespace causes a null element
+		
+        $arg =~ s/^[^:]*:([^\s:]+)(?::\S+)?$/$1/;
         $arg = _clean $arg;
 
         unless ( $directorycache{$arg} ) {
