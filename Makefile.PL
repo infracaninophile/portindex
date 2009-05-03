@@ -1,25 +1,16 @@
-# @(#) $Id: Makefile.PL,v 1.3 2004-11-01 13:51:46 matthew Exp $
-use ExtUtils::MakeMaker;
+# @(#) $Id: Makefile.PL,v 1.4 2009-05-03 09:36:30 matthew Exp $
+use inc::Module::Install;
 
-# See lib/ExtUtils/MakeMaker.pm for details of how to influence
-# the contents of the Makefile that is written.
-WriteMakefile(
-    NAME         => 'FreeBSD::Portindex',
-    VERSION_FROM => 'lib/FreeBSD/Portindex/Port.pm', # finds $VERSION
-    PREREQ_PM    => { BerkeleyDB => 0.25 },          # e.g., Module::Name => 1.1
-    EXE_FILES    => [
-        'bin/cache-init',   'bin/cache-update',
-        'bin/find-updated', 'bin/portindex'
-    ],
-    (
-        $] >= 5.005
-        ?    ## Add these new keywords supported since 5.005
-          (
+name			'FreeBSD-Portindex';
+all_from		'lib/FreeBSD/Portindex/Tree.pm';
 
-            # retrieve abstract from module
-            ABSTRACT => 'Incremental FreeBSD ports INDEX file generation',
-            AUTHOR   => 'Matthew Seaman <m.seaman@infracaninophile.co.uk>' )
-        : ()
-    ),
-    dist => { COMPRESS => 'bzip2', SUFFIX => '.bz2' },
-);
+abstract		'Incremental FreeBSD ports INDEX file generation';
+author			'Matthew Seaman <m.seaman@infracaninophile.co.uk>';
+install_script  'bin/cache-init';
+install_script  'bin/cache-update';
+install_script  'bin/find-updated';
+install_script  'bin/portindex';
+
+requires		'BerkeleyDB' => '0.25';
+
+WriteAll;
