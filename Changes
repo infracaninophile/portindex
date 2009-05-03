@@ -193,3 +193,8 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
         - Process 'plain' input analogously to 'cvsup-output' or
           'cvsup-checkouts', plus tweak things so that it can read the
           output of a 'portsnap update' command.
+
+2.2 Sun May  3 19:17:00 2009
+
+        - Switch from ExtUtils::MakeMaker to Module::Install for
+	  generating Makefile etc.
