@@ -1,4 +1,4 @@
-# @(#) $Id: Makefile.PL,v 1.5 2009-05-03 18:10:22 matthew Exp $
+# @(#) $Id: Makefile.PL,v 1.6 2009-05-03 18:17:01 matthew Exp $
 use inc::Module::Install;
 
 name			'FreeBSD-Portindex';
@@ -10,9 +10,9 @@ license			'bsd';
 perl_version	'5.006';
 
 requires		'BerkeleyDB' => '0.25';
-install_script  'bin/cache-init';
-install_script  'bin/cache-update';
-install_script  'bin/find-updated';
-install_script  'bin/portindex';
+install_script  'cache-init';
+install_script  'cache-update';
+install_script  'find-updated';
+install_script  'portindex';
 
 WriteAll;
