@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.57 2009-04-27 04:44:10 matthew Exp $
+# @(#) $Id: Config.pm,v 1.58 2009-05-03 09:35:54 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -385,9 +385,7 @@ sub sort_unique ($)
 {
     my %seen;
 
-    return [
-        sort grep { !$seen{$_}++ } @{ $_[0] }
-    ];
+    return [ sort grep { !$seen{$_}++ } @{ $_[0] } ];
 }
 
 1;

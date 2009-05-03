@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.59 2009-04-28 05:41:52 matthew Exp $
+# @(#) $Id: Port.pm,v 1.60 2009-05-03 09:35:54 matthew Exp $
 #
 
 #
@@ -228,8 +228,8 @@ sub _www_descr ($)
     return ( $descr, $www );
 }
 
-# We're only interested in MASTER_PORT if it is set and different to
-# ORIGIN
+# We're only interested in MASTER_PORT if it is set.  It can be the same
+# as ORIGIN, but that's OK.
 sub _master_port($$$)
 {
     my $master_port = shift;
@@ -249,9 +249,6 @@ sub _master_port($$$)
             warn "$0:$origin($pkgname) warning -- ",
               "\'MASTER_PORT=$master_port\' extraneous trailing /\n"
               if $::Config{Warnings};
-        }
-        if ( $master_port eq $origin ) {
-            $master_port = undef;
         }
     }
     return $master_port;
@@ -311,9 +308,9 @@ sub _depends_list($$$$)
     @deps = split /\s+/, $deplist;    # =~ m{\s*[^\s:]*:([^\s:]+)(?::\S+)?}g );
 
     foreach my $arg (@deps) {
-		next
-			unless $arg;		# Leading whitespace causes a null element
-		
+        next
+          unless $arg;                # Leading whitespace causes a null element
+
         $arg =~ s/^[^:]*:([^\s:]+)(?::\S+)?$/$1/;
         $arg = _clean $arg;
 
