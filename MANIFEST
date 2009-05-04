@@ -12,6 +12,7 @@ lib/FreeBSD/Portindex/Category.pm
 lib/FreeBSD/Portindex/Config.pm
 lib/FreeBSD/Portindex/Port.pm
 lib/FreeBSD/Portindex/Tree.pm
+lib/FreeBSD/Portindex/TreeObject.pm
 Makefile.PL
 MANIFEST
 META.yml			Module meta-data (added by MakeMaker)
