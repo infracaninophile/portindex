@@ -1,4 +1,4 @@
-# @(#) $Id: Makefile.PL,v 1.6 2009-05-03 18:17:01 matthew Exp $
+# @(#) $Id: Makefile.PL,v 1.7 2009-05-04 10:29:50 matthew Exp $
 use inc::Module::Install;
 
 name			'FreeBSD-Portindex';
@@ -7,7 +7,7 @@ version_from	'lib/FreeBSD/Portindex/Tree.pm';
 abstract		'Incremental FreeBSD ports INDEX file generation';
 author			'Matthew Seaman <m.seaman@infracaninophile.co.uk>';
 license			'bsd';
-perl_version	'5.006';
+perl_version	'5.008003';
 
 requires		'BerkeleyDB' => '0.25';
 install_script  'cache-init';
