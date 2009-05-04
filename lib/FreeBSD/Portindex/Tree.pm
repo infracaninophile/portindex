@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.75 2009-04-26 19:13:53 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.76 2009-05-04 14:44:06 matthew Exp $
 #
 
 #
@@ -36,16 +36,16 @@
 # supplied by using BerkeleyDB Btree for backing stores.
 #
 package FreeBSD::Portindex::Tree;
-our $VERSION       = '2.1';    # Release
-our $CACHE_VERSION = '2.0';    # Earliest binary compat version
 
 use strict;
 use warnings;
-use BerkeleyDB;                # BDB version 2, 3, 4, 41, 42, 43, 44, 45, 46
+use BerkeleyDB;    # BDB version 2, 3, 4, 41, 42, 43, 44, 45, 46
 
-use FreeBSD::Portindex::Port;
-use FreeBSD::Portindex::Category;
-use FreeBSD::Portindex::Config qw{counter freeze thaw};
+use FreeBSD::Portindex::TreeObject;
+use FreeBSD::Portindex::Config qw{counter};
+
+our $VERSION       = '2.2';    # Release
+our $CACHE_VERSION = '2.2';    # Earliest binary compat version
 
 sub new ($@)
 {
@@ -164,75 +164,78 @@ sub DESTROY
 }
 
 #
-# Insert FreeBSD::Portindex::Port or FreeBSD::Portindex::Category
-# object (ie. from 'make describe' output) into ports tree structure
-# according to the ORIGIN -- freeze the object for external storage
-# and keep the live copy handy too.
-sub insert ($$$)
+# Insert FreeBSD::Portindex::TreeObject object (eg. a Port from 'make
+# describe' output) into ports Tree structure according to the ORIGIN
+# -- freeze the object for external storage and keep the live copy
+# handy too.  Do this in a lazy fashion: only freeze the object and
+# write it to the tied backing store if the object was either never
+# previously inserted or if the MTIME of the object has been updated.
+#
+sub insert ($$)
 {
-    my $self   = shift;
-    my $origin = shift;
-    my $port   = shift;
+    my $self        = shift;
+    my $tree_object = shift;
+    my $origin;
 
-    return undef if ( $origin eq '__CACHE_VERSION' );
+    return undef unless $tree_object->ISA('FreeBSD::Portindex::TreeObject');
 
-    $self->{LIVE_PORTS}->{$origin} = $port;
-    $self->{PORTS}->{$origin}      = freeze($port);
+    $origin = $tree_object->ORIGIN();
+
+    if ( !exists $self->{LIVE_PORTS}->{$origin}
+        || $tree_object->MTIME() > $self->{LIVE_PORTS}->{$origin}->MTIME() )
+    {
+        $self->{LIVE_PORTS}->{$origin} = $tree_object;
+        $self->{PORTS}->{$origin}      = $tree_object->freeze();
+    }
     return $self;
 }
 
 #
-# Return the cached FreeBSD::Portindex::Port or
-# FreeBSD::Portindex::Category object for a given origin path,
-# deleting the frozen version from the tree hash.  Return undef if
-# port not found in tree
+# Return the cached FreeBSD::Portindex::TreeObject for a given origin
+# path, deleting the frozen version from the tree hash.  Return undef
+# if port not found in tree
 #
 sub delete ($$)
 {
     my $self   = shift;
     my $origin = shift;
-    my $port;
-    my $thawedport;
+    my $tree_object;
 
     return undef if ( $origin eq '__CACHE_VERSION' );
 
-    $thawedport = $self->{LIVE_PORTS}->{$origin};
-    if ( defined $thawedport ) {
+    if ( exists $self->{LIVE_PORTS}->{$origin} ) {
         delete $self->{LIVE_PORTS}->{$origin};
     }
 
-    $port = $self->{PORTS}->{$origin};
-    if ( defined $port ) {
+    if ( exists $self->{PORTS}->{$origin} ) {
+        $tree_object =
+          FreeBSD::Portindex::TreeObject->thaw( $self->{PORTS}->{$origin} );
         delete $self->{PORTS}->{$origin};
-        $thawedport = thaw($port);
     }
-    return $thawedport;
+    return $tree_object;
 }
 
 #
-# Return the cached port description or category object for a given
+# Return the cached cached FreeBSD::Portindex::TreeObject for a given
 # origin path.  Return undef if port not found in tree.  Stash a copy
-# of the live port for later use.
+# of the live TreeObject for later use.
 #
 sub get ($$)
 {
     my $self   = shift;
     my $origin = shift;
-    my $port;
-    my $thawedport;
+    my $tree_object;
 
     return undef if ( $origin eq '__CACHE_VERSION' );
 
-    $thawedport = $self->{LIVE_PORTS}->{$origin};
-    if ( !defined $thawedport ) {
-
-        $port       = $self->{PORTS}->{$origin};
-        $thawedport = thaw($port)
-          if ( defined $port );
-        $self->{LIVE_PORTS}->{$origin} = $thawedport
-          if ( defined $thawedport );
+    if ( exists $self->{LIVE_PORTS}->{$origin} ) {
+        $tree_object = $self->{LIVE_PORTS}->{$origin};
+    } elsif ( exists $self->{PORTS}->{$origin} ) {
+        $tree_object = FreeBSD::Portindex::TreeObject->thaw(
+            $self->{LIVE_PORTS}->{$origin} );
+        $self->{LIVE_PORTS}->{$origin} = $tree_object;
     }
-    return $thawedport;
+    return $tree_object;
 }
 
 #
@@ -425,10 +428,8 @@ sub make_describe($$)
 }
 
 #
-# Unpack all of the frozen FreeBSD::Portindex::Ports or
-# FreeBSD::Portindex::Category objects from the btree storage and
-# stash in an internal hash for later use.  Includes all of the
-# categories too.
+# Unpack all of the frozen FreeBSD::Portindex::TreeObject items from
+# the btree storage and stash in an internal hash for later use.
 #
 sub springtime($)
 {

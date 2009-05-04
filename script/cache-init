@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright (c) 2004-2008 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2009 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-init,v 1.27 2008-04-07 19:33:33 matthew Exp $
+# @(#) $Id: cache-init,v 1.28 2009-05-04 14:44:16 matthew Exp $
 #
 
 # Build the portindex cache from scratch by scanning through the whole
@@ -42,7 +42,6 @@ use BerkeleyDB;
 
 use FreeBSD::Portindex::Config qw(read_config update_timestamp
   scrub_environment);
-use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::Tree;
 
 our %Config;

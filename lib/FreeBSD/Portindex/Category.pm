@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.21 2009-04-26 20:11:15 matthew Exp $
+# @(#) $Id: Category.pm,v 1.22 2009-05-04 14:44:06 matthew Exp $
 #
 
 #
@@ -37,20 +37,21 @@
 # running 'cache-init' and a subsequent 'cache-update'
 #
 package FreeBSD::Portindex::Category;
-our $VERSION = '2.1';    # Release
 
 use strict;
 use warnings;
 
-use FreeBSD::Portindex::Config qw{sort_unique};
+use FreeBSD::Portindex::TreeObject;
+
+our $VERSION = '2.2';                                # Release
+our @ISA     = ('FreeBSD::Portindex::TreeObject');
 
 #
-# The data held by this object are the ORIGIN -- where in the ports
-# tree the Makefile being processed resides -- and SUBDIRS -- the list
-# of categories or portnames extracted from that Makefile.  Also
-# contains the equivalent data extracted from any Makefile.local
-# additions to the tree.  MTIME is the unix time that this object was
-# created or that a modified object was committed to the cache.
+# In addition to ORIGIN and MTIME provided by the base class, the data
+# held by this object are the list of SUBDIRS -- the list of other
+# categories or portnames extracted from the Makefile.  Also contains
+# the equivalent data extracted from any Makefile.local additions to
+# the tree.
 #
 sub new ($@)
 {
@@ -59,20 +60,15 @@ sub new ($@)
     my %args   = @_;
     my $self;
 
-    die "$0: error instantiating Category object -- ORIGIN missing\n"
-      unless defined $args{ORIGIN};
+    $self = $class->SUPER::new(%args);
 
     # SUBDIRS should be an array ref, but can be empty or absent
     $args{SUBDIRS} = []
       unless ( defined $args{SUBDIRS} );
-    die "$0: error instantiating Category object -- SUBDIRS not an array ref\n"
+    die "$0: error instantiating $class object -- SUBDIRS not an array ref\n"
       unless ref $args{SUBDIRS} eq 'ARRAY';
 
-    $self = {
-        ORIGIN  => $args{ORIGIN},
-        SUBDIRS => sort_unique $args{SUBDIRS},
-        MTIME   => defined( $args{MTIME} ) ? $args{MTIME} : time(),
-    };
+    $self->{SUBDIRS} = $args{SUBDIRS}, $self->sort_unique('SUBDIRS');
 
     return bless $self, $class;
 }
@@ -95,60 +91,16 @@ sub new_from_make_vars ($$)
     return $caller->new( ORIGIN => $origin, SUBDIRS => \@subdirs );
 }
 
-#
-# Accessor methods
-#
-sub ORIGIN ($;$)
-{
-    my $self = shift;
-
-    $self->{ORIGIN} = shift if @_;
-    return $self->{ORIGIN};
-}
-
+# Accessor methods: Only SUBDIRS to deal with
 sub SUBDIRS ($;@)
 {
     my $self = shift;
 
-    $self->{SUBDIRS} = sort_unique @_ if @_;
-    return $self->{SUBDIRS};
-}
-
-#
-# MTIME can only be read or set to the current time. Any method
-# argument that evaluates to true will cause the value to be updated.
-#
-sub MTIME ($;$)
-{
-    my $self = shift;
-    $self->{MTIME} = time() if ( @_ && $_[0] );
-    return $self->{MTIME};
-}
-
-#
-# Compare this Category object with that one: return true if they are
-# equal, false if not.  Equal means exactly the same ORIGIN and
-# entries in the SUBDIRS list, but not necessarily the same MTIME.
-#
-sub compare($$)
-{
-    my $self  = shift;
-    my $other = shift;
-
-    # Eliminate the easy cases
-    return 0
-      unless $self->{ORIGIN} eq $other->{ORIGIN};
-    return 0
-      unless @{ $self->{SUBDIRS} } == @{ $other->{SUBDIRS} };
-
-    # Need to do an element by element comparison.  SUBDIRS lists
-    # guranteed sorted and uniqued
-    for ( my $i = 0 ; $i < @{ $self->{SUBDIRS} } ; $i++ ) {
-        return 0
-          unless $self->{SUBDIRS}->[$i] eq $other->{SUBDIRS}->[$i];
+    if (@_) {
+        $self->{SUBDIRS} = _sort_unique [@_];
+        $self->MTIME(1);
     }
-
-    return 1;    # They are the same...
+    return $self->{SUBDIRS};
 }
 
 #

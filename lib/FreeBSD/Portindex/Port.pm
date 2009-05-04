@@ -27,23 +27,28 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.60 2009-05-03 09:35:54 matthew Exp $
+# @(#) $Id: Port.pm,v 1.61 2009-05-04 14:44:06 matthew Exp $
 #
 
 #
 # An object for holding various data used in creating a port -- mostly
-# this is used for generating the ports INDEX.
+# this is used for generating the ports INDEX.  In addition to the
+# ORIGIN and MTIME fields provided by the superclass, this must at
+# least have a defined PKGNAME field.
 #
 package FreeBSD::Portindex::Port;
-our $VERSION = '2.1';    # Release
-
-our %directorycache;     # Remember all the directories we've ever seen
-our %pkgnamecache;       # Remember all of the package names we've output
 
 use strict;
 use warnings;
 
-use FreeBSD::Portindex::Config qw{counter sort_unique};
+use FreeBSD::Portindex::TreeObject;
+use FreeBSD::Portindex::Config qw{counter};
+
+our @ISA     = ('FreeBSD::Portindex::TreeObject');
+our $VERSION = '2.2';                                # Release
+
+our %directorycache;    # Remember all the directories we've ever seen
+our %pkgnamecache;      # Remember all of the package names we've output
 
 sub new ($@)
 {
@@ -52,26 +57,23 @@ sub new ($@)
     my %args   = @_;
     my $self;
 
-    die "$0: error instantiating Port object -- PKGNAME missing\n"
-      unless defined $args{PKGNAME};
-    die "$0: error instantiating Port object -- ORIGIN missing\n"
-      unless defined $args{ORIGIN};
+    $self = $class->SUPER::new(%args);
 
-    $self = {
-        PKGNAME         => $args{PKGNAME},
-        ORIGIN          => $args{ORIGIN},
-        STUFF           => $args{STUFF},
-        EXTRACT_DEPENDS => sort_unique $args{EXTRACT_DEPENDS},
-        PATCH_DEPENDS   => sort_unique $args{PATCH_DEPENDS},
-        FETCH_DEPENDS   => sort_unique $args{FETCH_DEPENDS},
-        BUILD_DEPENDS   => sort_unique $args{BUILD_DEPENDS},
-        RUN_DEPENDS     => sort_unique $args{RUN_DEPENDS},
-        LIB_DEPENDS     => sort_unique $args{LIB_DEPENDS},
-        WWW             => $args{WWW},
-        MASTER_PORT     => $args{MASTER_PORT},
-        MAKEFILE_LIST   => sort_unique $args{MAKEFILE_LIST},
-        MTIME           => defined( $args{MTIME} ) ? $args{MTIME} : time(),
-    };
+    die "$0: error instantiating $class object -- PKGNAME missing\n"
+      unless defined $args{PKGNAME};
+
+    $self->{PKGNAME}         = $args{PKGNAME};
+    $self->{STUFF}           = $args{STUFF};
+    $self->{EXTRACT_DEPENDS} = _sort_unique $args{EXTRACT_DEPENDS};
+    $self->{PATCH_DEPENDS}   = _sort_unique $args{PATCH_DEPENDS};
+    $self->{FETCH_DEPENDS}   = _sort_unique $args{FETCH_DEPENDS};
+    $self->{BUILD_DEPENDS}   = _sort_unique $args{BUILD_DEPENDS};
+    $self->{RUN_DEPENDS}     = _sort_unique $args{RUN_DEPENDS};
+    $self->{LIB_DEPENDS}     = _sort_unique $args{LIB_DEPENDS};
+    $self->{WWW}             = $args{WWW};
+    $self->{MASTER_PORT}     = $args{MASTER_PORT};
+    $self->{MAKEFILE_LIST}   = _sort_unique $args{MAKEFILE_LIST};
+
     return bless $self, $class;
 }
 
@@ -334,14 +336,16 @@ sub _depends_list($$$$)
 #
 # Bulk creation of accessor methods -- SCALARs.
 #
-for my $slot (qw(PKGNAME ORIGIN STUFF WWW DEPENDENCIES_ACCUMULATED MASTER_PORT))
-{
+for my $slot (qw(PKGNAME STUFF WWW DEPENDENCIES_ACCUMULATED MASTER_PORT)) {
     no strict qw(refs);
 
     *$slot = sub {
         my $self = shift;
 
-        $self->{$slot} = shift if @_;
+        if (@_) {
+            $self->{$slot} = shift;
+            $self->MTIME();
+        }
         return $self->{$slot};
     };
 }
@@ -359,59 +363,12 @@ for my $slot (
     *$slot = sub {
         my $self = shift;
 
-        $self->{$slot} = sort_unique @_ if @_;
+        if (@_) {
+            $self->{$slot} = sort_unique @_;
+            $self->MTIME();
+        }
         return $self->{$slot};
     };
-}
-
-#
-# MTIME can only be read or set to the current time. Any method
-# argument that evaluates to true will cause the value to be updated.
-#
-sub MTIME ($$)
-{
-    my $self = shift;
-    $self->{MTIME} = time() if ( @_ && $_[0] );
-    return $self->{MTIME};
-}
-
-#
-# Compare this Port object with that one: return true if they are
-# equal false if not.  Equal means identical contents of all values
-# set in the new() method above, except for MTIME.
-#
-sub compare($$)
-{
-    my $self  = shift;
-    my $other = shift;
-    my %seen;
-
-    my @lists = qw{EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS
-      BUILD_DEPENDS RUN_DEPENDS LIB_DEPENDS MAKEFILE_LIST };
-
-    # Eliminate the easy cases -- scalar values
-    for my $v (qw{ PKGNAME ORIGIN STUFF WWW MASTER_PORT }) {
-        return 0
-          unless $self->{$v} eq $other->{$v};
-    }
-
-    # The middling cases -- compare array sizes
-    for my $v (@lists) {
-        return 0
-          unless @{ $self->{$v} } == @{ $other->{$v} };
-    }
-
-    # The hard way: need to do an element by element comparison
-    # of the array valued items.  Arrays are guaranteed sorted
-    # and uniqued
-    for my $v (@lists) {
-        for ( my $i = 0 ; $i < @{ $self->{$v} } ; $i++ ) {
-            return 0
-              unless $self->{$v}->[$i] eq $other->{$v}->[$i];
-        }
-    }
-
-    return 1;    # They are the same
 }
 
 #
