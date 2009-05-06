@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.61 2009-05-04 14:44:06 matthew Exp $
+# @(#) $Id: Port.pm,v 1.62 2009-05-06 01:56:19 matthew Exp $
 #
 
 #
@@ -74,7 +74,7 @@ sub new ($@)
     $self->{MASTER_PORT}     = $args{MASTER_PORT};
     $self->{MAKEFILE_LIST}   = _sort_unique $args{MAKEFILE_LIST};
 
-    return bless $self, $class;
+    return $self;
 }
 
 #
@@ -364,7 +364,7 @@ for my $slot (
         my $self = shift;
 
         if (@_) {
-            $self->{$slot} = sort_unique @_;
+            $self->{$slot} = _sort_unique \@_;
             $self->MTIME();
         }
         return $self->{$slot};

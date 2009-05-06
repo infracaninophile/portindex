@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.22 2009-05-04 14:44:06 matthew Exp $
+# @(#) $Id: Category.pm,v 1.23 2009-05-06 01:56:19 matthew Exp $
 #
 
 #
@@ -68,9 +68,9 @@ sub new ($@)
     die "$0: error instantiating $class object -- SUBDIRS not an array ref\n"
       unless ref $args{SUBDIRS} eq 'ARRAY';
 
-    $self->{SUBDIRS} = $args{SUBDIRS}, $self->sort_unique('SUBDIRS');
+    $self->{SUBDIRS} = _sort_unique $args{SUBDIRS};
 
-    return bless $self, $class;
+    return $self;
 }
 
 #

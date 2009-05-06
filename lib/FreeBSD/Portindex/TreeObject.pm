@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: TreeObject.pm,v 1.1 2009-05-04 14:44:06 matthew Exp $
+# @(#) $Id: TreeObject.pm,v 1.2 2009-05-06 01:56:19 matthew Exp $
 #
 
 #
@@ -38,7 +38,7 @@
 #
 package FreeBSD::Portindex::TreeObject;
 
-require 5.8.3;
+require 5.008_003;
 
 use strict;
 use warnings;
@@ -98,38 +98,39 @@ sub MTIME ($;$)
 #
 # Create a stringified version of an object -- assumed to be a blessed
 # hash ref, whose values are either scalars or arrays.  The format is
-# __CLASS\nobjectclass\nTAG1\n[DATA1a DATA1b DATA1c]\n...TAGn\nDATAn\n
-# Where data represents an array it is transformed into a space
-# separated list enclosed in [square brackets].  Implicit assumption:
-# filenames do not contains any of the following characters: space \n.
+# __CLASS objectclass\nTAG1\0DATA1a\0DATA1b\0DATA1c]\n...TAGn DATAn
+# Where data represents an array it is transformed into a null
+# separated list.  Implicit assumption: filenames do not contains any
+# of the following characters: \0 \n.
 #
 sub freeze ($)
 {
-    my $self = shift;
-    my $string;
-
-    $string = "__CLASS\n" . ref($self) . "\n";
+    my $self   = shift;
+    my $string = '';
 
     for my $k ( keys %{$self} ) {
         if ( ref( $self->{$k} ) eq 'ARRAY' ) {
 
-            # Array valued item
-            $string .= "$k\n" . join( ' ', @{ $self->{$k} } ) . "\n";
+            # Array valued item: Add trailing null as marker
+            $string .= "$k\n" . join( "\000", @{ $self->{$k} } ) . "\000";
         } else {
 
             # Scalar valued item
-            $string .= "$k\n$self->{$k}\n";
+            $string .= "$k\n$self->{$k}";
         }
+        $string .= "\n";
     }
+    $string .= "__CLASS\n" . ref($self);    # Make sure last value is not null
+
     return $string;
 }
 
 #
 # Take a stringified object and turn it back into a full object
 #
-sub thaw ($)
+sub thaw ($$)
 {
-    my $caller = shift;    # Unused
+    my $caller = shift;                     # Unused
     my $string = shift;
     my $class;
     my $self;
@@ -141,13 +142,13 @@ sub thaw ($)
         return undef;
     }
 
-    $class = $self->{__CLASS};
-    delete $self->{__CLASS};
+    $class = delete $self->{__CLASS};
 
     for my $k ( keys %{$self} ) {
-        next unless $self->{$k} =~ m/ /;
+        next unless $self->{$k} =~ m/\000/;
 
-        $self->{$k} = [ split( ' ', $self->{$k} ) ];
+        # split throws away trailing null fields.
+        $self->{$k} = [ split( /\000/, $self->{$k} ) ];
     }
     return bless $self, $class;
 }
@@ -160,7 +161,7 @@ sub _sort_unique ($)
 {
     my %seen;
 
-    return [ sort grep { !$seen{$_}++ } @{shift} ];
+    return [ sort grep { !$seen{$_}++ } @{ +shift } ];
 }
 
 #

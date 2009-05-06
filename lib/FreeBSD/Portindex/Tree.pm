@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.76 2009-05-04 14:44:06 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.77 2009-05-06 01:56:19 matthew Exp $
 #
 
 #
@@ -42,6 +42,8 @@ use warnings;
 use BerkeleyDB;    # BDB version 2, 3, 4, 41, 42, 43, 44, 45, 46
 
 use FreeBSD::Portindex::TreeObject;
+use FreeBSD::Portindex::Port;
+use FreeBSD::Portindex::Category;
 use FreeBSD::Portindex::Config qw{counter};
 
 our $VERSION       = '2.2';    # Release
@@ -177,7 +179,7 @@ sub insert ($$)
     my $tree_object = shift;
     my $origin;
 
-    return undef unless $tree_object->ISA('FreeBSD::Portindex::TreeObject');
+    return undef unless $tree_object->isa('FreeBSD::Portindex::TreeObject');
 
     $origin = $tree_object->ORIGIN();
 
@@ -231,8 +233,8 @@ sub get ($$)
     if ( exists $self->{LIVE_PORTS}->{$origin} ) {
         $tree_object = $self->{LIVE_PORTS}->{$origin};
     } elsif ( exists $self->{PORTS}->{$origin} ) {
-        $tree_object = FreeBSD::Portindex::TreeObject->thaw(
-            $self->{LIVE_PORTS}->{$origin} );
+        $tree_object =
+          FreeBSD::Portindex::TreeObject->thaw( $self->{PORTS}->{$origin} );
         $self->{LIVE_PORTS}->{$origin} = $tree_object;
     }
     return $tree_object;
@@ -423,7 +425,7 @@ sub make_describe($$)
         # A category Makefile
         $port = FreeBSD::Portindex::Category->new_from_make_vars( \%make_vars );
     }
-    $self->insert( $path, $port );
+    $self->insert($port);
     return $port;
 }
 

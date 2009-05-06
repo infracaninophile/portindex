@@ -27,14 +27,14 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.59 2009-05-04 14:44:06 matthew Exp $
+# @(#) $Id: Config.pm,v 1.60 2009-05-06 01:56:19 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
 
 package FreeBSD::Portindex::Config;
 
-require 5.8.3;
+require 5.008_003;
 
 use strict;
 use warnings;
