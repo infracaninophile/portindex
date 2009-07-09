@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: TreeObject.pm,v 1.2 2009-05-06 01:56:19 matthew Exp $
+# @(#) $Id: TreeObject.pm,v 1.3 2009-07-09 06:55:32 matthew Exp $
 #
 
 #
@@ -55,9 +55,8 @@ our @EXPORT  = qw(_sort_unique);
 #
 sub new ($@)
 {
-    my $caller = shift;
-    my $class  = ref($caller) || $caller;
-    my %args   = @_;
+    my $class = shift;
+    my %args  = @_;
     my $self;
 
     die "$0: error instantiating $class object -- ORIGIN missing\n"
@@ -173,7 +172,7 @@ sub sort_unique ($$)
     my $slot = shift;
     my %seen;
 
-    if ( $self->{$slot} && ref( $self->{$slot} ) eq 'ARRAY' ) {
+    if ( ref( $self->{$slot} ) eq 'ARRAY' ) {
         $self->{$slot} = _sort_unique $self->{$slot};
     }
     return $self;

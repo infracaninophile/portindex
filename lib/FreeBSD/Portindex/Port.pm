@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.62 2009-05-06 01:56:19 matthew Exp $
+# @(#) $Id: Port.pm,v 1.63 2009-07-09 06:55:32 matthew Exp $
 #
 
 #
@@ -52,9 +52,8 @@ our %pkgnamecache;      # Remember all of the package names we've output
 
 sub new ($@)
 {
-    my $caller = shift;
-    my $class  = ref($caller) || $caller;
-    my %args   = @_;
+    my $class = shift;
+    my %args  = @_;
     my $self;
 
     $self = $class->SUPER::new(%args);
@@ -88,7 +87,7 @@ sub new ($@)
 #
 sub new_from_make_vars ($$$$)
 {
-    my $caller              = shift;
+    my $class               = shift;
     my $args                = shift;
     my $makefile_locations  = shift;
     my $makefile_exceptions = shift;
@@ -167,7 +166,7 @@ sub new_from_make_vars ($$$$)
       _depends_list( $origin, $pkgname, 'LIB_DEPENDS', $args->{LIB_DEPENDS} );
     return undef unless defined $lib_depends;
 
-    $self = $caller->new(
+    $self = $class->new(
         PKGNAME         => $pkgname,
         ORIGIN          => $origin,
         STUFF           => $stuff,
@@ -307,11 +306,11 @@ sub _depends_list($$$$)
     # what we want.  Note: some of these fields can be empty.  See
     # math/asymptote BUILD_DEPENDS for example.
 
-    @deps = split /\s+/, $deplist;    # =~ m{\s*[^\s:]*:([^\s:]+)(?::\S+)?}g );
+    @deps = split /\s+/, $deplist;
 
     foreach my $arg (@deps) {
         next
-          unless $arg;                # Leading whitespace causes a null element
+          unless $arg;    # Leading whitespace causes a null element
 
         $arg =~ s/^[^:]*:([^\s:]+)(?::\S+)?$/$1/;
         $arg = _clean $arg;

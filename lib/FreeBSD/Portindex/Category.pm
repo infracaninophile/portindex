@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Category.pm,v 1.23 2009-05-06 01:56:19 matthew Exp $
+# @(#) $Id: Category.pm,v 1.24 2009-07-09 06:55:32 matthew Exp $
 #
 
 #
@@ -55,9 +55,8 @@ our @ISA     = ('FreeBSD::Portindex::TreeObject');
 #
 sub new ($@)
 {
-    my $caller = shift;
-    my $class  = ref($caller) || $caller;
-    my %args   = @_;
+    my $class = shift;
+    my %args  = @_;
     my $self;
 
     $self = $class->SUPER::new(%args);
@@ -79,8 +78,8 @@ sub new ($@)
 #
 sub new_from_make_vars ($$)
 {
-    my $caller = shift;
-    my $args   = shift;
+    my $class = shift;
+    my $args  = shift;
 
     my $origin;
     my @subdirs;
@@ -88,7 +87,7 @@ sub new_from_make_vars ($$)
     $origin = $args->{'.CURDIR'};
     @subdirs = map { "$origin/$_" } split ' ', $args->{SUBDIR};
 
-    return $caller->new( ORIGIN => $origin, SUBDIRS => \@subdirs );
+    return $class->new( ORIGIN => $origin, SUBDIRS => \@subdirs );
 }
 
 # Accessor methods: Only SUBDIRS to deal with

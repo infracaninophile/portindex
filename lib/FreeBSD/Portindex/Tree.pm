@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.77 2009-05-06 01:56:19 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.78 2009-07-09 06:55:32 matthew Exp $
 #
 
 #
@@ -39,7 +39,8 @@ package FreeBSD::Portindex::Tree;
 
 use strict;
 use warnings;
-use BerkeleyDB;    # BDB version 2, 3, 4, 41, 42, 43, 44, 45, 46
+use BerkeleyDB;
+use Scalar::Util qw(blessed);
 
 use FreeBSD::Portindex::TreeObject;
 use FreeBSD::Portindex::Port;
@@ -51,9 +52,8 @@ our $CACHE_VERSION = '2.2';    # Earliest binary compat version
 
 sub new ($@)
 {
-    my $caller = shift;
-    my $class  = ref($caller) || $caller;
-    my %args   = @_;
+    my $class = shift;
+    my %args  = @_;
     my $self;
     my $portscachefile  = $::Config{CacheFilename};
     my $cachewascreated = 0;
@@ -89,9 +89,9 @@ sub new ($@)
     delete $args{-Env};
 
     # Tie the PORTS hashes to our cache file -- a DB btree file.  Keep
-    # two sets of data in this objects in this cache -- the PORTS
-    # data, plus the CATEGORY.  PORTS objects contain the data about
-    # master/slave relationships (the MAKEFILE_LIST and the
+    # various FreeBSD::Portindex::TreeObject objects in this cache --
+    # primarily the PORTS data, plus the CATEGORY.  Also contains the
+    # data about master/slave relationships (the MAKEFILE_LIST and the
     # MASTER_PORT stuff).
 
     tie %{ $self->{PORTS} }, 'BerkeleyDB::Btree',
@@ -179,7 +179,9 @@ sub insert ($$)
     my $tree_object = shift;
     my $origin;
 
-    return undef unless $tree_object->isa('FreeBSD::Portindex::TreeObject');
+    return undef
+      unless blessed($tree_object)
+          && $tree_object->isa('FreeBSD::Portindex::TreeObject');
 
     $origin = $tree_object->ORIGIN();
 
@@ -301,7 +303,7 @@ sub _scan_makefiles($$;$)
     # other IO error (undef); success (new object reference)
 
     $port = $self->make_describe($path);
-    if ( defined $port ) {
+    if ( blessed $port ) {
         if ( $port->isa("FreeBSD::Portindex::Port") ) {
 
             # This is a port makefile, not a category one.
@@ -563,7 +565,7 @@ sub category_match ($$)
 
     $port = $self->get($origin);
 
-    return ( defined $port && $port->isa("FreeBSD::Portindex::Category") );
+    return ( blessed $port && $port->isa("FreeBSD::Portindex::Category") );
 }
 
 #
@@ -589,7 +591,7 @@ sub category_check ($$$)
     # Sometimes a deleted port may be mixed up with a category.
     # Filter out those cases.
 
-    if ( defined $newcat && $newcat->isa("FreeBSD::Portindex::Category") ) {
+    if ( blessed $newcat && $newcat->isa("FreeBSD::Portindex::Category") ) {
         $comm = $oldcat->comm($newcat);
 
         if ( @{ $comm->[0] } || @{ $comm->[2] } ) {
@@ -622,7 +624,7 @@ sub accumulate_dependencies($)
       if ( $::Config{Verbose} );
     for my $port ( values %{ $self->{LIVE_PORTS} } ) {
         $port->accumulate_dependencies( $self->{LIVE_PORTS}, 0, \$counter )
-          if ( ref($port)
+          if ( blessed $port
             && $port->isa("FreeBSD::Portindex::Port") );
     }
     print STDERR "<${counter}>\n" if ( $::Config{Verbose} );
@@ -648,14 +650,14 @@ sub print_index($*)
         next
           if ( $origin eq '__CACHE_VERSION' );
 
-        if (   $self->{LIVE_PORTS}->{$origin}
+        if ( blessed $self->{LIVE_PORTS}->{$origin}
             && $self->{LIVE_PORTS}->{$origin}->isa("FreeBSD::Portindex::Port") )
         {
 
             if ( $::Config{Strict} ) {
                 ( $parentorigin = $origin ) =~ s@/[^/]*$@@;
 
-                if (   $self->{LIVE_PORTS}->{$parentorigin}
+                if ( blessed $self->{LIVE_PORTS}->{$parentorigin}
                     && $self->{LIVE_PORTS}->{$parentorigin}
                     ->isa("FreeBSD::Portindex::Category")
                     && $self->{LIVE_PORTS}->{$parentorigin}
