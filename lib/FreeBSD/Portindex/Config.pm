@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.60 2009-05-06 01:56:19 matthew Exp $
+# @(#) $Id: Config.pm,v 1.61 2009-08-02 13:55:29 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -77,6 +77,7 @@ sub read_config ($)
         PortsDir            => $ENV{PORTSDIR} || '/usr/ports',
         PropagationDelay    => 3600,                                    # 1 hour
         ScrubEnvironment    => 0,
+        ShLibs              => 0,
         Strict              => 1,
         TimestampFilename   => "$::pkgname-timestamp",
         UbiquitousMakefiles => [ "Mk/bsd.port.mk", "/etc/make.conf", ],
@@ -96,6 +97,7 @@ sub read_config ($)
       (
         'output=s'        => \$config->{Output},
         'crunch-white|W!' => \$config->{CrunchWhitespace},
+        'shlibs|S!'       => \$config->{ShLibs},
         'strict!'         => \$config->{Strict},
       ) if ( $0 eq 'portindex' );
     push @optargs, (
@@ -220,6 +222,7 @@ Current Configuration:
   PortsDir (cache-init, cache-update, find-updated) $config->{PortsDir}
   PropagationDelay (cache-update) ................. $config->{PropagationDelay}
   ScrubEnvironment (cache-init, cache-update) ..... $config->{ScrubEnvironment}
+  ShLibs (portindex) .............................. $config->{ShLibs}
   Strict (portindex) .............................. $config->{Strict}
   TimestampFilename ............................... $config->{TimestampFilename}
   Verbose ......................................... $config->{Verbose}

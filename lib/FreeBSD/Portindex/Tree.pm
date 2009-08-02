@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.79 2009-08-02 13:29:41 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.80 2009-08-02 13:55:29 matthew Exp $
 #
 
 #
@@ -608,7 +608,7 @@ sub category_check ($$$)
 
 #
 # For all of the known ports (but not the categories), accumulate the
-# various dependencies as required for the INDEX file.  Assumes
+# various dependencies as required for the INDEX or SHLIB file.  Assumes
 # 'springtime' has been called to populate the LIVE_PORTS hash.  See
 # FreeBSD::Portindex::Port::accumulate_dependencies() for details.
 #
@@ -619,11 +619,47 @@ sub accumulate_dependencies($)
 {
     my $self    = shift;
     my $counter = 0;
+    my $whatdeps;
+    my $accumulate_deps;
+
+    # If printing INDEX:
+    # On output:
+    # EXTRACT_DEPENDS             <-- RUN_DEPENDS
+    # PATCH_DEPENDS               <-- RUN_DEPENDS
+    # FETCH_DEPENDS               <-- RUN_DEPENDS
+    # BUILD_DEPENDS + LIB_DEPENDS <-- RUN_DEPENDS
+    # RUN_DEPENDS   + LIB_DEPENDS <-- RUN_DEPENDS
+
+    my %index_deps = (
+        EXTRACT_DEPENDS => ["EXTRACT_DEPENDS"],
+        PATCH_DEPENDS   => ["PATCH_DEPENDS"],
+        FETCH_DEPENDS   => ["FETCH_DEPENDS"],
+        BUILD_DEPENDS   => [ "BUILD_DEPENDS", "LIB_DEPENDS" ],
+        RUN_DEPENDS     => [ "RUN_DEPENDS", "LIB_DEPENDS" ],
+    );
+
+    # If printing SHLIBS:
+    # On output
+    # LIB_DEPENDS  <--- LIB_DEPENDS
+    my %shlib_deps = ( LIB_DEPENDS => ["LIB_DEPENDS"], );
+
+    if ( $::Config{ShLibs} == 0 ) {
+
+        # Printing INDEX
+        $whatdeps        = \%index_deps;
+        $accumulate_deps = "RUN_DEPENDS";
+    } else {
+
+        # Printing SHLIBS
+        $whatdeps        = \%shlib_deps;
+        $accumulate_deps = "LIB_DEPENDS";
+    }
 
     print STDERR "Accumulating dependency information: "
       if ( $::Config{Verbose} );
     for my $port ( values %{ $self->{LIVE_PORTS} } ) {
-        $port->accumulate_dependencies( $self->{LIVE_PORTS}, 0, \$counter )
+        $port->accumulate_dependencies( $self->{LIVE_PORTS}, $whatdeps,
+            $accumulate_deps, 0, \$counter )
           if ( blessed $port
             && $port->isa("FreeBSD::Portindex::Port") );
     }

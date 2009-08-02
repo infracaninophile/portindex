@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.64 2009-08-02 13:29:41 matthew Exp $
+# @(#) $Id: Port.pm,v 1.65 2009-08-02 13:55:29 matthew Exp $
 #
 
 #
@@ -378,33 +378,20 @@ for my $slot (
 # FreeBSD::Portindex::Port objects with accumulated dependencies in
 # the FreeBSD::Portindex::Tree structure.
 #
-sub accumulate_dependencies ($$$;$)
+sub accumulate_dependencies ($$$$$;$)
 {
-    my $self     = shift;
-    my $allports = shift;
-    my $recdepth = shift;
-    my $counter  = shift;
-
-    # On output:
-    # EXTRACT_DEPENDS             <-- RUN_DEPENDS
-    # PATCH_DEPENDS               <-- RUN_DEPENDS
-    # FETCH_DEPENDS               <-- RUN_DEPENDS
-    # BUILD_DEPENDS + LIB_DEPENDS <-- RUN_DEPENDS
-    # RUN_DEPENDS   + LIB_DEPENDS <-- RUN_DEPENDS
-
-    my %dep = (
-        EXTRACT_DEPENDS => ["EXTRACT_DEPENDS"],
-        PATCH_DEPENDS   => ["PATCH_DEPENDS"],
-        FETCH_DEPENDS   => ["FETCH_DEPENDS"],
-        BUILD_DEPENDS   => [ "BUILD_DEPENDS", "LIB_DEPENDS" ],
-        RUN_DEPENDS     => [ "RUN_DEPENDS", "LIB_DEPENDS" ],
-    );
+    my $self           = shift;
+    my $allports       = shift;
+    my $whatdeps       = shift;
+    my $accumulate_dep = shift;
+    my $recdepth       = shift;
+    my $counter        = shift;
 
     unless ( $self->{DEPENDENCIES_ACCUMULATED} ) {
         $self->{DEPENDENCIES_ACCUMULATED} = 1;    # Accumulation in progress
 
       DEPEND:
-        for my $whatdep ( keys %dep ) {
+        for my $whatdep ( keys %{$whatdeps} ) {
             my %seen = ();
 
             for my $wd ( @{ $dep{$whatdep} } ) {
@@ -415,8 +402,10 @@ sub accumulate_dependencies ($$$;$)
                 if ( defined $allports->{$dep}
                     && $allports->{$dep}->can("accumulate_dependencies") )
                 {
-                    $allports->{$dep}
-                      ->accumulate_dependencies( $allports, $recdepth + 1 );
+                    $allports->{$dep}->accumulate_dependencies(
+                        $allports,       $whatdeps,
+                        $accumulate_dep, $recdepth + 1
+                    );
                 } else {
                     warn "$0:", $self->{ORIGIN}, " (", $self->{PKGNAME},
                       ") $whatdep on \'$dep\' not recognised as a port\n"
@@ -426,7 +415,7 @@ sub accumulate_dependencies ($$$;$)
             }
 
             for my $dep ( keys %seen ) {
-                grep { $seen{$_}++ } @{ $allports->{$dep}->{RUN_DEPENDS} };
+                grep { $seen{$_}++ } @{ $allports->{$dep}->{$accumulate_dep} };
             }
             $self->{$whatdep} = [ sort keys %seen ];
         }
@@ -490,7 +479,7 @@ sub print_shlibs($*;$)
 
     print $fh $self->{PKGNAME}, '|';
     print $fh $self->{ORIGIN},  '|';
-    print $fh join( ' ', sort @{ $self->{LIB_DEPENDS} } ), "\n";
+    print $fh join( ' ', @{ $self->{LIB_DEPENDS} } ), "\n";
 
     counter( \%::Config, $counter );
     return $self;
