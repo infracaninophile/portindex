@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.63 2009-07-09 06:55:32 matthew Exp $
+# @(#) $Id: Port.pm,v 1.64 2009-08-02 13:29:41 matthew Exp $
 #
 
 #
@@ -444,7 +444,7 @@ sub accumulate_dependencies ($$$;$)
 #
 # Print out one line of the INDEX file
 #
-sub print ($*;$)
+sub print_index ($*;$)
 {
     my $self     = shift;
     my $fh       = shift;
@@ -473,6 +473,24 @@ sub print ($*;$)
     print $fh $self->_chase_deps( $allports, 'EXTRACT_DEPENDS' ), '|';
     print $fh $self->_chase_deps( $allports, 'PATCH_DEPENDS' ),   '|';
     print $fh $self->_chase_deps( $allports, 'FETCH_DEPENDS' ),   "\n";
+
+    counter( \%::Config, $counter );
+    return $self;
+}
+
+#
+# Print out one line of the SHLIBS file
+#
+sub print_shlibs($*;$)
+{
+    my $self     = shift;
+    my $fh       = shift;
+    my $allports = shift;
+    my $counter  = shift;
+
+    print $fh $self->{PKGNAME}, '|';
+    print $fh $self->{ORIGIN},  '|';
+    print $fh join( ' ', sort @{ $self->{LIB_DEPENDS} } ), "\n";
 
     counter( \%::Config, $counter );
     return $self;

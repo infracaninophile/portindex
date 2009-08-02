@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Tree.pm,v 1.78 2009-07-09 06:55:32 matthew Exp $
+# @(#) $Id: Tree.pm,v 1.79 2009-08-02 13:29:41 matthew Exp $
 #
 
 #
@@ -664,7 +664,7 @@ sub print_index($*)
                     ->is_known_subdir($origin) )
                 {
                     $self->{LIVE_PORTS}->{$origin}
-                      ->print( $fh, $self->{LIVE_PORTS}, \$counter );
+                      ->print_index( $fh, $self->{LIVE_PORTS}, \$counter );
                 } else {
                     warn "$0: $origin is not referenced from the ",
                       "$parentorigin category -- not added to INDEX\n"
@@ -674,11 +674,38 @@ sub print_index($*)
 
                 # Not strict...
                 $self->{LIVE_PORTS}->{$origin}
-                  ->print( $fh, $self->{LIVE_PORTS}, \$counter );
+                  ->print_index( $fh, $self->{LIVE_PORTS}, \$counter );
             }
         }
     }
     print STDERR "<${counter}>\n"
+      if ( $::Config{Verbose} );
+
+    return $self;
+}
+
+#
+# Print out SHLIBS file sorted by ORIGIN using $tree hash: uses the
+# ordering implicit in the BerkelyDB Btree as above.
+#
+sub print_shlibs($*)
+{
+    my $self    = shift;
+    my $fh      = shift;
+    my $counter = 0;
+
+    print STDERR "Writing SHLIBS file: "
+      if ( $::Config{Verbose} );
+
+    foreach my $origin ( keys %{ $self->{PORTS} } ) {
+        if ( blessed $self->{LIVE_PORTS}->{$origin}
+            && $self->{LIVE_PORTS}->{$origin}->isa("FreeBSD::Portindex::Port") )
+        {
+            $self->{LIVE_PORTS}->{$origin}
+              ->print_shlibs( $fh, $self->{LIVE_PORTS}, \$counter );
+        }
+    }
+    print STDERR "<$counter}>\n"
       if ( $::Config{Verbose} );
 
     return $self;
