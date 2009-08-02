@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Port.pm,v 1.65 2009-08-02 13:55:29 matthew Exp $
+# @(#) $Id: Port.pm,v 1.66 2009-08-02 13:58:19 matthew Exp $
 #
 
 #
@@ -394,7 +394,7 @@ sub accumulate_dependencies ($$$$$;$)
         for my $whatdep ( keys %{$whatdeps} ) {
             my %seen = ();
 
-            for my $wd ( @{ $dep{$whatdep} } ) {
+            for my $wd ( @{ $whatdeps{$whatdep} } ) {
                 grep { $seen{$_}++ } @{ $self->{$wd} };
             }
 
