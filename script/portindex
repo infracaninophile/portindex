@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: portindex,v 1.37 2009-05-04 14:44:16 matthew Exp $
+# @(#) $Id: portindex,v 1.38 2009-08-02 14:04:20 matthew Exp $
 #
 # Process the cached 'make describe' output to produce an INDEX file
 # Should be a lot quicker than 'make index'.
@@ -66,8 +66,12 @@ MAIN:
     $tree->springtime();
 
     $tree->accumulate_dependencies();
-
-    $tree->print_index(*STDOUT);
+	
+	unless ( $Config{ShLibs} == 1 ) {
+		$tree->print_index(*STDOUT);
+	} else {
+		$tree->print_shlibs(*STDOUT);
+	}
 }
 
 __END__
