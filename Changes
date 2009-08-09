@@ -198,3 +198,13 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 
         - Switch from ExtUtils::MakeMaker to Module::Install for
 	  generating Makefile etc.
+
+2.2 Sun Aug  9 16:30:00 2009
+
+        - Implement a '-L' switch to portindex to generate an
+          alternative SHLIBS index
+
+        - Make objects to be serialiazed and stored in the cache all
+	  inherit from a generic 'TreeObject' type.
+
+	- RELEASE_2_2

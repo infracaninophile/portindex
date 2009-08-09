@@ -1,5 +1,5 @@
 
-   $Id: TODO,v 1.7 2009-04-26 09:58:57 matthew Exp $
+   $Id: TODO,v 1.8 2009-08-09 15:35:00 matthew Exp $
 
    TO DO
    -----
@@ -40,4 +40,4 @@
 
   * LIBRARY_DEPENDS -- store this data as returned from port Makefiles
     so that we have a handy way of knowing what ports need updating as a
-    result of a shlib bump.
+    result of a shlib bump. DONE
