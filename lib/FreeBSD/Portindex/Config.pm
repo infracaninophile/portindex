@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.61 2009-08-02 13:55:29 matthew Exp $
+# @(#) $Id: Config.pm,v 1.62 2009-08-09 15:29:29 matthew Exp $
 #
 
 # Utility functions used by the various portindex programs.
@@ -97,7 +97,7 @@ sub read_config ($)
       (
         'output=s'        => \$config->{Output},
         'crunch-white|W!' => \$config->{CrunchWhitespace},
-        'shlibs|S!'       => \$config->{ShLibs},
+        'shlibs|L!'       => \$config->{ShLibs},
         'strict!'         => \$config->{Strict},
       ) if ( $0 eq 'portindex' );
     push @optargs, (

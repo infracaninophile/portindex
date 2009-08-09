@@ -1,6 +1,6 @@
 # This file contains -*- perl -*- code
 #
-# @(#) $Id: portindex.cfg.sample,v 1.16 2007-08-05 16:35:55 matthew Exp $
+# @(#) $Id: portindex.cfg.sample,v 1.17 2009-08-09 15:29:21 matthew Exp $
 #
 # Sample configuration file for portindex, cache-init, cache-update
 #
@@ -101,6 +101,15 @@
 ## true.  Default no or if value set to false.
 
 # $::Config{ScrubEnvironment} = 0;
+
+## portindex (-L, --shlibs, --noshlibs): Boolean -- when enabled,
+## instead of generating an INDEX file, generate an alternative format
+## 'SHLIBS' file showing the cumulative dependencies of each port on
+## other ports that provide shared libraries.  In principle, given
+## this data it is easy to work out what ports need a PORTREVISION
+## bump when a shared library ABI is updated.
+
+# $::Config{ShLibs} = 0;
 
 ## portindex (-S, --strict, --nostrict): Boolean -- currently 'strict'
 ## mode enforces the check that ports are referenced from their
