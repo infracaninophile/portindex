@@ -1,6 +1,6 @@
 # Before `make install' is performed this script should be runnable with
 # `make test'. After `make install' it should work as `perl FreeBSD-Portindex.t'
-# @(#) $Id: FreeBSD-Portindex.t,v 1.1 2004-11-01 11:55:57 matthew Exp $
+# @(#) $Id$
 
 #########################
 

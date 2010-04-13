@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: cache-update,v 1.41 2009-05-04 14:44:16 matthew Exp $
+# @(#) $Id$
 #
 
 # Generate an incremental update to the cached 'make describe' output,

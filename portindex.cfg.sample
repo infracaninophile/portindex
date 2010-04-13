@@ -1,6 +1,6 @@
 # This file contains -*- perl -*- code
 #
-# @(#) $Id: portindex.cfg.sample,v 1.17 2009-08-09 15:29:21 matthew Exp $
+# @(#) $Id$
 #
 # Sample configuration file for portindex, cache-init, cache-update
 #

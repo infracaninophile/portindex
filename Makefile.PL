@@ -1,4 +1,4 @@
-# @(#) $Id: Makefile.PL,v 1.7 2009-05-04 10:29:50 matthew Exp $
+# @(#) $Id$
 use inc::Module::Install;
 
 name			'FreeBSD-Portindex';

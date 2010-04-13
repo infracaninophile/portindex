@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 
 #
-# @(#) $Id: Config.pm,v 1.62 2009-08-09 15:29:29 matthew Exp $
+# @(#) $Id$
 #
 
 # Utility functions used by the various portindex programs.

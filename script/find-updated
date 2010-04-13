@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# @(#) $Id: find-updated,v 1.20 2009-05-04 14:44:16 matthew Exp $
+# @(#) $Id$
 #
 
 # Scan through the ports tree, and pick out all ports containing files
