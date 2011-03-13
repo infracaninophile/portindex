@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2008 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2011 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
