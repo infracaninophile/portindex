@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright (c) 2004-2009 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2011 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -39,7 +39,7 @@
 #
 # Running the make_describe method on a candidate port will chdir to
 # that path and run 'make -V ...' in the given directory, from which
-# is extracts the values of a number of make variables.  Internal
+# it extracts the values of a number of make variables.  Internal
 # processing of that output generates the equivalent of running 'make
 # describe' (but we have saved executing a whole perl process for each
 # port) and that is converted into a FreeBSD::Portindex::Port or a
@@ -57,7 +57,8 @@
 # port is updated.  Ditto if an included Makefile is updated -- all
 # ports including it are added to the list of update candidates.  (If
 # it happens that /usr/ports/Mk/bsd.port.mk is updated, that means do
-# every port)
+# every port).  Also detects changes to OPTIONS settings by the
+# timestamp on files under /var/db/ports/
 
 use strict;
 use warnings;
