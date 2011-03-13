@@ -1,0 +1,332 @@
+#!/usr/bin/perl -w
+
+# Copyright (c) 2011 Matthew Seaman. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+#    1.  Redistributions of source code must retain the above
+#        copyright notice, this list of conditions and the following
+#        disclaimer.
+#
+#    2.  Redistributions in binary form must reproduce the above
+#        copyright notice, this list of conditions and the following
+#        disclaimer in the documentation and/or other materials
+#        provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+# USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+# OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+
+# @(#) $Id$
+#
+# Print out the dependency tree for the ports named on the command
+# line, recursing through dependencies in their turn.
+
+use strict;
+use warnings;
+
+use FreeBSD::Portindex::Config qw(read_config);
+use FreeBSD::Portindex::Tree;
+
+our %Config;
+our $pkgname = 'portindex';
+
+our %depends_types = (
+    E => 'EXTRACT_DEPENDS',
+    P => 'PATCH_DEPENDS',
+    F => 'FETCH_DEPENDS',
+    B => 'BUILD_DEPENDS',
+    R => 'RUN_DEPENDS',
+    L => 'LIB_DEPENDS',
+);
+our @d_types = (qw{E P F B R L});
+
+$0 =~ s@.*/@@;    # Script name for error messages
+
+sub pretty_flags($)
+{
+    my $rawflags = shift;
+    my $flags    = "";
+
+    for my $d (@d_types) {
+        if ( $rawflags =~ m/${d}/ ) {
+            $flags .= $d;
+        } else {
+            $flags .= '.';
+        }
+    }
+    return $flags;
+}
+
+sub list_dependencies($$$$);    # Prototype aids recursion.
+
+sub list_dependencies($$$$)
+{
+    my $tree   = shift;
+    my $origin = shift;
+    my $level  = shift;
+    my $flags  = shift;
+
+    my $port = $tree->get("$Config{PortsDir}/$origin");
+    my %dependencies;
+
+    if ( !defined $port ) {
+
+        # No such port exists
+        warn "$0: $origin Error.  Data not found in cache.\n";
+        return;
+    }
+
+    $flags = pretty_flags($flags);
+    print "[$flags] ", "- " x $level, $port->PKGNAME(), " ($origin)\n";
+
+    # Recurse through this port's dependencies
+
+    for my $deptype (@d_types) {
+        no strict qw{refs};
+
+        my $dtype = $depends_types{$deptype};
+
+        for my $dep ( @{ $port ->${dtype} } ) {
+            if ( length $dep ) {
+                $dependencies{$dep} .= $deptype;
+            } 
+	    #else {
+            #    warn "$0: Empty $dtype dependency in list for $origin\n";
+            #}
+        }
+    }
+    $level++;
+    for my $deporigin ( sort keys %dependencies ) {
+        ( $origin = $deporigin ) =~ s,^.+/ports/,,;
+        list_dependencies( $tree, $origin, $level, $dependencies{$deporigin} );
+    }
+    return;
+}
+
+MAIN:
+{
+    my $tree;
+
+    read_config( \%Config );
+
+    $tree = FreeBSD::Portindex::Tree->new(
+        -Env           => { -Home => $Config{CacheDir}, },
+        -CacheFilename => $Config{CacheFilename},
+    );
+
+    # Redirect STDOUT if required
+    if ( $Config{Output} ne '-' ) {
+        open STDOUT, '>', $Config{Output}
+          or die "$0: Can't open output $Config{Output} -- $!\n";
+    }
+
+    # For each of the package paths on the command line, print
+    # out the dependency tree (recursively)
+
+    for my $portorigin (@ARGV) {
+        if ( $portorigin =~ m,^[^/], ) {
+
+            # Strip any mention of
+            $portorigin =~ s@^.*/?ports/@@;
+        }
+        list_dependencies( $tree, $portorigin, 0, '' );
+        print "\n";
+    }
+}
+
+__END__
+
+=head1 NAME
+
+portdepends -- list the dependency tree for a port
+
+=head1 SYNOPSIS
+
+B<portdepends> [B<-h>] [B<-c> F<dir>] [B<-C> F<file>] [B<-o> F<file>] F<dir>...
+
+=head1 DESCRIPTION
+
+B<portdepends> lists the dependency tree for each port origin listed
+on the command line.  Dependency relationships are read from the
+B<portindex> cache file.  Dependencies are displayed in a recursive
+fashion, without flattening any of the lists as is done in generating
+an INDEX file: this leads to a great deal of repetition and much
+longer output than might be expected for some ports.
+
+Output lines are tagged with a label showing which of the six possible
+dependency types exist between each port and its immediate superior:
+
+=over 8
+
+=item E
+
+EXTRACT_DEPENDS
+
+=item P
+
+PATCH_DEPENDS
+
+=item F
+
+FETCH_DEPENDS
+
+=item B
+
+BUILD_DEPENDS
+
+=item R
+
+RUN_DEPENDS
+
+=item L
+
+LIB_DEPENDS
+
+=back
+
+Dependency levels are indicated by indenting the dependent port name
+inseting a string ". " for each level.   
+
+=head2 Configuration Files
+
+B<portdepends> shares configuration files with B<portindex>,
+B<cache-init>, B<cache-update> and B<find-updated>.  Any configuration
+settings are taken from the following locations, where the later items
+on this list override the earlier:
+
+=over 8
+
+=item *
+
+Built-in settings from the B<FreeBSD::Portindex::Config> perl module.
+
+=item *
+
+The system wide configuration file F</usr/local/etc/portindex.cfg>
+
+=item *
+
+The per-user configuration file F<${HOME}/.portindexrc> (ignored if
+the program is being run by the superuser)
+
+=item *
+
+The local configuration file, found in the current working directory
+of the B<portdepends> process F<./.portindexrc> (ignored if the program
+is being run by the superuser)
+
+=item *
+
+The program command line.
+
+=back
+
+All of the configuration files are optional.  A summary of the
+resultant configuration options including the effect of any command
+line settings is printed as part of the help text when B<portindex> is
+invoked with the C<-h> option.
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<-h>
+
+=item B<--help>
+
+Print a brief usage message and a summary of the configuration
+settings after command line processing and then exit.
+
+=item B<-c> F<dir>
+
+=item B<--cache-dir>=F<dir>
+
+The location of the B<portindex> data cache, by default
+F</var/db/portindex>.
+
+=item B<-C> F<file>
+
+=item B<--cache-file>=F<file>
+
+Berkeley DB Btree file containing the cached and post-processed values
+of a number of C<make> variables for all of the ports in the tree.
+This file name will be relative to the cache directory (B<-c> option
+above) unless an absolute path is given.  Defaults to
+F<portindex-cache.db>.
+
+=item B<-o> F<file>
+
+=item B<--output>=F<file>
+
+Filename to write the generated dependency information to.  Setting this to
+F<-> means output to STDOUT, which is the default.
+	
+=back
+
+=head1 FILES
+
+=over 16
+
+=item F</usr/ports>
+
+The default ports directory.
+
+=item F</var/db/portindex>
+
+The location of the data cache.
+
+=item F<portindex-cache.db>
+
+Btree file containing cached C<make describe> output.
+
+=item F<__db.001>, F<__db.002>, F<__db.003>
+
+Files used as part of the internal workings of BerkeleyDB, for memory
+pool management and DB locking.  Will be recreated automatically if
+deleted.
+
+=item F<portindex-timestamp>
+
+This file contains the last time and date that the cache was updated
+or modified.
+
+=item F</usr/local/etc/portindex.cfg>
+
+System-wide configuration file.
+
+=item F<${HOME}/.portindexrc>
+
+Per-user configuration file
+
+=item F<./.portindexrc>
+
+Local configuration file
+
+=back
+
+=head1 SEE ALSO
+
+L<poertindex(7)>, L<cache-init(1)>, L<cache-update(1)>,
+L<find-updated(1)>, L<cvsup(1)>, L<ports(7)>
+
+=head1 BUGS
+
+There are bound to be some somewhere.
+
+=cut
+
+#
+# That's All Folks!
+#

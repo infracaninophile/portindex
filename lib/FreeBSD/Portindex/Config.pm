@@ -69,7 +69,8 @@ sub read_config ($)
         CacheFilename    => "$::pkgname-cache.db",
         CrunchWhitespace => 0,
         EndemicMakefiles =>
-          [ "Mk/bsd.sites.mk", "Mk/bsd.commands.mk", "Mk/bsd.destdir.mk" ],
+          [ "Mk/bsd.sites.mk", "Mk/bsd.commands.mk", "Mk/bsd.destdir.mk",
+	    "Mk/bsd.licenses.mk", "Mk/bsd.licenses.db.mk" ],
         Format              => 'cvsup-output,options',
         Input               => '-',
         Output              => '-',
@@ -93,6 +94,10 @@ sub read_config ($)
         'verbose!'           => \$config->{Verbose},
         'warnings!'          => \$config->{Warnings},
     );
+    push @optargs,
+      (
+        'output=s'        => \$config->{Output},
+      ) if ( $0 eq 'portdepends' );
     push @optargs,
       (
         'output=s'        => \$config->{Output},

@@ -44,7 +44,9 @@
 
 # $::Config{EndemicMakefiles} = [ 'Mk/bsd.sites.mk',
 #                                 'Mk/bsd.commands.mk',
-#                                 'Mk/bsd.destdir.mk' ];
+#                                 'Mk/bsd.destdir.mk',
+#                                 'Mk/bsd.licenses.mk',
+#                                 'Mk/bsd.licenses.db.mk' ];
 
 ## cache-update (--input-format, --format): What format to treat the
 ## input data as.  Choices are:
