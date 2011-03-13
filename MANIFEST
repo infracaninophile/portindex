@@ -21,6 +21,7 @@ README
 script/cache-init
 script/cache-update
 script/find-updated
+script/portdepends
 script/portindex
 t/FreeBSD-Portindex.t
 TODO
