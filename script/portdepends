@@ -221,16 +221,18 @@ portdepends -- list the dependency tree for a port
 
 =head1 SYNOPSIS
 
-B<portdepends> [B<-h>] [B<-c> F<dir>] [B<-C> F<file>] [B<-o> F<file>] F<dir>...
+B<portdepends> [B<-hs>] [B<-c> F<dir>] [B<-C> F<file>] [B<-o> F<file>] F<dir>...
 
 =head1 DESCRIPTION
 
 B<portdepends> lists the dependency tree for each port origin listed
 on the command line.  Dependency relationships are read from the
-B<portindex> cache file.  Dependencies are displayed in a recursive
-fashion, without flattening any of the lists as is done in generating
-an INDEX file: this leads to a great deal of repetition and much
-longer output than might be expected for some ports.
+B<portindex> cache file.  By default dependencies are displayed in a
+recursive fashion, without flattening any of the lists as is done in
+generating an INDEX file: this leads to a great deal of repetition and
+much longer output than might be expected for some ports. To suppress
+the repetition of dependency subtrees, use the B<--shorten-output> or
+B<-s> command line option.
 
 Output lines are tagged with a label showing which of the six possible
 dependency types exist between each port and its immediate superior:
@@ -315,6 +317,20 @@ invoked with the C<-h> option.
 
 Print a brief usage message and a summary of the configuration
 settings after command line processing and then exit.
+
+=item B<-s>
+
+=item B<--shorten-output>
+
+Visit each dependency node only once.  Avoids repetetive printing of
+various dependency sub-trees, and can reduce the amount of output a
+great deal for complicated dependency trees.
+
+=item B<--noshorten-output>
+
+Print out the full dependency tree, recursing into each sub-branch as
+many times as there are dependency links to that branch.  This is the
+default.
 
 =item B<-c> F<dir>
 
