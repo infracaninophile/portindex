@@ -97,17 +97,18 @@ sub read_config ($)
         'verbose!'           => \$config->{Verbose},
         'warnings!'          => \$config->{Warnings},
     );
-    push @optargs, (
-        'output=s' => \$config->{Output},
-        'shorten-output|s=s  => \$confg->{ShortenOutput},
+    push @optargs,
+      (
+        'output=s'          => \$config->{Output},
+        'shorten-output|s!' => \$config->{ShortenOutput},
       ) if ( $0 eq ' portdepends ' );
     push @optargs,
       (
-        ' output = s'        => \$config->{Output},
+        'output=s'        => \$config->{Output},
         'crunch-white|W!' => \$config->{CrunchWhitespace},
         'shlibs|L!'       => \$config->{ShLibs},
         'strict!'         => \$config->{Strict},
-    ) if ( $0 eq 'portindex' );
+      ) if ( $0 eq 'portindex' );
     push @optargs, (
         'input|i=s'  => \$config->{Input},
         'format|f=s' => sub {
