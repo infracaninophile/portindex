@@ -101,7 +101,7 @@ sub read_config ($)
       (
         'output=s'          => \$config->{Output},
         'shorten-output|s!' => \$config->{ShortenOutput},
-      ) if ( $0 eq ' portdepends ' );
+      ) if ( $0 eq 'portdepends' );
     push @optargs,
       (
         'output=s'        => \$config->{Output},
