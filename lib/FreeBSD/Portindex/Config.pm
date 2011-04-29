@@ -68,9 +68,11 @@ sub read_config ($)
         CacheDir         => "/var/db/$::pkgname",
         CacheFilename    => "$::pkgname-cache.db",
         CrunchWhitespace => 0,
-        EndemicMakefiles =>
-          [ "Mk/bsd.sites.mk", "Mk/bsd.commands.mk", "Mk/bsd.destdir.mk",
-	    "Mk/bsd.licenses.mk", "Mk/bsd.licenses.db.mk" ],
+        EndemicMakefiles => [
+            "Mk/bsd.sites.mk",   "Mk/bsd.commands.mk",
+            "Mk/bsd.destdir.mk", "Mk/bsd.licenses.mk",
+            "Mk/bsd.licenses.db.mk"
+        ],
         Format              => 'cvsup-output,options',
         Input               => '-',
         Output              => '-',
@@ -78,6 +80,7 @@ sub read_config ($)
         PortsDir            => $ENV{PORTSDIR} || '/usr/ports',
         PropagationDelay    => 3600,                                    # 1 hour
         ScrubEnvironment    => 0,
+        ShortenOutput       => 0,
         ShLibs              => 0,
         Strict              => 1,
         TimestampFilename   => "$::pkgname-timestamp",
@@ -94,17 +97,17 @@ sub read_config ($)
         'verbose!'           => \$config->{Verbose},
         'warnings!'          => \$config->{Warnings},
     );
+    push @optargs, (
+        'output=s' => \$config->{Output},
+        'shorten-output|s=s  => \$confg->{ShortenOutput},
+      ) if ( $0 eq ' portdepends ' );
     push @optargs,
       (
-        'output=s'        => \$config->{Output},
-      ) if ( $0 eq 'portdepends' );
-    push @optargs,
-      (
-        'output=s'        => \$config->{Output},
+        ' output = s'        => \$config->{Output},
         'crunch-white|W!' => \$config->{CrunchWhitespace},
         'shlibs|L!'       => \$config->{ShLibs},
         'strict!'         => \$config->{Strict},
-      ) if ( $0 eq 'portindex' );
+    ) if ( $0 eq 'portindex' );
     push @optargs, (
         'input|i=s'  => \$config->{Input},
         'format|f=s' => sub {
@@ -227,6 +230,7 @@ Current Configuration:
   PortsDir (cache-init, cache-update, find-updated) $config->{PortsDir}
   PropagationDelay (cache-update) ................. $config->{PropagationDelay}
   ScrubEnvironment (cache-init, cache-update) ..... $config->{ScrubEnvironment}
+  ShortenOutput (portdepends) ..................... $config->{ShortenOutput}
   ShLibs (portindex) .............................. $config->{ShLibs}
   Strict (portindex) .............................. $config->{Strict}
   TimestampFilename ............................... $config->{TimestampFilename}

@@ -104,6 +104,12 @@
 
 # $::Config{ScrubEnvironment} = 0;
 
+## portdepends (-s, --shorten-output): Boolean -- when enabled,
+## instead of an exhaustive listing of the dependency tree, only
+## visit each node at most one time.
+
+# $::Config{ShortenOutput} = 0;
+
 ## portindex (-L, --shlibs, --noshlibs): Boolean -- when enabled,
 ## instead of generating an INDEX file, generate an alternative format
 ## 'SHLIBS' file showing the cumulative dependencies of each port on

@@ -101,8 +101,9 @@ sub list_dependencies($$$$)
         for my $dep ( @{ $port ->${dtype} } ) {
             if ( length $dep ) {
                 $dependencies{$dep} .= $deptype;
-            } 
-	    #else {
+            }
+
+            #else {
             #    warn "$0: Empty $dtype dependency in list for $origin\n";
             #}
         }
@@ -111,6 +112,68 @@ sub list_dependencies($$$$)
     for my $deporigin ( sort keys %dependencies ) {
         ( $origin = $deporigin ) =~ s,^.+/ports/,,;
         list_dependencies( $tree, $origin, $level, $dependencies{$deporigin} );
+    }
+    return;
+}
+
+#
+# Rather than printing an exhaustive trace and retrace of the
+# dependency tree, just print each part once.  This can make a big
+# difference to the amount of output: millions of lines less in some
+# cases.
+#
+sub list_dependencies_short($$$$$);    # Prototype aids recursion.
+
+sub list_dependencies_short($$$$$)
+{
+    my $tree   = shift;
+    my $origin = shift;
+    my $level  = shift;
+    my $flags  = shift;
+    my $seen   = shift;
+
+    my $port = $tree->get("$Config{PortsDir}/$origin");
+    my %dependencies;
+
+    if ( !defined $port ) {
+
+        # No such port exists
+        warn "$0: $origin Error.  Data not found in cache.\n";
+        return;
+    }
+
+    # Short circuit this branch if its somewhere we've already been
+    if ( defined $seen->{ $port->PKGNAME() } ) {
+        return;
+    } else {
+        $seen->{ $port->PKGNAME() }++;
+    }
+
+    $flags = pretty_flags($flags);
+    print "[$flags] ", "- " x $level, $port->PKGNAME(), " ($origin)\n";
+
+    # Recurse through this port's dependencies
+
+    for my $deptype (@d_types) {
+        no strict qw{refs};
+
+        my $dtype = $depends_types{$deptype};
+
+        for my $dep ( @{ $port ->${dtype} } ) {
+            if ( length $dep ) {
+                $dependencies{$dep} .= $deptype;
+            }
+
+            #else {
+            #    warn "$0: Empty $dtype dependency in list for $origin\n";
+            #}
+        }
+    }
+    $level++;
+    for my $deporigin ( sort keys %dependencies ) {
+        ( $origin = $deporigin ) =~ s,^.+/ports/,,;
+        list_dependencies_short( $tree, $origin, $level,
+            $dependencies{$deporigin}, $seen );
     }
     return;
 }
@@ -141,7 +204,11 @@ MAIN:
             # Strip any mention of
             $portorigin =~ s@^.*/?ports/@@;
         }
-        list_dependencies( $tree, $portorigin, 0, '' );
+        if ( $Config{ShortenOutput} ) {
+            list_dependencies_short( $tree, $portorigin, 0, '', {} );
+        } else {
+            list_dependencies( $tree, $portorigin, 0, '' );
+        }
         print "\n";
     }
 }
