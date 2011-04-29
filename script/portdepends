@@ -142,15 +142,26 @@ sub list_dependencies_short($$$$$)
         return;
     }
 
+    $flags = pretty_flags($flags);
+    print "[$flags] ", "- " x $level, $port->PKGNAME(), " ($origin)";
+
     # Short circuit this branch if its somewhere we've already been
     if ( defined $seen->{ $port->PKGNAME() } ) {
+        if ( $seen->{ $port->PKGNAME() } > 0 ) {
+
+            # Port has dependencies, but we've been here before
+            print " ...\n";
+        } else {
+
+            # Been here before, but port is a leaf port with no dependencies
+            print "\n";
+        }
         return;
     } else {
-        $seen->{ $port->PKGNAME() }++;
-    }
 
-    $flags = pretty_flags($flags);
-    print "[$flags] ", "- " x $level, $port->PKGNAME(), " ($origin)\n";
+        # First time here
+        print "\n";
+    }
 
     # Recurse through this port's dependencies
 
@@ -169,7 +180,10 @@ sub list_dependencies_short($$$$$)
             #}
         }
     }
+
+    $seen->{ $port->PKGNAME() } = keys %dependencies;
     $level++;
+
     for my $deporigin ( sort keys %dependencies ) {
         ( $origin = $deporigin ) =~ s,^.+/ports/,,;
         list_dependencies_short( $tree, $origin, $level,
