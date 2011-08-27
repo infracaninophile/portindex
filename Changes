@@ -218,3 +218,15 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 
         - RELEASE_2_3
 
+2.4 Sun Aug 27 18:26:00 2011
+
+        - Allow shortening 'portdepends' output.  Printing out the 
+          entire graph can result in literally millions of lines of
+          output for complicated dependency trees.
+
+	- Bugfix: RUN_DEPENDS column was missing many
+          dependencies. Append LIB_DEPENDS to BUILD_DEPENDS and
+          RUN_DEPENDS at cache-init / cache-update time, rather than
+          while running portindex.  Reported by Doug Barton.
+
+        - Bump VERSION and CACHE_VERSION to 2.4 

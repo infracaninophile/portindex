@@ -81,7 +81,7 @@ sub new ($@)
 # extracted from the port Makefile.  This effectively duplicates the
 # code in /usr/ports/Mk/bsd.ports.mk used to produce the 'make
 # describe' output. Instead of invoking perl repeatedly for all
-# 17,000+ ports, we just invoke it once, plus we cache all the results
+# 22,000+ ports, we just invoke it once, plus we cache all the results
 # of testing that referenced port directories exist -- so this should
 # be a bit more efficient.
 #
@@ -138,6 +138,13 @@ sub new_from_make_vars ($$$$)
     # If any of the dependencies aren't there, then don't generate
     # a Port object.
 
+    # Of all the FOO_DEPENDS variables, one is not like all the
+    # others.  EXTRACT, PATCH, BUILD, RUN all list the dependencies
+    # needed at various phases of port building.  LIB lists
+    # dependencies that happen to be shlibs.  It's an annoying
+    # inconsistency.  As a consequence, the LIB_DEPENDS list needs to
+    # be added to the RUN_DEPENDS and BUILD_DEPEND lists.
+
     $extract_depends =
       _depends_list( $origin, $pkgname, 'EXTRACT_DEPENDS',
         $args->{EXTRACT_DEPENDS} );
@@ -153,18 +160,19 @@ sub new_from_make_vars ($$$$)
         $args->{FETCH_DEPENDS} );
     return undef unless defined $fetch_depends;
 
-    $build_depends =
-      _depends_list( $origin, $pkgname, 'BUILD_DEPENDS',
-        $args->{BUILD_DEPENDS} );
-    return undef unless defined $build_depends;
-
-    $run_depends =
-      _depends_list( $origin, $pkgname, 'RUN_DEPENDS', $args->{RUN_DEPENDS} );
-    return undef unless defined $run_depends;
-
     $lib_depends =
       _depends_list( $origin, $pkgname, 'LIB_DEPENDS', $args->{LIB_DEPENDS} );
     return undef unless defined $lib_depends;
+
+    $build_depends =
+      _depends_list( $origin, $pkgname, 'BUILD_DEPENDS',
+        $args->{BUILD_DEPENDS} . " " . $args->{LIB_DEPENDS} );
+    return undef unless defined $build_depends;
+
+    $run_depends =
+      _depends_list( $origin, $pkgname, 'RUN_DEPENDS',
+        $args->{RUN_DEPENDS} . " " . $args->{LIB_DEPENDS} );
+    return undef unless defined $run_depends;
 
     $self = $class->new(
         PKGNAME         => $pkgname,
@@ -391,12 +399,10 @@ sub accumulate_dependencies ($$$$$;$)
         $self->{DEPENDENCIES_ACCUMULATED} = 1;    # Accumulation in progress
 
       DEPEND:
-        for my $whatdep ( keys %{$whatdeps} ) {
+        for my $whatdep ( @{$whatdeps} ) {
             my %seen = ();
 
-            for my $wd ( @{ $whatdeps->{$whatdep} } ) {
-                grep { $seen{$_}++ } @{ $self->{$wd} };
-            }
+            grep { $seen{$_}++ } @{ $self->{$whatdep} };
 
             for my $dep ( keys %seen ) {
                 if ( defined $allports->{$dep}

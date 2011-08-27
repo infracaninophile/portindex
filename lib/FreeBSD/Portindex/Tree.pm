@@ -47,8 +47,8 @@ use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::Category;
 use FreeBSD::Portindex::Config qw{counter};
 
-our $VERSION       = '2.3';    # Release
-our $CACHE_VERSION = '2.2';    # Earliest binary compat version
+our $VERSION       = '2.4';    # Release
+our $CACHE_VERSION = '2.4';    # Earliest binary compat version
 
 sub new ($@)
 {
@@ -624,34 +624,35 @@ sub accumulate_dependencies($)
 
     # If printing INDEX:
     # On output:
-    # EXTRACT_DEPENDS             <-- RUN_DEPENDS
-    # PATCH_DEPENDS               <-- RUN_DEPENDS
-    # FETCH_DEPENDS               <-- RUN_DEPENDS
-    # BUILD_DEPENDS + LIB_DEPENDS <-- RUN_DEPENDS
-    # RUN_DEPENDS   + LIB_DEPENDS <-- RUN_DEPENDS
+    # EXTRACT_DEPENDS <-- RUN_DEPENDS
+    # PATCH_DEPENDS   <-- RUN_DEPENDS
+    # FETCH_DEPENDS   <-- RUN_DEPENDS
+    # BUILD_DEPENDS   <-- RUN_DEPENDS (Includes LIB_DEPENDS already)
+    # RUN_DEPENDS     <-- RUN_DEPENDS (Includes LIB_DEPENDS already)
 
-    my %index_deps = (
-        EXTRACT_DEPENDS => ["EXTRACT_DEPENDS"],
-        PATCH_DEPENDS   => ["PATCH_DEPENDS"],
-        FETCH_DEPENDS   => ["FETCH_DEPENDS"],
-        BUILD_DEPENDS   => [ "BUILD_DEPENDS", "LIB_DEPENDS" ],
-        RUN_DEPENDS     => [ "RUN_DEPENDS", "LIB_DEPENDS" ],
-    );
+    my $index_deps = [
+        qw{
+          EXTRACT_DEPENDS
+          PATCH_DEPENDS
+          FETCH_DEPENDS
+          BUILD_DEPENDS
+          RUN_DEPENDS }
+    ];
 
     # If printing SHLIBS:
     # On output
     # LIB_DEPENDS  <--- LIB_DEPENDS
-    my %shlib_deps = ( LIB_DEPENDS => ["LIB_DEPENDS"], );
+    my $shlib_deps = ["LIB_DEPENDS"];
 
     if ( $::Config{ShLibs} == 0 ) {
 
         # Printing INDEX
-        $whatdeps        = \%index_deps;
+        $whatdeps        = $index_deps;
         $accumulate_deps = "RUN_DEPENDS";
     } else {
 
         # Printing SHLIBS
-        $whatdeps        = \%shlib_deps;
+        $whatdeps        = $shlib_deps;
         $accumulate_deps = "LIB_DEPENDS";
     }
 
