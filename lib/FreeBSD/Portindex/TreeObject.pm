@@ -51,7 +51,7 @@ our @EXPORT  = qw(_sort_unique);
 # All TreeObjects have an ORIGIN -- the filesystem path of the
 # underlying item, and the key used to look up the object from the
 # Tree.  They also have a MTIME -- the last time the object was
-# modified.
+# instantiated.
 #
 sub new ($@)
 {
@@ -78,7 +78,6 @@ sub ORIGIN ($;$)
 
     if (@_) {
         $self->{ORIGIN} = shift;
-        $self->MTIME(1);
     }
     return $self->{ORIGIN};
 }
@@ -97,7 +96,7 @@ sub MTIME ($;$)
 #
 # Create a stringified version of an object -- assumed to be a blessed
 # hash ref, whose values are either scalars or arrays.  The format is
-# __CLASS objectclass\nTAG1\0DATA1a\0DATA1b\0DATA1c]\n...TAGn DATAn
+# TAG1\0DATA1a\0DATA1b\0DATA1c\n...TAGn\nDATAn...__CLASS\nobjectclass
 # Where data represents an array it is transformed into a null
 # separated list.  Implicit assumption: filenames do not contains any
 # of the following characters: \0 \n.
@@ -107,15 +106,13 @@ sub freeze ($)
     my $self   = shift;
     my $string = '';
 
-    for my $k ( keys %{$self} ) {
-        if ( ref( $self->{$k} ) eq 'ARRAY' ) {
+    while ( my ( $k, $v ) = each %{$self} ) {
+        if ( ref($v) eq 'ARRAY' ) {
 
             # Array valued item: Add trailing null as marker
-            $string .= "$k\n" . join( "\000", @{ $self->{$k} } ) . "\000";
+            $string .= "$k\n" . join( "\000", @{$v} ) . "\000";
         } else {
-
-            # Scalar valued item
-            $string .= "$k\n$self->{$k}";
+            $string .= "$k\n$v";    # Scalar valued item
         }
         $string .= "\n";
     }
@@ -143,24 +140,24 @@ sub thaw ($$)
 
     $class = delete $self->{__CLASS};
 
-    for my $k ( keys %{$self} ) {
-        next unless $self->{$k} =~ m/\000/;
+    while ( my ( $k, $v ) = each %{$self} ) {
+        next unless $v =~ m/\000/;
 
         # split throws away trailing null fields.
-        $self->{$k} = [ split( /\000/, $self->{$k} ) ];
+        $self->{$k} = [ split( /\000/, $v ) ];
     }
     return bless $self, $class;
 }
 
 #
-# Not a method call. Utility function to sort and unique the array
-# referenced by the argument
+# Not a method call. Utility function returns sorted and uniqued
+# version of the array referenced by the argument
 #
 sub _sort_unique ($)
 {
     my %seen;
 
-    return [ sort grep { !$seen{$_}++ } @{ +shift } ];
+    return sort grep { !$seen{$_}++ } @{ +shift };
 }
 
 #
@@ -173,7 +170,7 @@ sub sort_unique ($$)
     my %seen;
 
     if ( ref( $self->{$slot} ) eq 'ARRAY' ) {
-        $self->{$slot} = _sort_unique $self->{$slot};
+        $self->{$slot} = [ _sort_unique $self->{$slot} ];
     }
     return $self;
 }

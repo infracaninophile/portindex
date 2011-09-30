@@ -62,12 +62,10 @@ sub new ($@)
     $self = $class->SUPER::new(%args);
 
     # SUBDIRS should be an array ref, but can be empty or absent
-    $args{SUBDIRS} = []
-      unless ( defined $args{SUBDIRS} );
     die "$0: error instantiating $class object -- SUBDIRS not an array ref\n"
       unless ref $args{SUBDIRS} eq 'ARRAY';
 
-    $self->{SUBDIRS} = _sort_unique $args{SUBDIRS};
+    $self->{SUBDIRS} = [ _sort_unique $args{SUBDIRS} ];
 
     return $self;
 }
@@ -81,25 +79,21 @@ sub new_from_make_vars ($$)
     my $class = shift;
     my $args  = shift;
 
-    my $origin;
-    my @subdirs;
-
-    $origin = $args->{'.CURDIR'};
-    @subdirs = map { "$origin/$_" } split ' ', $args->{SUBDIR};
+    my $origin = $args->{'.CURDIR'};
+    my @subdirs = map { "$origin/$_" } split ' ', $args->{SUBDIR};
 
     return $class->new( ORIGIN => $origin, SUBDIRS => \@subdirs );
 }
 
-# Accessor methods: Only SUBDIRS to deal with
+# Accessor methods (ARRAYS): Only SUBDIRS to deal with
 sub SUBDIRS ($;@)
 {
     my $self = shift;
 
     if (@_) {
-        $self->{SUBDIRS} = _sort_unique [@_];
-        $self->MTIME(1);
+        $self->{SUBDIRS} = [ _sort_unique \@_ ];
     }
-    return $self->{SUBDIRS};
+    return @{ $self->{SUBDIRS} };
 }
 
 #
@@ -116,10 +110,10 @@ sub comm($$)
     my %comm;
 
     if ( defined $other && $other->can("SUBDIRS") ) {
-        for my $sd ( @{ $self->{SUBDIRS} } ) {
+        for my $sd ( $self->SUBDIRS() ) {
             $comm{$sd}--;
         }
-        for my $sd ( @{ $other->{SUBDIRS} } ) {
+        for my $sd ( $other->SUBDIRS() ) {
             $comm{$sd}++;
         }
         for my $sd ( sort keys %comm ) {
@@ -139,7 +133,7 @@ sub is_known_subdir($$)
     my $self   = shift;
     my $origin = shift;
 
-    for my $sd ( @{ $self->{SUBDIRS} } ) {
+    for my $sd ( $self->SUBDIRS() ) {
         return 1
           if ( $sd eq $origin );    # Found it
     }

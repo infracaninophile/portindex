@@ -97,7 +97,7 @@ sub add_to_updates_list ($$$$)
         $updates->{$pdpart}++
           if defined $pdpart;
     }
-    map { $updates->{$_}++ } @{ $tree->makefile_list($name) };
+    map { $updates->{$_}++ } $tree->makefile_list($name);
     return $updates;
 }
 
@@ -254,7 +254,7 @@ sub check_port_options ($$$)
         if ( -r $options ) {
             $mtime = ( stat(_) )[9];
 
-            foreach my $origin ( @{ $tree->makefile_list($options) } ) {
+            foreach my $origin ( $tree->makefile_list($options) ) {
                 $port = $tree->get($origin);
 
                 if ( $port->can("MTIME") && $port->MTIME() < $mtime ) {
@@ -368,7 +368,7 @@ MAIN:
     # from the ports read from STDIN, plus the slaves of any masters
     # listed.
 
-    map { $updates{$_}++ } map { @{ $tree->masterslave($_) } } keys %updates;
+    map { $updates{$_}++ } map { $tree->masterslave($_) } keys %updates;
 
     # Mark the time at which the updates start
 

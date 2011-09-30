@@ -312,7 +312,7 @@ sub _scan_makefiles($$;$)
         } else {
 
             # A category -- process the subdirs, recursively
-            for my $subdir ( @{ $port->SUBDIRS() } ) {
+            for my $subdir ( $port->SUBDIRS() ) {
                 $self->_scan_makefiles( $subdir, $counter );
             }
         }
@@ -498,15 +498,15 @@ sub init_masterslave($)
 }
 
 #
-# Return array ref with list of slave ports of the master given in the
-# arg -- or a ref to an empty array if no slave ports are known.
+# Return array with list of slave ports of the master given in the
+# arg -- empty if none are known.
 #
 sub masterslave($$)
 {
     my $self   = shift;
     my $origin = shift;
 
-    return $self->{MASTERSLAVE}->{$origin} || [];
+    return @{ $self->{MASTERSLAVE}->{$origin} || [] };
 }
 
 #
@@ -548,7 +548,7 @@ sub makefile_list($$)
     my $self = shift;
     my $name = shift;
 
-    return $self->{MAKEFILE_LIST}->{$name} || [];
+    return @{ $self->{MAKEFILE_LIST}->{$name} || [] };
 }
 
 #

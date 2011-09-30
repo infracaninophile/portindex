@@ -61,17 +61,17 @@ sub new ($@)
     die "$0: error instantiating $class object -- PKGNAME missing\n"
       unless defined $args{PKGNAME};
 
-    $self->{PKGNAME}         = $args{PKGNAME};
-    $self->{STUFF}           = $args{STUFF};
-    $self->{EXTRACT_DEPENDS} = _sort_unique $args{EXTRACT_DEPENDS};
-    $self->{PATCH_DEPENDS}   = _sort_unique $args{PATCH_DEPENDS};
-    $self->{FETCH_DEPENDS}   = _sort_unique $args{FETCH_DEPENDS};
-    $self->{BUILD_DEPENDS}   = _sort_unique $args{BUILD_DEPENDS};
-    $self->{RUN_DEPENDS}     = _sort_unique $args{RUN_DEPENDS};
-    $self->{LIB_DEPENDS}     = _sort_unique $args{LIB_DEPENDS};
-    $self->{WWW}             = $args{WWW};
-    $self->{MASTER_PORT}     = $args{MASTER_PORT};
-    $self->{MAKEFILE_LIST}   = _sort_unique $args{MAKEFILE_LIST};
+    $self->PKGNAME( $args{PKGNAME} );
+    $self->STUFF( $args{STUFF} );
+    $self->EXTRACT_DEPENDS( $args{EXTRACT_DEPENDS} );
+    $self->PATCH_DEPENDS( $args{PATCH_DEPENDS} );
+    $self->FETCH_DEPENDS( $args{FETCH_DEPENDS} );
+    $self->BUILD_DEPENDS( $args{BUILD_DEPENDS} );
+    $self->RUN_DEPENDS( $args{RUN_DEPENDS} );
+    $self->LIB_DEPENDS( $args{LIB_DEPENDS} );
+    $self->WWW( $args{WWW} );
+    $self->MASTER_PORT( $args{MASTER_PORT} );
+    $self->MAKEFILE_LIST( $args{MAKEFILE_LIST} );
 
     return $self;
 }
@@ -93,8 +93,8 @@ sub new_from_make_vars ($$$$)
     my $makefile_exceptions = shift;
     my $self;
 
-    my $pkgname;
     my $origin;
+    my $pkgname;
     my $stuff;
     my $build_depends;
     my $run_depends;
@@ -119,8 +119,9 @@ sub new_from_make_vars ($$$$)
     # incremental updating.  MASTER_PORT is usually null, and where it
     # is set is given as a relative path to PORTSDIR
 
-    $pkgname = $args->{PKGNAME};
     $origin  = $args->{'.CURDIR'};
+    $pkgname = $args->{PKGNAME};
+
     ( $descr, $www ) = _www_descr( $args->{DESCR} );
 
     # [*] COMMENT doesn't need quoting to get it through several
@@ -267,7 +268,7 @@ sub _master_port($$$)
 # Another non-method sub: grep through the list of
 # makefiles given in .MAKEFILE_LIST and strip out what it does
 # not make sense to try and process.  Return the list of interesting
-# Makefiles as array reference
+# Makefiles an array
 #
 sub _makefile_list ($$$)
 {
@@ -286,7 +287,6 @@ sub _makefile_list ($$$)
         grep { !$seen{$_}++ && m/$keepers/ && !m/$discards/ }
           map { _clean $_ }
           split( ' ', $makefile_list )
-
     ];
 }
 
@@ -314,18 +314,19 @@ sub _depends_list($$$$)
     # what we want.  Note: some of these fields can be empty.  See
     # math/asymptote BUILD_DEPENDS for example.
 
-    @deps = split /\s+/, $deplist;
-
-    foreach my $arg (@deps) {
+    foreach my $arg ( split /\s+/, $deplist ) {
         next
           unless $arg;    # Leading whitespace causes a null element
 
         $arg =~ s/^[^:]*:([^\s:]+)(?::\S+)?$/$1/;
         $arg = _clean $arg;
 
-        unless ( $directorycache{$arg} ) {
+        if ( $directorycache{$arg} ) {
+            push @deps, $arg;
+        } else {
             if ( -d $arg ) {
                 $directorycache{$arg}++;
+                push @deps, $arg;
             } else {
                 warn "$0:${origin} ($pkgname) Error. $whatdep $arg ",
                   "-- dependency not found\n";
@@ -333,11 +334,7 @@ sub _depends_list($$$$)
             }
         }
     }
-    if ($errorflag) {
-        return undef;
-    } else {
-        return \@deps;
-    }
+    return $errorflag ? undef : \@deps;
 }
 
 #
@@ -351,14 +348,14 @@ for my $slot (qw(PKGNAME STUFF WWW DEPENDENCIES_ACCUMULATED MASTER_PORT)) {
 
         if (@_) {
             $self->{$slot} = shift;
-            $self->MTIME();
         }
         return $self->{$slot};
     };
 }
 
 #
-# Bulk creation of accessor methods -- ARRAYs.
+# Bulk creation of accessor methods -- ARRAYs.  These take references
+# to arrays but return arrays rather than array references.
 #
 for my $slot (
     qw(BUILD_DEPENDS RUN_DEPENDS EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS
@@ -371,11 +368,29 @@ for my $slot (
         my $self = shift;
 
         if (@_) {
-            $self->{$slot} = _sort_unique \@_;
-            $self->MTIME();
+            $self->{$slot} = [ _sort_unique +shift ];
         }
-        return $self->{$slot};
+        return @{ $self->{$slot} };
     };
+}
+
+#
+# Generic dependency accessor -- return array of the named type of
+# dependency
+#
+sub depends($$;$)
+{
+    my $self = shift;
+    my $slot = shift;
+
+    if ( ref( $self->{$slot} ) eq 'ARRAY' ) {
+        if (@_) {
+            $self->{$slot} = [ _sort_unique +shift ];
+        }
+        return @{ $self->{$slot} };
+    } else {
+        return ();
+    }
 }
 
 #
@@ -402,9 +417,9 @@ sub accumulate_dependencies ($$$$$;$)
         for my $whatdep ( @{$whatdeps} ) {
             my %seen = ();
 
-            grep { $seen{$_}++ } @{ $self->{$whatdep} };
+            for my $dep ( $self->depends($whatdep) ) {
+                $seen{$dep}++;
 
-            for my $dep ( keys %seen ) {
                 if ( defined $allports->{$dep}
                     && $allports->{$dep}->can("accumulate_dependencies") )
                 {
@@ -413,17 +428,22 @@ sub accumulate_dependencies ($$$$$;$)
                         $accumulate_dep, $recdepth + 1
                     );
                 } else {
-                    warn "$0:", $self->{ORIGIN}, " (", $self->{PKGNAME},
+                    warn "$0:", $self->ORIGIN(), " (", $self->PKGNAME(),
                       ") $whatdep on \'$dep\' not recognised as a port\n"
                       if $::Config{Warnings};
                     next DEPEND;
                 }
             }
 
-            for my $dep ( keys %seen ) {
-                grep { $seen{$_}++ } @{ $allports->{$dep}->{$accumulate_dep} };
+            if ( keys %seen ) {
+                my @s = keys %seen;
+                for my $dep (@s) {
+                    for my $d ( $allports->{$dep}->depends($accumulate_dep) ) {
+                        $seen{$d}++;
+                    }
+                }
+                $self->depends( $whatdep, \@s );
             }
-            $self->{$whatdep} = [ sort keys %seen ];
         }
         $self->{DEPENDENCIES_ACCUMULATED} = 2;    # Accumulation done
     } elsif ( $self->{DEPENDENCIES_ACCUMULATED} == 1 ) {
@@ -459,8 +479,8 @@ sub print_index ($*;$)
     $stuff = $self->{STUFF};
     $stuff =~ s@\s+@ @g if ( $::Config{CrunchWhitespace} );
 
-    print $fh $self->{PKGNAME}, '|';
-    print $fh $self->{ORIGIN},  '|';
+    print $fh $self->PKGNAME(), '|';
+    print $fh $self->ORIGIN(),  '|';
     print $fh $stuff, '|';
     print $fh $self->_chase_deps( $allports, 'BUILD_DEPENDS' ), '|';
     print $fh $self->_chase_deps( $allports, 'RUN_DEPENDS' ),   '|';
@@ -483,9 +503,9 @@ sub print_shlibs($*;$)
     my $allports = shift;
     my $counter  = shift;
 
-    print $fh $self->{PKGNAME}, '|';
-    print $fh $self->{ORIGIN},  '|';
-    print $fh join( ' ', @{ $self->{LIB_DEPENDS} } ), "\n";
+    print $fh $self->PKGNAME(), '|';
+    print $fh $self->ORIGIN(),  '|';
+    print $fh join( ' ', $self->LIB_DEPENDS() ), "\n";
 
     counter( \%::Config, $counter );
     return $self;
@@ -503,11 +523,11 @@ sub _chase_deps($$$)
     my @dependencies;
 
     # This should be done earlier...
-    for my $origin ( @{ $self->{ ${dep} } } ) {
-        if ( defined $allports->{$origin}->{PKGNAME} ) {
-            push @dependencies, $allports->{$origin}->{PKGNAME};
+    for my $origin ( $self->depends( ${dep} ) ) {
+        if ( defined $allports->{$origin}->PKGNAME() ) {
+            push @dependencies, $allports->{$origin}->PKGNAME();
         } else {
-            warn "$0: ", $self->{PKGNAME},
+            warn "$0: ", $self->PKGNAME(),
               " No PKGNAME found for ($dep) $origin\n"
               if $::Config{Warnings};
         }

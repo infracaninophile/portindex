@@ -93,19 +93,9 @@ sub list_dependencies($$$$)
 
     # Recurse through this port's dependencies
 
-    for my $deptype (@d_types) {
-        no strict qw{refs};
-
-        my $dtype = $depends_types{$deptype};
-
-        for my $dep ( @{ $port ->${dtype} } ) {
-            if ( length $dep ) {
-                $dependencies{$dep} .= $deptype;
-            }
-
-            #else {
-            #    warn "$0: Empty $dtype dependency in list for $origin\n";
-            #}
+    while ( my ( $d, $dtype ) = each %depends_types ) {
+        for my $dep ( $port->depends($dtype) ) {
+            $dependencies{$dep} .= $d;
         }
     }
     $level++;
@@ -165,19 +155,9 @@ sub list_dependencies_short($$$$$)
 
     # Recurse through this port's dependencies
 
-    for my $deptype (@d_types) {
-        no strict qw{refs};
-
-        my $dtype = $depends_types{$deptype};
-
-        for my $dep ( @{ $port ->${dtype} } ) {
-            if ( length $dep ) {
-                $dependencies{$dep} .= $deptype;
-            }
-
-            #else {
-            #    warn "$0: Empty $dtype dependency in list for $origin\n";
-            #}
+    while ( my ( $d, $dtype ) = each %depends_types ) {
+        for my $dep ( $port->depends($dtype) ) {
+            $dependencies{$dep} .= $d;
         }
     }
 

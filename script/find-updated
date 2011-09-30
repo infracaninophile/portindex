@@ -78,7 +78,7 @@ sub look_for_updated_files ($$$$)
                 if ( -f _ && $mtime > $refmtime ) {
                     $is_updated++;
                     map { $updaters->{$_}++ }
-                      @{ $tree->makefile_list($File::Find::name) };
+                      $tree->makefile_list($File::Find::name);
 
                     warn "$0: ",
                       strftime( '%Y.%m.%d.%H.%M.%S', localtime($mtime) ),
