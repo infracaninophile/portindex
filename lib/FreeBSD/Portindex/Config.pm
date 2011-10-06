@@ -45,7 +45,7 @@ use Exporter qw(import);
 
 our @EXPORT_OK = qw(read_config update_timestamp get_timestamp
   compare_timestamps scrub_environment counter);
-our $VERSION = '2.4';    # Release
+our $VERSION = '2.5';    # Release
 
 # Config file and command line option handling.  The config data is
 # loaded from (in order): defaults built into this function, the
@@ -236,12 +236,12 @@ Current Configuration:
   CrunchWhitespace (portindex)..................... $config->{CrunchWhitespace}
   Format (cache-update) ........................... $config->{Format}
   Input (cache-update) ............................ $config->{Input}
-  Output (portindex, find-updated) ................ $config->{Output}
+  Output (portindex, portdepends, find-updated) ... $config->{Output}
+  OutputStyle (portdepends) ....................... $config->{OutputStyle}
   PortDBDir (cache-update) ........................ $config->{PortDBDir}
   PortsDir (cache-init, cache-update, find-updated) $config->{PortsDir}
   PropagationDelay (cache-update) ................. $config->{PropagationDelay}
   ScrubEnvironment (cache-init, cache-update) ..... $config->{ScrubEnvironment}
-  ShortenOutput (portdepends) ..................... $config->{ShortenOutput}
   ShLibs (portindex) .............................. $config->{ShLibs}
   Strict (portindex) .............................. $config->{Strict}
   TimestampFilename ............................... $config->{TimestampFilename}

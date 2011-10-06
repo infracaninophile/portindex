@@ -45,7 +45,7 @@ use FreeBSD::Portindex::TreeObject;
 use FreeBSD::Portindex::Config qw{counter};
 
 our @ISA     = ('FreeBSD::Portindex::TreeObject');
-our $VERSION = '2.2';                                # Release
+our $VERSION = '2.5';                                # Release
 
 our %directorycache;    # Remember all the directories we've ever seen
 our %pkgnamecache;      # Remember all of the package names we've output

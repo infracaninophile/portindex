@@ -46,7 +46,7 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '2.4';
+our $VERSION = '2.5';		# Release
 
 #
 # Graphs are essentially a list of nodes, and a list of edges
