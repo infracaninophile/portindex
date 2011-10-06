@@ -45,7 +45,7 @@ use Exporter qw(import);
 
 our @EXPORT_OK = qw(read_config update_timestamp get_timestamp
   compare_timestamps scrub_environment counter);
-our $VERSION = '2.2';    # Release
+our $VERSION = '2.4';    # Release
 
 # Config file and command line option handling.  The config data is
 # loaded from (in order): defaults built into this function, the
@@ -76,11 +76,11 @@ sub read_config ($)
         Format              => 'cvsup-output,options',
         Input               => '-',
         Output              => '-',
+        OutputStyle         => 'default',
         PortDBDir           => $ENV{PORT_DBDIR} || '/var/db/ports',
         PortsDir            => $ENV{PORTSDIR} || '/usr/ports',
         PropagationDelay    => 3600,                                    # 1 hour
         ScrubEnvironment    => 0,
-        ShortenOutput       => 0,
         ShLibs              => 0,
         Strict              => 1,
         TimestampFilename   => "$::pkgname-timestamp",
@@ -97,11 +97,21 @@ sub read_config ($)
         'verbose!'           => \$config->{Verbose},
         'warnings!'          => \$config->{Warnings},
     );
-    push @optargs,
-      (
-        'output=s'          => \$config->{Output},
-        'shorten-output|s!' => \$config->{ShortenOutput},
-      ) if ( $0 eq 'portdepends' );
+    push @optargs, (
+        'output=s'  => \$config->{Output},
+        'style|s=s' => sub {
+            my $optname  = shift;
+            my $optvalue = shift;
+
+            if ( $optvalue =~ m/^(g|graph)\Z/ ) {
+                $config->{OutputStyle} = 'graph';
+            } elsif ( $optvalue =~ m/^(s|short)\Z/ ) {
+                $config->{OutputStyle} = 'short';
+            } else {
+                $config->{OutputStyle} = 'default';
+            }
+        },
+    ) if ( $0 eq 'portdepends' );
     push @optargs,
       (
         'output=s'        => \$config->{Output},
@@ -211,7 +221,7 @@ sub read_config ($)
 sub show_config ($)
 {
     my $config = shift;
-    my $um_fmt = "  Ubiquitous Makefiles (cache-update, cache-init).. ";
+    my $um_fmt = "  Ubiquitous Makefiles (cache-update, cache-init) . ";
     my $em_fmt = "  Endemic Makefiles (cache-update, cache-init) .... ";
 
     print <<"E_O_CONFIG";

@@ -81,6 +81,15 @@
 
 # $::Config{PortDBDir} = $ENV{PORT_DBDIR} || '/var/db/ports';
 
+## portdepends (-s, --style {short|graph|default}): When set to
+## 'graph', output digraph code that can be fed into GraphViz to
+## generate a diagram of dependencies between ports.  When set to
+## 'short' instead of an exhaustive listing of the dependency tree,
+## only visit each node at most one time.  Any other setting results
+## in the default exhaustive long listing.
+
+# $::Config{OutputStyle} = 'default';
+
 ## cache-init, cache-update, find-updated (-p, --ports-dir): Base
 ## directory of the ports tree, same as the PORTSDIR environment
 ## variable.
@@ -103,12 +112,6 @@
 ## true.  Default no or if value set to false.
 
 # $::Config{ScrubEnvironment} = 0;
-
-## portdepends (-s, --shorten-output): Boolean -- when enabled,
-## instead of an exhaustive listing of the dependency tree, only
-## visit each node at most one time.
-
-# $::Config{ShortenOutput} = 0;
 
 ## portindex (-L, --shlibs, --noshlibs): Boolean -- when enabled,
 ## instead of generating an INDEX file, generate an alternative format

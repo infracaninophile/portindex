@@ -38,6 +38,7 @@ use warnings;
 
 use FreeBSD::Portindex::Config qw(read_config);
 use FreeBSD::Portindex::Tree;
+use FreeBSD::Portindex::GraphViz;
 
 our %Config;
 our $pkgname = 'portindex';
@@ -49,6 +50,14 @@ our %depends_types = (
     B => 'BUILD_DEPENDS',
     R => 'RUN_DEPENDS',
     L => 'LIB_DEPENDS',
+);
+our %depends_colours = (
+    E => 'Yellow',
+    P => 'Cyan',
+    F => 'Magenta',
+    B => 'Red',
+    R => 'Green',
+    L => 'Blue',
 );
 our @d_types = (qw{E P F B R L});
 
@@ -172,6 +181,64 @@ sub list_dependencies_short($$$$$)
     return;
 }
 
+#
+# Output a dependency graph suitable for feeding into GraphViz rather
+# than just a list of text output.
+#
+sub graph_dependencies($$$$$$);    # Prototype aids recursion.
+
+sub graph_dependencies($$$$$$)
+{
+    my $tree   = shift;
+    my $graph  = shift;
+    my $origin = shift;
+    my $level  = shift;
+    my $flags  = shift;
+    my $seen   = shift;
+
+    my $port = $tree->get("$Config{PortsDir}/$origin");
+    my %dependencies;
+
+    if ( !defined $port ) {
+
+        # No such port exists
+        warn "$0: $origin Error.  Data not found in cache.\n";
+        return;
+    }
+
+    # Short circuit this branch if its somewhere we've already been
+    if ( defined $seen->{ $port->PKGNAME() } ) {
+        return;
+    }
+
+    $graph->add_node( $origin, label => $port->PKGNAME() . "\n($origin)" );
+
+    # Recurse through this port's dependencies
+
+    while ( my ( $d, $dtype ) = each %depends_types ) {
+        for my $dep ( $port->depends($dtype) ) {
+            $dependencies{$dep} .= $d;
+        }
+    }
+
+    $seen->{ $port->PKGNAME() } = keys %dependencies;
+    $level++;
+
+    for my $deporigin ( sort keys %dependencies ) {
+        my $dorigin;
+        ( $dorigin = $deporigin ) =~ s,^.+/ports/,,;
+        graph_dependencies( $tree, $graph, $dorigin, $level,
+            $dependencies{$deporigin}, $seen );
+        $graph->add_edge(
+            $origin => $dorigin,
+            label   => $dependencies{$deporigin},
+            color   => join ':',
+            map { $depends_colours{$_} } split( //, $dependencies{$deporigin} ),
+        );
+    }
+    return;
+}
+
 MAIN:
 {
     my $tree;
@@ -198,7 +265,11 @@ MAIN:
             # Strip any mention of
             $portorigin =~ s@^.*/?ports/@@;
         }
-        if ( $Config{ShortenOutput} ) {
+        if ( $Config{OutputStyle} eq 'graph' ) {
+            my $graph = FreeBSD::Portindex::GraphViz->new();
+            graph_dependencies( $tree, $graph, $portorigin, 0, '', {} );
+            $graph->print;
+        } elsif ( $Config{OutputStyle} eq 'short' ) {
             list_dependencies_short( $tree, $portorigin, 0, '', {} );
         } else {
             list_dependencies( $tree, $portorigin, 0, '' );
@@ -215,52 +286,56 @@ portdepends -- list the dependency tree for a port
 
 =head1 SYNOPSIS
 
-B<portdepends> [B<-hs>] [B<-c> F<dir>] [B<-C> F<file>] [B<-o> F<file>] F<dir>...
+B<portdepends> [B<-h>] [B<-s> F<style>] [B<-c> F<dir>] [B<-C> F<file>] [B<-o> F<file>] F<dir>...
 
 =head1 DESCRIPTION
 
-B<portdepends> lists the dependency tree for each port origin listed
-on the command line.  Dependency relationships are read from the
-B<portindex> cache file.  By default dependencies are displayed in a
-recursive fashion, without flattening any of the lists as is done in
-generating an INDEX file: this leads to a great deal of repetition and
-much longer output than might be expected for some ports. To suppress
-the repetition of dependency subtrees, use the B<--shorten-output> or
-B<-s> command line option.
+B<portdepends> displays the dependency tree for each port origin
+listed on the command line.  Dependency relationships are read from
+the B<portindex> cache file.  By default dependencies are displayed
+textually, in a recursive fashion without flattening any of the lists
+as is done in generating an INDEX file: this leads to a great deal of
+repetition and much longer output than might be expected for some
+ports. To suppress the repetition of dependency subtrees, use the
+B<--style=short> or B<-s s> command line option. This visits each node
+in the dependency tree at most once.  For graphical output use the
+B<--style=graph> or B<-s g> option.  This generates canonical GraphViz
+format, which can be read into B<dot> to render the graph as an image.
 
-Output lines are tagged with a label showing which of the six possible
-dependency types exist between each port and its immediate superior:
+Output is tagged with a label showing which of the six possible
+dependency types exist between each port and its immediate superior.
+In addition edges in the graphical output are colour coded:
 
 =over 8
 
 =item E
 
-EXTRACT_DEPENDS
+EXTRACT_DEPENDS I<(yellow)>
 
 =item P
 
-PATCH_DEPENDS
+PATCH_DEPENDS I<(Cyan)>
 
 =item F
 
-FETCH_DEPENDS
+FETCH_DEPENDS I<(Magenta)>
 
 =item B
 
-BUILD_DEPENDS
+BUILD_DEPENDS I<(Red)>
 
 =item R
 
-RUN_DEPENDS
+RUN_DEPENDS I<(Green)>
 
 =item L
 
-LIB_DEPENDS
+LIB_DEPENDS I<(Blue)>
 
 =back
 
-Dependency levels are indicated by indenting the dependent port name
-inseting a string ". " for each level.   
+Dependency levels in textual output are indicated by indenting the
+dependent port name inseting a string "- " for each level.
 
 =head2 Configuration Files
 
@@ -312,19 +387,32 @@ invoked with the C<-h> option.
 Print a brief usage message and a summary of the configuration
 settings after command line processing and then exit.
 
-=item B<-s>
+=item B<-s> { short | s | graph | g | default }
 
-=item B<--shorten-output>
+=item B<--style> { short | ... }
+
+Choose the output style.
+
+=over 8
+
+=item B<short> or B<s>
 
 Visit each dependency node only once.  Avoids repetetive printing of
 various dependency sub-trees, and can reduce the amount of output a
 great deal for complicated dependency trees.
 
-=item B<--noshorten-output>
+=item B<graph> or B<g>
+
+Generate canonical GraphViz format suitable for rendering into an
+image by B<dot>
+
+=item B<default> or any other text
 
 Print out the full dependency tree, recursing into each sub-branch as
 many times as there are dependency links to that branch.  This is the
 default.
+
+=back
 
 =item B<-c> F<dir>
 
@@ -396,7 +484,8 @@ Local configuration file
 =head1 SEE ALSO
 
 L<poertindex(7)>, L<cache-init(1)>, L<cache-update(1)>,
-L<find-updated(1)>, L<cvsup(1)>, L<ports(7)>
+L<find-updated(1)>, L<cvsup(1)>, L<ports(7)>, L<graphviz(7)>,
+L<dot(1)>
 
 =head1 BUGS
 

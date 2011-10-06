@@ -530,7 +530,7 @@ sub init_makefile_list ($)
             # This skips over all of the Category objects.
             next unless $port->can("MAKEFILE_LIST");
 
-            for my $makefile ( @{ $port->MAKEFILE_LIST() } ) {
+            for my $makefile ( $port->MAKEFILE_LIST() ) {
                 $self->{MAKEFILE_LIST}->{$makefile} = []
                   unless defined $self->{MAKEFILE_LIST}->{$makefile};
                 push @{ $self->{MAKEFILE_LIST}->{$makefile} }, $origin;

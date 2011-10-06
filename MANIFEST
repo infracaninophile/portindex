@@ -10,6 +10,7 @@ inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 lib/FreeBSD/Portindex/Category.pm
 lib/FreeBSD/Portindex/Config.pm
+lib/FreeBSD/Portindex/GraphViz.pm
 lib/FreeBSD/Portindex/Port.pm
 lib/FreeBSD/Portindex/Tree.pm
 lib/FreeBSD/Portindex/TreeObject.pm
@@ -24,4 +25,3 @@ script/find-updated
 script/portdepends
 script/portindex
 t/FreeBSD-Portindex.t
-TODO
