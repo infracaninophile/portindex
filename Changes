@@ -246,3 +246,5 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
          - Minor docco tweak to portindex reflecting currently
            supported FreeBSD major versions.
 
+         - Bump VERSION and CACHE_VERSION to 2.5
+
