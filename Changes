@@ -230,3 +230,19 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           while running portindex.  Reported by Doug Barton.
 
         - Bump VERSION and CACHE_VERSION to 2.4 
+
+2.5 Fri Oct 07 21:00:00 2011
+
+         - Accessor methods for array valued items now mostly return
+           arrays rather than array references.  This makes quite a
+           lot of code a lot clearer.
+
+         - Add GraphViz output mode to portdepends(1).  Pretty
+	   pictures of port dependency trees.
+
+         - Remove TODO file as (a) most of the items were done and (b)
+           most recent changes weren't listed in there.
+
+         - Minor docco tweak to portindex reflecting currently
+           supported FreeBSD major versions.
+
