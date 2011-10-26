@@ -45,7 +45,7 @@ use FreeBSD::Portindex::TreeObject;
 use FreeBSD::Portindex::Config qw{counter};
 
 our @ISA     = ('FreeBSD::Portindex::TreeObject');
-our $VERSION = '2.5';                                # Release
+our $VERSION = '2.6';                                # Release
 
 our %directorycache;    # Remember all the directories we've ever seen
 our %pkgnamecache;      # Remember all of the package names we've output
@@ -524,7 +524,9 @@ sub _chase_deps($$$)
 
     # This should be done earlier...
     for my $origin ( $self->depends( ${dep} ) ) {
-        if ( defined $allports->{$origin}->PKGNAME() ) {
+        if ( defined $allports->{$origin}
+            && $allports->{$origin}->can("PKGNAME") )
+        {
             push @dependencies, $allports->{$origin}->PKGNAME();
         } else {
             warn "$0: ", $self->PKGNAME(),

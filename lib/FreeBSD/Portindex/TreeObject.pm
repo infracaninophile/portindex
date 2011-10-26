@@ -44,7 +44,7 @@ use strict;
 use warnings;
 use Exporter qw(import);
 
-our $VERSION = '2.5';              # Release
+our $VERSION = '2.6';              # Release
 our @EXPORT  = qw(_sort_unique);
 
 #

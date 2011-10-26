@@ -47,7 +47,7 @@ use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::Category;
 use FreeBSD::Portindex::Config qw{counter};
 
-our $VERSION       = '2.5';    # Release
+our $VERSION       = '2.6';    # Release
 our $CACHE_VERSION = '2.5';    # Earliest binary compat version
 
 sub new ($@)
