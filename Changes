@@ -248,3 +248,9 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 
          - Bump VERSION and CACHE_VERSION to 2.5
 
+2.6 Wed Oct 26 08:58:52 2011
+
+    	 - Fix test on _chase_deps that object can(PKGNAME) rather
+	   than using defined.  This could cause portindex to abort
+	   without generating an INDEX.
+
