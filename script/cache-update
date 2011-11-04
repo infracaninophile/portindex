@@ -694,7 +694,7 @@ version.
 =item B<--format>={ I<plain> | ... }
 
 Which input formats B<cache-update> should parse to determine the list
-of ports to reprocess.
+of ports to reprocess.  Default: cvsup-output,options
 
 =item B<-P> I<num>
 

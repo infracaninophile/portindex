@@ -277,11 +277,14 @@ B<find-updated> [B<-hvq>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-p> 
 B<find-updated> scans through the whole ports tree and checks each
 port origin and the F</usr/ports/Mk> directory (or F<${PORTSDIR}/Mk>
 if C<$PORTSDIR> is set in the environment) for files modified after
-the date given on the command line.  The output consists of a list of
-modified ports, printed one per line, suitable for feeding into
-B<cache-update> using plain format.  The generated list of updated
-ports takes into account any master-slave relationships between ports
-and any ports that include Makefiles modified in the given period.
+the date given on the command line.  In verbose mode (the default),
+B<find-updated> will print out the modification time and filename of
+any file modified after the given date to standard error.  It then
+generates a list of modified ports, printed one per line, suitable for
+feeding into B<cache-update> using plain format.  The generated list
+of updated ports takes into account any master-slave relationships
+between ports and any ports that include Makefiles modified in the
+given period.
 
 Only file modification times are checked, not directories.  Files
 named F<README.html> or any F<work> subdirectories are ignored.
