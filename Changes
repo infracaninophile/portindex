@@ -254,3 +254,12 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 	   than using defined.  This could cause portindex to abort
 	   without generating an INDEX.
 
+2.6 Wed Nov 21 21:31:45 2011
+
+    	- Fixup plain input to cache-update so now it should cope
+          with any file or directory in the ports tree, and
+          directories need not have trailing '/' appended.  Assumes
+          two level ports heirarchy.
+
+	  - 'use warnings' means '-w' is redundant
+
