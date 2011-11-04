@@ -261,5 +261,6 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           directories need not have trailing '/' appended.  Assumes
           two level ports heirarchy.
 
-	  - 'use warnings' means '-w' is redundant
+	- 'use warnings' means '-w' is redundant
 
+	- Documentation improvements  
