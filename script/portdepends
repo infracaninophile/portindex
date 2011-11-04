@@ -334,6 +334,11 @@ LIB_DEPENDS I<(Blue)>
 
 =back
 
+For example: B<GraphViz> format output can be rendered as a PNG image
+like this:
+
+C<portdepends -s g ports-mgmt/p5-FreeBSD-Portindex | dot -Tpng -o FP.png>
+
 Dependency levels in textual output are indicated by indenting the
 dependent port name inseting a string "- " for each level.
 

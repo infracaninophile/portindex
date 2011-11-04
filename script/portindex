@@ -82,7 +82,7 @@ portindex -- generate an INDEX file from cached data
 
 =head1 SYNOPSIS
 
-B<portindex> [B<-hvqWL>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-o> F<file>]
+B<portindex> [B<-hvqwWL>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-o> F<file>]
 
 =head1 DESCRIPTION
 
@@ -171,6 +171,17 @@ settings after command line processing and then exit.
 
 Turn on verbose output printed to C<STDERR>.  This is the default.
 
+=item B<-w>
+
+=item B<--warnings>
+
+Turn on warning messages about duplicate ports and ports unreferenced
+from their catergory F<Makefile>.  Default: off.
+
+=item B<-nowarnings>
+
+Turn off warning messages.  This is the default.
+
 =item B<-q>
 
 =item B<--quiet>
@@ -219,7 +230,7 @@ F<-> means output to STDOUT, which is the default.
 
 Make the generated F<INDEX> closer to the output of C<make index> by
 modifying the C<COMMENT> field so that any sequence of whitespace
-characters is collapsed into a single space.
+characters is collapsed into a single space.  Default: off.
 	
 =item B<-L>
 
