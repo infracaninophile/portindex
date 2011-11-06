@@ -225,7 +225,7 @@ sub _www_descr ($)
     if ( -f $descr ) {
         open( DESCR, '<', $descr ) and do {
             while (<DESCR>) {
-                if (m/^WWW:\s+(\S+)/) {
+                if (m/^\s*WWW:\s+(\S+)/) {
                     $www = $1;
                     last;
                 }
