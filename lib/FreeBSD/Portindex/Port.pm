@@ -413,7 +413,6 @@ sub accumulate_dependencies ($$$$$;$)
     unless ( $self->{DEPENDENCIES_ACCUMULATED} ) {
         $self->{DEPENDENCIES_ACCUMULATED} = 1;    # Accumulation in progress
 
-      DEPEND:
         for my $whatdep ( @{$whatdeps} ) {
             my %seen = ();
 
@@ -426,23 +425,22 @@ sub accumulate_dependencies ($$$$$;$)
                         $accumulate_dep, $recdepth + 1
                     );
 
-		    $seen{$dep}++;
+                    $seen{$dep}++;
                 } else {
                     warn "$0:", $self->ORIGIN(), " (", $self->PKGNAME(),
                       ") $whatdep on \'$dep\' not recognised as a port\n"
                       if $::Config{Warnings};
-                    #next DEPEND;
                 }
             }
 
             if ( keys %seen ) {
                 my @s;
-                for my $dep (keys %seen) {
+                for my $dep ( keys %seen ) {
                     for my $d ( $allports->{$dep}->depends($accumulate_dep) ) {
                         $seen{$d}++;
                     }
                 }
-		@s = keys %seen;
+                @s = keys %seen;
                 $self->depends( $whatdep, \@s );
             }
         }
