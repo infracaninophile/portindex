@@ -254,7 +254,7 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 	   than using defined.  This could cause portindex to abort
 	   without generating an INDEX.
 
-2.6 Wed Nov 21 21:31:45 2011
+2.6 Wed Nov 02 21:31:45 2011
 
     	- Fixup plain input to cache-update so now it should cope
           with any file or directory in the ports tree, and
@@ -263,4 +263,17 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 
 	- 'use warnings' means '-w' is redundant
 
-	- Documentation improvements  
+	- Documentation improvements
+
+2.7 Sun Nov 06 17:00:08 2011
+
+        - Match WWW: tags in pkg-descr even if they have leading
+          whitespace
+
+	- Fix dependency accumulation /again!/
+
+	- Don't bail-out when encountering 'dependency on something
+          not a port' -- instead, carry on recursing for all other
+          dependencies of that port.
+
+	- Docco improvements suggested by bartsch (at) dssgmbh.de
