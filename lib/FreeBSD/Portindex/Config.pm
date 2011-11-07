@@ -45,7 +45,7 @@ use Exporter qw(import);
 
 our @EXPORT_OK = qw(%Config read_config update_timestamp get_timestamp
   compare_timestamps scrub_environment counter);
-our $VERSION = '2.6';    # Release
+our $VERSION = '2.7';    # Release
 
 # The ultimate defaults...
 our %Config;

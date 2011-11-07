@@ -43,7 +43,7 @@ use warnings;
 
 use FreeBSD::Portindex::TreeObject;
 
-our $VERSION = '2.6';                                # Release
+our $VERSION = '2.7';                                # Release
 our @ISA     = ('FreeBSD::Portindex::TreeObject');
 
 #

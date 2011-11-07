@@ -293,3 +293,7 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 
 	- Regularize paths in the pkg-descr (5th) field of the
           generated INDEX.  No more '../..'
+
+2.7 Mon Nov 07 16:17:13 2011
+
+        - RELEASE_2_7
