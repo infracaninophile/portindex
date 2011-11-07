@@ -265,7 +265,7 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 
 	- Documentation improvements
 
-2.7 Sun Nov 06 17:00:08 2011
+2.6 Sun Nov 06 17:00:08 2011
 
         - Match WWW: tags in pkg-descr even if they have leading
           whitespace
@@ -277,3 +277,19 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           dependencies of that port.
 
 	- Docco improvements suggested by bartsch (at) dssgmbh.de
+
+2.6 Mon Nov 07 15:35:27 2011
+
+        - Make the %Config array a package global in
+          FreeBSD::Portindex::Config, and export it from there as
+          required.  No need to say '$::Config{FooBar}' in
+          .portindexrc (although that still worlks).  Plain
+          $Config{FooBar} now preferred.
+
+	- Improved handling of some port errors.  Setting
+          eg. JAVA_VENDOR in the make environment will result in
+          certain ports producing bogus dependency data.  Detect this
+          and emit warning messages at cache-{init,update} time.
+
+	- Regularize paths in the pkg-descr (5th) field of the
+          generated INDEX.  No more '../..'

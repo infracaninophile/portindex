@@ -40,12 +40,9 @@ use strict;
 use warnings;
 use BerkeleyDB;
 
-use FreeBSD::Portindex::Config qw(read_config update_timestamp
+use FreeBSD::Portindex::Config qw(%Config read_config update_timestamp
   scrub_environment);
 use FreeBSD::Portindex::Tree;
-
-our %Config;
-our $pkgname = 'portindex';
 
 $0 =~ s@.*/@@;    # Script name for error messages
 
@@ -53,9 +50,9 @@ MAIN:
 {
     my $tree;
 
-    read_config( \%Config );
+    read_config('portindex');
 
-    scrub_environment( \%Config )
+    scrub_environment()
       if $Config{ScrubEnvironment};
 
     # Attempt to create the cache dir if it doesn't exist.  Then
@@ -88,7 +85,7 @@ MAIN:
 
     # Mark the time that the session starts
 
-    update_timestamp( \%Config );
+    update_timestamp();
 
     # Regenerate the FreeBSD::Portindex::Port objects for all listed
     # ports (or the whole tree beneath some directory).

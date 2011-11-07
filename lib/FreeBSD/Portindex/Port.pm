@@ -42,7 +42,7 @@ use strict;
 use warnings;
 
 use FreeBSD::Portindex::TreeObject;
-use FreeBSD::Portindex::Config qw{counter};
+use FreeBSD::Portindex::Config qw{%Config counter};
 
 our @ISA     = ('FreeBSD::Portindex::TreeObject');
 our $VERSION = '2.6';                                # Release
@@ -214,14 +214,16 @@ sub _clean ($)
 }
 
 #
-# Test if the file referenced by DESCR exists -- otherwise return /dev/null
-# instead.  If it does exist, grep through it to find the WWW: reference.
+# Clean up the path and test if the file referenced by DESCR exists --
+# otherwise return /dev/null instead.  If it does exist, grep through
+# it to find the WWW: reference.
 #
 sub _www_descr ($)
 {
     my $descr = shift;
     my $www   = '';
 
+    $descr = _clean($descr);
     if ( -f $descr ) {
         open( DESCR, '<', $descr ) and do {
             while (<DESCR>) {
@@ -248,7 +250,7 @@ sub _master_port($$$)
 
     if ($master_port) {
         if ( $master_port =~ m@^[a-zA-Z0-9._+-]+/[a-zA-Z0-9._+-]+$@ ) {
-            $master_port = "$::Config{PortsDir}/$master_port";
+            $master_port = "$Config{PortsDir}/$master_port";
         } else {
 
             # This is probably caused by a trailing '/' character
@@ -258,7 +260,7 @@ sub _master_port($$$)
 
             warn "$0:$origin($pkgname) warning -- ",
               "\'MASTER_PORT=$master_port\' extraneous trailing /\n"
-              if $::Config{Warnings};
+              if $Config{Warnings};
         }
     }
     return $master_port;
@@ -325,8 +327,19 @@ sub _depends_list($$$$)
             push @deps, $arg;
         } else {
             if ( -d $arg ) {
-                $directorycache{$arg}++;
-                push @deps, $arg;
+
+                # Sanity check -- is the dependency on what appears to
+                # be a port, rather than anything else?  The target
+                # may not be in the cache yet, so guess based on the
+                # file path.
+                if ( $arg =~ m@^$Config{PortsDir}(?:/[^/]+){2}\Z@ ) {
+                    $directorycache{$arg}++;
+                    push @deps, $arg;
+                } else {
+                    warn "$0:${origin} ($pkgname) Error. $whatdep $arg ",
+                      "-- dependency is not a port\n";
+                    $errorflag++;
+                }
             } else {
                 warn "$0:${origin} ($pkgname) Error. $whatdep $arg ",
                   "-- dependency not found\n";
@@ -429,7 +442,7 @@ sub accumulate_dependencies ($$$$$;$)
                 } else {
                     warn "$0:", $self->ORIGIN(), " (", $self->PKGNAME(),
                       ") $whatdep on \'$dep\' not recognised as a port\n"
-                      if $::Config{Warnings};
+                      if $Config{Warnings};
                 }
             }
 
@@ -451,7 +464,7 @@ sub accumulate_dependencies ($$$$$;$)
         warn "$0: Error. Dependency loop detected while processing ",
           $self->ORIGIN(), "\n";
     }
-    counter( \%::Config, $counter );
+    counter($counter);
     return $self;
 }
 
@@ -470,13 +483,13 @@ sub print_index ($*;$)
     if ( defined $pkgnamecache{ $self->{PKGNAME} } ) {
         warn "$0: warning duplicate package name ", $self->{PKGNAME}, " (",
           $self->{ORIGIN}, " and ", $pkgnamecache{ $self->{PKGNAME} }, ")\n"
-          if $::Config{Warnings};
+          if $Config{Warnings};
     } else {
         $pkgnamecache{ $self->{PKGNAME} } = $self->{ORIGIN};
     }
 
     $stuff = $self->{STUFF};
-    $stuff =~ s@\s+@ @g if ( $::Config{CrunchWhitespace} );
+    $stuff =~ s@\s+@ @g if ( $Config{CrunchWhitespace} );
 
     print $fh $self->PKGNAME(), '|';
     print $fh $self->ORIGIN(),  '|';
@@ -488,7 +501,7 @@ sub print_index ($*;$)
     print $fh $self->_chase_deps( $allports, 'PATCH_DEPENDS' ),   '|';
     print $fh $self->_chase_deps( $allports, 'FETCH_DEPENDS' ),   "\n";
 
-    counter( \%::Config, $counter );
+    counter($counter);
     return $self;
 }
 
@@ -506,7 +519,7 @@ sub print_shlibs($*;$)
     print $fh $self->ORIGIN(),  '|';
     print $fh join( ' ', $self->LIB_DEPENDS() ), "\n";
 
-    counter( \%::Config, $counter );
+    counter($counter);
     return $self;
 }
 
@@ -530,7 +543,7 @@ sub _chase_deps($$$)
         } else {
             warn "$0: ", $self->PKGNAME(),
               " No PKGNAME found for ($dep) $origin\n"
-              if $::Config{Warnings};
+              if $Config{Warnings};
         }
     }
     return join ' ', sort @dependencies;

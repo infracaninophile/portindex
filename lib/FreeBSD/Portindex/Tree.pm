@@ -45,7 +45,7 @@ use Scalar::Util qw(blessed);
 use FreeBSD::Portindex::TreeObject;
 use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::Category;
-use FreeBSD::Portindex::Config qw{counter};
+use FreeBSD::Portindex::Config qw{%Config counter};
 
 our $VERSION       = '2.6';    # Release
 our $CACHE_VERSION = '2.5';    # Earliest binary compat version
@@ -55,13 +55,13 @@ sub new ($@)
     my $class = shift;
     my %args  = @_;
     my $self;
-    my $portscachefile  = $::Config{CacheFilename};
+    my $portscachefile  = $Config{CacheFilename};
     my $cachewascreated = 0;
 
     # Make sure that the certain defaults are set.
 
     if ( defined $args{-CacheFilename} ) {
-        $portscachefile = "$::Config{CacheDir}/$args{-CacheFilename}";
+        $portscachefile = "$Config{CacheDir}/$args{-CacheFilename}";
         delete $args{-CacheFilename};
     }
 
@@ -84,7 +84,7 @@ sub new ($@)
 
     $self->{ENV} = new BerkeleyDB::Env
       -Flags => DB_CREATE | DB_INIT_MPOOL | DB_INIT_CDB,
-      -Home  => $::Config{CacheDir},
+      -Home  => $Config{CacheDir},
       %{ $args{-Env} };
     delete $args{-Env};
 
@@ -128,7 +128,7 @@ sub new ($@)
             (
              /var/db/ports
              |
-             \Q$::Config{PortsDir}\E
+             \Q$Config{PortsDir}\E
              )           
         }x;
 
@@ -141,8 +141,8 @@ sub new ($@)
 
     my $me = '\A('
       . join( '|',
-        map { quotemeta } @{ $::Config{UbiquitousMakefiles} },
-        @{ $::Config{EndemicMakefiles} } )
+        map { quotemeta } @{ $Config{UbiquitousMakefiles} },
+        @{ $Config{EndemicMakefiles} } )
       . ')\Z';
     $self->{MAKEFILE_EXCEPTIONS} = qr{$me};
 
@@ -282,12 +282,12 @@ sub scan_makefiles($@)
 
     print STDERR "Processing make describe output",
       @paths == 1 ? " for path \"$paths[0]\": " : ": "
-      if ( $::Config{Verbose} );
+      if ( $Config{Verbose} );
     for my $path (@paths) {
         $self->_scan_makefiles( $path, \$counter );
     }
     print STDERR "<$counter>\n"
-      if ( $::Config{Verbose} );
+      if ( $Config{Verbose} );
     return $self;
 }
 
@@ -307,7 +307,7 @@ sub _scan_makefiles($$;$)
         if ( $port->isa("FreeBSD::Portindex::Port") ) {
 
             # This is a port makefile, not a category one.
-            counter( \%::Config, $counter );
+            counter($counter);
 
         } else {
 
@@ -367,10 +367,10 @@ sub make_describe($$)
         # Make sure old cruft is deleted
         if ( $self->delete($path) ) {
             warn "$0: $path -- deleted from cache\n"
-              if $::Config{Warnings};
+              if $Config{Warnings};
         } else {
             warn "$0: can't change directory to \'$path\' -- $!\n"
-              if $::Config{Warnings};
+              if $Config{Warnings};
         }
         return undef;
       };
@@ -419,7 +419,7 @@ sub make_describe($$)
             $self->{MAKEFILE_EXCEPTIONS}
           )
           or do {
-            warn "$0: $path Error.  Can\'t parse make output -- $!\n";
+            warn "$0: $path Error.  Can\'t parse make output\n";
             return undef;
           };
     } else {
@@ -644,7 +644,7 @@ sub accumulate_dependencies($)
     # LIB_DEPENDS  <--- LIB_DEPENDS
     my $shlib_deps = ["LIB_DEPENDS"];
 
-    if ( $::Config{ShLibs} == 0 ) {
+    if ( $Config{ShLibs} == 0 ) {
 
         # Printing INDEX
         $whatdeps        = $index_deps;
@@ -657,14 +657,14 @@ sub accumulate_dependencies($)
     }
 
     print STDERR "Accumulating dependency information: "
-      if ( $::Config{Verbose} );
+      if ( $Config{Verbose} );
     for my $port ( values %{ $self->{LIVE_PORTS} } ) {
         $port->accumulate_dependencies( $self->{LIVE_PORTS}, $whatdeps,
             $accumulate_deps, 0, \$counter )
           if ( blessed $port
             && $port->isa("FreeBSD::Portindex::Port") );
     }
-    print STDERR "<${counter}>\n" if ( $::Config{Verbose} );
+    print STDERR "<${counter}>\n" if ( $Config{Verbose} );
 
     return $self;
 }
@@ -681,7 +681,7 @@ sub print_index($*)
     my $parentorigin;
 
     print STDERR "Writing INDEX file: "
-      if ( $::Config{Verbose} );
+      if ( $Config{Verbose} );
 
     foreach my $origin ( keys %{ $self->{PORTS} } ) {
         next
@@ -691,7 +691,7 @@ sub print_index($*)
             && $self->{LIVE_PORTS}->{$origin}->isa("FreeBSD::Portindex::Port") )
         {
 
-            if ( $::Config{Strict} ) {
+            if ( $Config{Strict} ) {
                 ( $parentorigin = $origin ) =~ s@/[^/]*$@@;
 
                 if ( blessed $self->{LIVE_PORTS}->{$parentorigin}
@@ -705,7 +705,7 @@ sub print_index($*)
                 } else {
                     warn "$0: $origin is not referenced from the ",
                       "$parentorigin category -- not added to INDEX\n"
-                      if $::Config{Warnings};
+                      if $Config{Warnings};
                 }
             } else {
 
@@ -716,7 +716,7 @@ sub print_index($*)
         }
     }
     print STDERR "<${counter}>\n"
-      if ( $::Config{Verbose} );
+      if ( $Config{Verbose} );
 
     return $self;
 }
@@ -732,7 +732,7 @@ sub print_shlibs($*)
     my $counter = 0;
 
     print STDERR "Writing SHLIBS file: "
-      if ( $::Config{Verbose} );
+      if ( $Config{Verbose} );
 
     foreach my $origin ( keys %{ $self->{PORTS} } ) {
         if ( blessed $self->{LIVE_PORTS}->{$origin}
@@ -743,7 +743,7 @@ sub print_shlibs($*)
         }
     }
     print STDERR "<$counter}>\n"
-      if ( $::Config{Verbose} );
+      if ( $Config{Verbose} );
 
     return $self;
 }

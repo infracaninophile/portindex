@@ -43,12 +43,9 @@ use BerkeleyDB;
 use File::Find;
 use POSIX qw(strftime);
 
-use FreeBSD::Portindex::Config qw(read_config);
+use FreeBSD::Portindex::Config qw(%Config read_config);
 use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::Tree;
-
-our %Config;
-our $pkgname = 'portindex';
 
 $0 =~ s@.*/@@;    # Script name for error messages
 
@@ -83,7 +80,7 @@ sub look_for_updated_files ($$$$)
                     warn "$0: ",
                       strftime( '%Y.%m.%d.%H.%M.%S', localtime($mtime) ),
                       " $File::Find::name\n"
-                      if $::Config{Verbose};
+                      if $Config{Verbose};
                 }
               }
         },
@@ -154,7 +151,7 @@ sub scan_makefiles ($$$$$)
         # in the cache must be a new port.
 
         warn "$0: new port found at \'$path\'\n"
-          if ( $::Config{Warnings} && !exists $allports->{$path} );
+          if ( $Config{Warnings} && !exists $allports->{$path} );
 
         # This is a real port directory, not a subdir.
 
@@ -203,14 +200,14 @@ sub deleted_ports($$$$)
             if ( !-d $origin ) {
                 $updaters->{$origin}++;
                 warn "$0: $origin has been deleted\n"
-                  if $::Config{Warnings};
+                  if $Config{Warnings};
             } elsif (
                 look_for_updated_files( $origin, $refmtime, $updaters, $tree ) )
             {
                 $updaters->{$origin}++;
                 warn
                   "$0: $origin was updated but is not connected to ports tree\n"
-                  if $::Config{Warnings};
+                  if $Config{Warnings};
             }
         }
     }
@@ -224,7 +221,7 @@ MAIN:
     my $reference_date;
     my %allports;
 
-    read_config( \%Config );
+    read_config('portindex');
 
     $tree = FreeBSD::Portindex::Tree->new(
         -Env           => { -Home => $Config{CacheDir}, },

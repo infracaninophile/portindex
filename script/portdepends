@@ -36,12 +36,9 @@
 use strict;
 use warnings;
 
-use FreeBSD::Portindex::Config qw(read_config);
+use FreeBSD::Portindex::Config qw(%Config read_config);
 use FreeBSD::Portindex::Tree;
 use FreeBSD::Portindex::GraphViz;
-
-our %Config;
-our $pkgname = 'portindex';
 
 our %depends_types = (
     E => 'EXTRACT_DEPENDS',
@@ -243,7 +240,7 @@ MAIN:
 {
     my $tree;
 
-    read_config( \%Config );
+    read_config('portindex');
 
     $tree = FreeBSD::Portindex::Tree->new(
         -Env           => { -Home => $Config{CacheDir}, },

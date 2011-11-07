@@ -43,30 +43,34 @@ use Pod::Usage;
 use POSIX qw(strftime);
 use Exporter qw(import);
 
-our @EXPORT_OK = qw(read_config update_timestamp get_timestamp
+our @EXPORT_OK = qw(%Config read_config update_timestamp get_timestamp
   compare_timestamps scrub_environment counter);
 our $VERSION = '2.6';    # Release
 
+# The ultimate defaults...
+our %Config;
+
 # Config file and command line option handling.  The config data is
 # loaded from (in order): defaults built into this function, the
-# system etc dir: /usr/local/etc/$::{pkgname}.cfg the users' home dir
-# $ENV{HOME}/.$::{pkgname}rc or the current directory
-# ./.$::{pkgname}rc -- entries in the later files on that list
-# override the earlier ones.  Config files consist of live perl code
-# to populate the %Config hash, which is the return value of this
-# function.  Then any command line arguments are parsed, which can
-# override any of the config file settings.
+# system etc dir: /usr/local/etc/${pkgname}.cfg the users' home dir
+# $ENV{HOME}/.${pkgname}rc or the current directory ./.${pkgname}rc --
+# entries in the later files on that list override the earlier ones.
+# Config files consist of live perl code to populate the %Config hash,
+# which is the return value of this function.  Then any command line
+# arguments are parsed, which can override any of the config file
+# settings.
 sub read_config ($)
 {
-    my $config = shift;
+    my $pkgname = shift;
+
     my $help;
     my @optargs;
     my $ubiquitous_makefiles_seen = 0;
     my $endemic_makefiles_seen    = 0;
 
-    %{$config} = (
-        CacheDir         => "/var/db/$::pkgname",
-        CacheFilename    => "$::pkgname-cache.db",
+    %Config = (
+        CacheDir         => "/var/db/$pkgname",
+        CacheFilename    => "$pkgname-cache.db",
         CrunchWhitespace => 0,
         EndemicMakefiles => [
             "Mk/bsd.sites.mk",   "Mk/bsd.commands.mk",
@@ -83,44 +87,45 @@ sub read_config ($)
         ScrubEnvironment    => 0,
         ShLibs              => 0,
         Strict              => 1,
-        TimestampFilename   => "$::pkgname-timestamp",
+        TimestampFilename   => "$pkgname-timestamp",
         UbiquitousMakefiles => [ "Mk/bsd.port.mk", "/etc/make.conf", ],
         Verbose             => 1,
         Warnings            => 0,
     );
+
     @optargs = (
-        'cache-dir|c=s'      => \$config->{CacheDir},
-        'cache-file|C=s'     => \$config->{CacheFilename},
+        'cache-dir|c=s'      => \$Config{CacheDir},
+        'cache-file|C=s'     => \$Config{CacheFilename},
         'help|?'             => \$help,
-        'timestamp-file|T=s' => \$config->{TimestampFilename},
-        'quiet'              => sub { $config->{Verbose} = 0 },
-        'verbose!'           => \$config->{Verbose},
-        'warnings!'          => \$config->{Warnings},
+        'timestamp-file|T=s' => \$Config{TimestampFilename},
+        'quiet'              => sub { $Config{Verbose} = 0 },
+        'verbose!'           => \$Config{Verbose},
+        'warnings!'          => \$Config{Warnings},
     );
     push @optargs, (
-        'output=s'  => \$config->{Output},
+        'output=s'  => \$Config{Output},
         'style|s=s' => sub {
             my $optname  = shift;
             my $optvalue = shift;
 
             if ( $optvalue =~ m/^(g|graph)\Z/ ) {
-                $config->{OutputStyle} = 'graph';
+                $Config{OutputStyle} = 'graph';
             } elsif ( $optvalue =~ m/^(s|short)\Z/ ) {
-                $config->{OutputStyle} = 'short';
+                $Config{OutputStyle} = 'short';
             } else {
-                $config->{OutputStyle} = 'default';
+                $Config{OutputStyle} = 'default';
             }
         },
     ) if ( $0 eq 'portdepends' );
     push @optargs,
       (
-        'output=s'        => \$config->{Output},
-        'crunch-white|W!' => \$config->{CrunchWhitespace},
-        'shlibs|L!'       => \$config->{ShLibs},
-        'strict!'         => \$config->{Strict},
+        'output=s'        => \$Config{Output},
+        'crunch-white|W!' => \$Config{CrunchWhitespace},
+        'shlibs|L!'       => \$Config{ShLibs},
+        'strict!'         => \$Config{Strict},
       ) if ( $0 eq 'portindex' );
     push @optargs, (
-        'input|i=s'  => \$config->{Input},
+        'input|i=s'  => \$Config{Input},
         'format|f=s' => sub {
             my $optname  = shift;
             my $optvalue = shift;
@@ -138,14 +143,14 @@ sub read_config ($)
                   \Z
                   @x;
 
-            $config->{Format} = $optvalue;
+            $Config{Format} = $optvalue;
         },
-        'propagation-delay|P=i' => \$config->{PropagationDelay},
-        'port-dbdir|d=s'        => \$config->{PortDBDir},
+        'propagation-delay|P=i' => \$Config{PropagationDelay},
+        'port-dbdir|d=s'        => \$Config{PortDBDir},
     ) if ( $0 eq 'cache-update' );
     push @optargs, (
-        'ports-dir=s'              => \$config->{PortsDir},
-        'scrub-environment|s!'     => \$config->{ScrubEnvironment},
+        'ports-dir=s'              => \$Config{PortsDir},
+        'scrub-environment|s!'     => \$Config{ScrubEnvironment},
         'ubiquitous-makefile|M=s@' => sub {
             my $optname  = shift;
             my $optvalue = shift;
@@ -153,10 +158,10 @@ sub read_config ($)
             # Discard built-in defaults for this list of Makefiles if
             # any are given on the command-line
 
-            $config->{UbiquitousMakefiles} = []
+            $Config{UbiquitousMakefiles} = []
               unless $ubiquitous_makefiles_seen++;
 
-            push @{ $config->{UbiquitousMakefiles} }, $optvalue;
+            push @{ $Config{UbiquitousMakefiles} }, $optvalue;
         },
         'endemic-makefile|m=s@' => sub {
             my $optname  = shift;
@@ -165,14 +170,14 @@ sub read_config ($)
             # Discard built-in defaults for this list of Makefiles if
             # any are given on the command-line
 
-            $config->{EndemicMakefiles} = []
+            $Config{EndemicMakefiles} = []
               unless $endemic_makefiles_seen++;
 
-            push @{ $config->{EndemicMakefiles} }, $optvalue;
+            push @{ $Config{EndemicMakefiles} }, $optvalue;
         },
     ) if ( $0 eq 'cache-init' || $0 eq 'cache-update' );
     push @optargs, (
-        'ports-dir=s' => \$config->{PortsDir},
+        'ports-dir=s' => \$Config{PortsDir},
         '<>'          => sub {
             my $optval = shift;
             my @date;
@@ -187,40 +192,39 @@ sub read_config ($)
             $date[1] = $5;           # Minute
             $date[0] = $6;           # Second
 
-            $::Config{ReferenceTime} = strftime '%s', @date;    # Localtime
+            $Config{ReferenceTime} = strftime '%s', @date;    # Localtime
         },
     ) if ( $0 eq 'find-updated' );
 
     for my $cf (
-        "/usr/local/etc/${main::pkgname}.cfg",
+        "/usr/local/etc/${pkgname}.cfg",
         (
             $> == 0    # Don't let root be trojanned
             ? ()
-            : ( "$ENV{HOME}/.${main::pkgname}rc", "./.${main::pkgname}rc" )
+            : ( "$ENV{HOME}/.${pkgname}rc", "./.${pkgname}rc" )
         )
       )
     {
         do $cf;
     }
     GetOptions(@optargs) or pod2usage(2);
-    map { $_ = "$::Config{PortsDir}/$_" unless m@^/@ }
-      @{ $::Config{UbiquitousMakefiles} }, @{ $::Config{EndemicMakefiles} };
+    map { $_ = "$Config{PortsDir}/$_" unless m@^/@ }
+      @{ $Config{UbiquitousMakefiles} }, @{ $Config{EndemicMakefiles} };
     if ($help) {
         pod2usage( -exitval => 'NOEXIT', -verbose => 1 );
-        show_config($config);
+        show_config();
         exit(1);
     }
-    if ( $0 eq 'find-updated' && !exists $::Config{ReferenceTime} ) {
+    if ( $0 eq 'find-updated' && !exists $Config{ReferenceTime} ) {
         pod2usage(2);
     }
-    return $config;
+    return;
 }
 
 # Print out the current configuration settings after config file and
 # command line have been processed.
-sub show_config ($)
+sub show_config ()
 {
-    my $config = shift;
     my $um_fmt = "  Ubiquitous Makefiles (cache-update, cache-init) . ";
     my $em_fmt = "  Endemic Makefiles (cache-update, cache-init) .... ";
 
@@ -231,29 +235,29 @@ Current Configuration:
   Settings after reading all configuration files and parsing the
   command line.  They apply to all programs, except as marked.
 
-  CacheDir ........................................ $config->{CacheDir}
-  CacheFilename ................................... $config->{CacheFilename}
-  CrunchWhitespace (portindex)..................... $config->{CrunchWhitespace}
-  Format (cache-update) ........................... $config->{Format}
-  Input (cache-update) ............................ $config->{Input}
-  Output (portindex, portdepends, find-updated) ... $config->{Output}
-  OutputStyle (portdepends) ....................... $config->{OutputStyle}
-  PortDBDir (cache-update) ........................ $config->{PortDBDir}
-  PortsDir (cache-init, cache-update, find-updated) $config->{PortsDir}
-  PropagationDelay (cache-update) ................. $config->{PropagationDelay}
-  ScrubEnvironment (cache-init, cache-update) ..... $config->{ScrubEnvironment}
-  ShLibs (portindex) .............................. $config->{ShLibs}
-  Strict (portindex) .............................. $config->{Strict}
-  TimestampFilename ............................... $config->{TimestampFilename}
-  Verbose ......................................... $config->{Verbose}
-  Warnings ........................................ $config->{Warnings} 
+  CacheDir ........................................ $Config{CacheDir}
+  CacheFilename ................................... $Config{CacheFilename}
+  CrunchWhitespace (portindex)..................... $Config{CrunchWhitespace}
+  Format (cache-update) ........................... $Config{Format}
+  Input (cache-update) ............................ $Config{Input}
+  Output (portindex, portdepends, find-updated) ... $Config{Output}
+  OutputStyle (portdepends) ....................... $Config{OutputStyle}
+  PortDBDir (cache-update) ........................ $Config{PortDBDir}
+  PortsDir (cache-init, cache-update, find-updated) $Config{PortsDir}
+  PropagationDelay (cache-update) ................. $Config{PropagationDelay}
+  ScrubEnvironment (cache-init, cache-update) ..... $Config{ScrubEnvironment}
+  ShLibs (portindex) .............................. $Config{ShLibs}
+  Strict (portindex) .............................. $Config{Strict}
+  TimestampFilename ............................... $Config{TimestampFilename}
+  Verbose ......................................... $Config{Verbose}
+  Warnings ........................................ $Config{Warnings} 
 E_O_CONFIG
-    for my $um ( @{ $config->{UbiquitousMakefiles} } ) {
+    for my $um ( @{ $Config{UbiquitousMakefiles} } ) {
         print $um_fmt, $um, "\n";
         $um_fmt = ' ' x length $um_fmt
           unless $um_fmt =~ m/^ +$/;
     }
-    for my $em ( @{ $config->{EndemicMakefiles} } ) {
+    for my $em ( @{ $Config{EndemicMakefiles} } ) {
         print $em_fmt, $em, "\n";
         $em_fmt = ' ' x length $em_fmt
           unless $em_fmt =~ m/^ +$/;
@@ -265,40 +269,34 @@ E_O_CONFIG
 # TimeStamp file.  This is the time of the start of any session when
 # data is written to the cache.  Only needed because a read-only
 # access to the cache updates the mtimes of all of the files.
-sub update_timestamp ($)
+sub update_timestamp ()
 {
-    my $config = shift;
-
-    open TSTMP, '>', "$config->{CacheDir}/$config->{TimestampFilename}"
-      or die "$0: Can't update timestamp $config->{TimestampFilename} -- $!\n";
+    open TSTMP, '>', "$Config{CacheDir}/$Config{TimestampFilename}"
+      or die "$0: Can't update timestamp $Config{TimestampFilename} -- $!\n";
     print TSTMP scalar localtime(), "\n";
     close TSTMP;
     return;
 }
 
 # Return the mtime of the timestamp file
-sub get_timestamp ($)
+sub get_timestamp ()
 {
-    my $config = shift;
-
-    return ( stat "$config->{CacheDir}/$config->{TimestampFilename}" )[9]
-      or die "$0: can't stat $config->{TimestampFilename} -- $!\n";
+    return ( stat "$Config{CacheDir}/$Config{TimestampFilename}" )[9]
+      or die "$0: can't stat $Config{TimestampFilename} -- $!\n";
 }
 
 # Return true if the portindex timestamp is *newer* than the file
 # timestamp, false otherwise -- in which case, it's probably time to
 # re-run cache-init.
-sub compare_timestamps ($)
+sub compare_timestamps ()
 {
-    my $config = shift;
-
     my $p_mtime;
     my $f_mtime;
     my $was_updated = 0;
 
-    $p_mtime = get_timestamp($config);
+    $p_mtime = get_timestamp();
 
-    for my $file ( @{ $config->{UbiquitousMakefiles} } ) {
+    for my $file ( @{ $Config{UbiquitousMakefiles} } ) {
         $f_mtime = ( stat $file )[9]
           or do {
             warn "$0: can't stat $file -- $!\n";
@@ -306,7 +304,7 @@ sub compare_timestamps ($)
           };
         warn "$0: WARNING: $file more recently modified than last ",
           "cache update -- time for cache-init again?\n"
-          if ( $config->{Verbose}
+          if ( $Config{Verbose}
             && ( !defined $f_mtime || $f_mtime > $p_mtime ) );
         $was_updated += ( $p_mtime > $f_mtime );
     }
@@ -315,9 +313,8 @@ sub compare_timestamps ($)
 
 # Clear everything out of the environment except for some standard
 # variables.
-sub scrub_environment ($)
+sub scrub_environment ()
 {
-    my $config      = shift;
     my $allowed_env = qr{^(USER|HOME|PATH|SHELL|TERM|TERMCAP)\Z};
 
     for my $var ( keys %ENV ) {
@@ -328,12 +325,11 @@ sub scrub_environment ($)
 }
 
 # Print numbers and dots to show progress
-sub counter ($$)
+sub counter ($)
 {
-    my $config  = shift;
     my $counter = shift;
 
-    if ( $config->{Verbose} && ref $counter ) {
+    if ( $Config{Verbose} && ref $counter ) {
         $$counter++;
         if ( $$counter % 1000 == 0 ) {
             print STDERR "[$$counter]";

@@ -36,11 +36,8 @@
 use strict;
 use warnings;
 
-use FreeBSD::Portindex::Config qw(read_config);
+use FreeBSD::Portindex::Config qw(%Config read_config);
 use FreeBSD::Portindex::Tree;
-
-our %Config;
-our $pkgname = 'portindex';
 
 $0 =~ s@.*/@@;    # Script name for error messages
 
@@ -48,7 +45,7 @@ MAIN:
 {
     my $tree;
 
-    read_config( \%Config );
+    read_config('portindex');
 
     $tree = FreeBSD::Portindex::Tree->new(
         -Env           => { -Home => $Config{CacheDir}, },

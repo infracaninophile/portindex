@@ -63,13 +63,11 @@
 use strict;
 use warnings;
 
-use FreeBSD::Portindex::Config qw(read_config update_timestamp get_timestamp
+use FreeBSD::Portindex::Config
+  qw(%Config read_config update_timestamp get_timestamp
   compare_timestamps scrub_environment);
 use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::Tree;
-
-our %Config;
-our $pkgname = 'portindex';
 
 $0 =~ s@.*/@@;    # Script name for error messages
 
@@ -80,20 +78,21 @@ $0 =~ s@.*/@@;    # Script name for error messages
 # updated info. Given a Makefile name, add all of the port directories
 # affected by that Makefile to the list of things to be described.
 
-sub add_to_updates_list ($$$$)
+sub add_to_updates_list ($$$)
 {
-    my $updates  = shift;
-    my $tree     = shift;
-    my $portsdir = shift;
-    my $name     = shift;
+    my $updates = shift;
+    my $tree    = shift;
+    my $name    = shift;
     my $pdpart;
 
-    if ( $name !~ m@^$portsdir/(?:Mk|Templates|Tools|distfiles|packages)@o ) {
+    if ( $name !~
+        m@^$Config{PortsDir}/(?:Mk|Templates|Tools|distfiles|packages)@o )
+    {
 
         # Assume a two level deep ports heirarchy.  That's probably
         # never going to change.
 
-        ($pdpart) = ( $name =~ m@^($portsdir(?:/[^/]+){0,2})@ );
+        ($pdpart) = ( $name =~ m@^($Config{PortsDir}(?:/[^/]+){0,2})@ );
         $pdpart =~ s@/Makefile\Z@@;
 
         $updates->{$pdpart}++
@@ -105,19 +104,18 @@ sub add_to_updates_list ($$$$)
 
 # Just read a list of port origins, one per line, from the given file
 # handle (default STDIN).  Now accepts the output of 'portsnap update'
-sub read_plain (*$$$)
+sub read_plain (*$$)
 {
-    my $FH       = shift;
-    my $updates  = shift;
-    my $tree     = shift;
-    my $portsdir = shift;
+    my $FH      = shift;
+    my $updates = shift;
+    my $tree    = shift;
 
     while ( my $name = <$FH> ) {
         next
-          unless $name =~ m/^$portsdir/o;
+          unless $name =~ m/^$Config{PortsDir}/o;
 
         $name =~ s/\s+\Z//;    # portsnap uses \r\n for EoL (???!)
-        $updates = add_to_updates_list( $updates, $tree, $portsdir, $name );
+        $updates = add_to_updates_list( $updates, $tree, $name );
     }
     return $updates;
 }
@@ -126,19 +124,18 @@ sub read_plain (*$$$)
 # the output of cvsup(1) [ need atleast -L 1 verbosity ].  Pick out
 # the names of updated files, then convert that into a list of port
 # origins to process for updates.
-sub read_cvsup_output (*$$$)
+sub read_cvsup_output (*$$)
 {
-    my $FH       = shift;
-    my $updates  = shift;
-    my $tree     = shift;
-    my $portsdir = shift;
+    my $FH      = shift;
+    my $updates = shift;
+    my $tree    = shift;
     my $ports_location;
 
-    # $portsdir is usually /usr/ports, but can be any path ending in
+    # $Config{PortsDir} is usually /usr/ports, but can be any path ending in
     # .../ports (cvsup(1) requires the top-level directory to be named
     # 'ports').  Account for this
 
-    ( $ports_location = $portsdir ) =~ s@/ports\Z@@;
+    ( $ports_location = $Config{PortsDir} ) =~ s@/ports\Z@@;
 
     while (<$FH>) {
         chomp;
@@ -146,8 +143,7 @@ sub read_cvsup_output (*$$$)
         next
           unless m@\s(ports/\S+)@;
 
-        $updates = add_to_updates_list( $updates, $tree, $portsdir,
-            "$ports_location/$1" );
+        $updates = add_to_updates_list( $updates, $tree, "$ports_location/$1" );
     }
     return $updates;
 }
@@ -158,17 +154,16 @@ sub read_cvsup_output (*$$$)
 # cutoff point should be about 1 hour earlier than the last time
 # cache-update or cache-init was run, as determined by the mtime of
 # the DB timestamp file.
-sub read_cvsup_checkouts (*$$$$)
+sub read_cvsup_checkouts (*$$$)
 {
     my $FH         = shift;
     my $updates    = shift;
     my $tree       = shift;
     my $cutofftime = shift;
-    my $portsdir   = shift;
     my $ports_location;
 
-    # As for read_cvsup_output, cope with a non-standard $PORTSDIR
-    ( $ports_location = $portsdir ) =~ s@/ports\Z@@;
+    # As for read_cvsup_output, cope with a non-standard $Config{PortsDir}
+    ( $ports_location = $Config{PortsDir} ) =~ s@/ports\Z@@;
 
     while (<$FH>) {
         my $name;
@@ -205,7 +200,7 @@ sub read_cvsup_checkouts (*$$$$)
 
         @rcs_attrs = decode_attrs($rcs_attr);
 
-        $updates = add_to_updates_list( $updates, $tree, $portsdir, $name )
+        $updates = add_to_updates_list( $updates, $tree, $name )
           if ( $rcs_attrs[2] > $cutofftime );
     }
     return $updates;
@@ -231,18 +226,17 @@ sub decode_attrs ($)
 # the mtime of the file with the last update timestamp from the cache
 # -- add the port to the list to be checked if the options have been
 # modified more recently.
-sub check_port_options ($$$)
+sub check_port_options ($$)
 {
-    my $updates    = shift;
-    my $tree       = shift;
-    my $port_dbdir = shift;
+    my $updates = shift;
+    my $tree    = shift;
     my $options;
     my $mtime;
     my $port;
 
-    opendir PORT_DBDIR, $port_dbdir
+    opendir PORT_DBDIR, $Config{PortDBDir}
       or do {
-        warn "$0: Error. Cannot read directory \'$port_dbdir\' -- $!\n";
+        warn "$0: Error. Cannot read directory \'$Config{PortDBDir}\' -- $!\n";
         return $updates;
       };
     while ( my $dir = readdir PORT_DBDIR ) {
@@ -251,7 +245,7 @@ sub check_port_options ($$$)
 
         # The Makefile generated by and included due to OPTIONS
         # processing
-        $options = "$port_dbdir/$dir/options";
+        $options = "$Config{PortDBDir}/$dir/options";
 
         if ( -r $options ) {
             $mtime = ( stat(_) )[9];
@@ -267,7 +261,7 @@ sub check_port_options ($$$)
     }
 
     closedir PORT_DBDIR
-      or warn "$0: Error. Closing directory \'$port_dbdir\' -- $!\n";
+      or warn "$0: Error. Closing directory \'$Config{PortDBDir}\' -- $!\n";
 
     return $updates;
 }
@@ -280,7 +274,7 @@ MAIN:
     my $counter;
     my $startcounter;
 
-    read_config( \%Config );
+    read_config('portindex');
 
     # Some Makefiles affect the compilation of all ports.  When those
     # are changed, then it is a good idea to re-initialise the cache
@@ -290,9 +284,9 @@ MAIN:
     # resulting INDEX.  Run 'make -V .MAKEFILE_LIST | tr ' ' \\n' in
     # some port directories to see the full story.
 
-    compare_timestamps( \%Config );
+    compare_timestamps();
 
-    scrub_environment( \%Config )
+    scrub_environment()
       if $Config{ScrubEnvironment};
 
     # Reopen STDIN if required
@@ -315,20 +309,19 @@ MAIN:
 
     $tree->init_makefile_list();
     if ( $Config{Format} =~ m/plain/ ) {
-        read_plain( *STDIN, \%updates, $tree, $Config{PortsDir} );
+        read_plain( *STDIN, \%updates, $tree );
     } elsif ( $Config{Format} =~ m/cvsup-output/ ) {
-        read_cvsup_output( *STDIN, \%updates, $tree, $Config{PortsDir} );
+        read_cvsup_output( *STDIN, \%updates, $tree );
     } elsif ( $Config{Format} =~ m/cvsup-checkouts/ ) {
         my $cutofftime;
 
-        $cutofftime = get_timestamp( \%Config ) - $Config{PropagationDelay};
-        read_cvsup_checkouts( *STDIN, \%updates, $tree, $cutofftime,
-            $Config{PortsDir} );
+        $cutofftime = get_timestamp() - $Config{PropagationDelay};
+        read_cvsup_checkouts( *STDIN, \%updates, $tree, $cutofftime );
     }
 
     if ( $Config{Format} =~ m/options/ ) {
         $tree->init_makefile_list();
-        check_port_options( \%updates, $tree, $Config{PortDBDir} );
+        check_port_options( \%updates, $tree );
     }
 
     # If there's nothing to update, exit immediately.
@@ -374,7 +367,7 @@ MAIN:
 
     # Mark the time at which the updates start
 
-    update_timestamp( \%Config );
+    update_timestamp();
 
     # Regenerate the FreeBSD::Port objects for all listed ports
 

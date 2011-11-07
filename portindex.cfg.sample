@@ -9,7 +9,7 @@
 ## ${HOME}/.portindexrc or ./.portindexrc (ie. the CWD where any of
 ## the portindex processes are run), and edit the configuration
 ## settings to taste, which will set the appropriate entries in the
-## global %::Config hash.  Nothing in this file is obligatory, nor is
+## global %Config hash.  Nothing in this file is obligatory, nor is
 ## any configuration file required to be present: there are built-in
 ## defaults for everything.
 
@@ -21,12 +21,12 @@
 ## all (-c, --cache-dir): Directory where BDB btree files containing
 ## the cache and master-slave relationships are stored.
 
-# $::Config{CacheDir} = '/var/db/portindex';
+# $Config{CacheDir} = '/var/db/portindex';
 
 ## all (-C, --cache-file): BDB btree file within the CacheDir
 ## containing the cached 'make describe' output.
 
-# $::Config{CacheFilename} = 'portindex-cache.db';
+# $Config{CacheFilename} = 'portindex-cache.db';
 
 ## portindex (-W --crunch-white --nocrunch-white): Boolean. If true,
 ## emulate 'make index' more closely by converting multiple whitespace
@@ -34,19 +34,19 @@
 ## cosmetic effect on the output INDEX and doesn't affect the cache
 ## contents.
 
-# $::Config{CrunchWhitespace} = 0;
+# $Config{CrunchWhitespace} = 0;
 
 ## cache-update, cache-init (-m --endemic-makefile): List of Makefiles
-## from within $::Config{PortsDir} whose inclusion or modification is
+## from within $Config{PortsDir} whose inclusion or modification is
 ## assumed to have no effect on the resulting INDEX file, hence those
 ## file names will not be stored in the cache. (Note: non-absolute
-## paths are taken as relative to $::Config{PortsDir})
+## paths are taken as relative to $Config{PortsDir})
 
-# $::Config{EndemicMakefiles} = [ 'Mk/bsd.sites.mk',
-#                                 'Mk/bsd.commands.mk',
-#                                 'Mk/bsd.destdir.mk',
-#                                 'Mk/bsd.licenses.mk',
-#                                 'Mk/bsd.licenses.db.mk' ];
+# $Config{EndemicMakefiles} = [ 'Mk/bsd.sites.mk',
+#                               'Mk/bsd.commands.mk',
+#                               'Mk/bsd.destdir.mk',
+#                               'Mk/bsd.licenses.mk',
+#                               'Mk/bsd.licenses.db.mk' ];
 
 ## cache-update (--input-format, --format): What format to treat the
 ## input data as.  Choices are:
@@ -64,22 +64,22 @@
 ## If the cvsup-checkouts format is chosen, the input file will
 ## usually be /var/db/sup/ports-all/checkouts.cvs:.
 
-# $::Config{Format} = 'cvsup-output,options';
+# $Config{Format} = 'cvsup-output,options';
 
 ## cache-update (-i, --input): Filename to read input from, '-' for
 ## STDIN
 
-# $::Config{Input} = '-';
+# $Config{Input} = '-';
 
 ## portindex (-o, --output): Filename to write the INDEX data out to,
 ## '-' for STDOUT
 
-# $::Config{Output} = '-';
+# $Config{Output} = '-';
 
 ## cache-update (-d, --port-dbdir): Where OPTIONS settings are
 ## stored, same as the PORT_DBDIR environment variable.
 
-# $::Config{PortDBDir} = $ENV{PORT_DBDIR} || '/var/db/ports';
+# $Config{PortDBDir} = $ENV{PORT_DBDIR} || '/var/db/ports';
 
 ## portdepends (-s, --style {short|graph|default}): When set to
 ## 'graph', output digraph code that can be fed into GraphViz to
@@ -88,13 +88,13 @@
 ## only visit each node at most one time.  Any other setting results
 ## in the default exhaustive long listing.
 
-# $::Config{OutputStyle} = 'default';
+# $Config{OutputStyle} = 'default';
 
 ## cache-init, cache-update, find-updated (-p, --ports-dir): Base
 ## directory of the ports tree, same as the PORTSDIR environment
 ## variable.
 
-# $::Config{PortsDir} = $ENV{PORTSDIR} || '/usr/ports';
+# $Config{PortsDir} = $ENV{PORTSDIR} || '/usr/ports';
 
 ## cache-update (-P, --propagation-delay): A fudge factor to account
 ## for the time required between a change being committed to the
@@ -104,14 +104,14 @@
 ## tree be and have them still considered newly updated?  About 3600
 ## seconds (1 hour) seems to be a good value.
 
-# $::Config{PropagationDelay} = 60 * 60;
+# $Config{PropagationDelay} = 60 * 60;
 
 ## cache-init, cache-update (-s, --scrub-environment,
 ## --noscrub-environment): Boolean -- delete everything from the
 ## environment except for USER, HOME, PATH, SHELL, TERM, TERMCAP if
 ## true.  Default no or if value set to false.
 
-# $::Config{ScrubEnvironment} = 0;
+# $Config{ScrubEnvironment} = 0;
 
 ## portindex (-L, --shlibs, --noshlibs): Boolean -- when enabled,
 ## instead of generating an INDEX file, generate an alternative format
@@ -120,19 +120,19 @@
 ## this data it is easy to work out what ports need a PORTREVISION
 ## bump when a shared library ABI is updated.
 
-# $::Config{ShLibs} = 0;
+# $Config{ShLibs} = 0;
 
 ## portindex (-S, --strict, --nostrict): Boolean -- currently 'strict'
 ## mode enforces the check that ports are referenced from their
 ## immediately superior category -- ie. that they are 'connected to
 ## the ports.'  It may be extended in future.
 
-# $::Config{Strict} = 1;
+# $Config{Strict} = 1;
 
 ## all (-T, --timestamp-file): Filename within CacheDir used to mark
 ## the last time any updates to the cache were made.
 
-# $::Config{TimestampFile} = 'portindex-timestamp';
+# $Config{TimestampFile} = 'portindex-timestamp';
 
 ## cache-update, cache-init (-M, --ubiquitous-makefile): List of
 ## Makefiles included by all or the vast majority of ports.
@@ -144,20 +144,20 @@
 ## Neither cache-init(1) nor cache-update(1) will store any of these
 ## filenames within the cache.  Default: /usr/ports/Mk/bsd.port.mk,
 ## /etc/make.conf (Note: non-absolute paths are taken as relative to
-## $::Config{PortsDir})
+## $Config{PortsDir})
 
-# $::Config{UbiquitousMakefiles} = [ 'Mk/bsd.port.mk', '/etc/make.conf', ];
+# $Config{UbiquitousMakefiles} = [ 'Mk/bsd.port.mk', '/etc/make.conf', ];
 
 ## all (-v, -q, --verbose, --noverbose, --quiet): Boolean -- turn on
 ## verbose output if true, turn off if false or undef
 
-# $::Config{Verbose} = 1;
+# $Config{Verbose} = 1;
 
 ## all (-w, --warnings, --nowarnings): Boolean -- turn on various
 ## warning messages about a number of non-fatal problems if true, turn
 ## off if false or undef
 
-# $::Config{Warnings} = 0;
+# $Config{Warnings} = 0;
 
 ##
 ## That's All Folks!
