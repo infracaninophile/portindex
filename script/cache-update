@@ -86,7 +86,14 @@ sub add_to_updates_list ($$$)
     my $pdpart;
 
     if ( $name !~
-        m@^$Config{PortsDir}/(?:Mk|Templates|Tools|distfiles|packages)@o )
+        m@^$Config{PortsDir}/(?:
+             Mk         |
+             Templates  |
+             Tools      |
+             distfiles  |
+             packages   |
+             [A-Z]+s?\Z
+       )@ox )
     {
 
         # Assume a two level deep ports heirarchy.  That's probably
