@@ -84,7 +84,8 @@ sub list_dependencies($$$$)
     my $level  = shift;
     my $flags  = shift;
 
-    my $port = $tree->get("$Config{PortsDir}/$origin");
+    my $port = $tree->get($origin);
+    my $relorigin;
     my %dependencies;
 
     if ( !defined $port ) {
@@ -94,8 +95,10 @@ sub list_dependencies($$$$)
         return;
     }
 
+    ( $relorigin = $origin ) =~ s,^.+/ports/,,;
+
     $flags = pretty_flags($flags);
-    print "[$flags] ", "- " x $level, $port->PKGNAME(), " ($origin)\n";
+    print "[$flags] ", "- " x $level, $port->PKGNAME(), " ($relorigin)\n";
 
     # Recurse through this port's dependencies
 
@@ -106,8 +109,8 @@ sub list_dependencies($$$$)
     }
     $level++;
     for my $deporigin ( sort keys %dependencies ) {
-        ( $origin = $deporigin ) =~ s,^.+/ports/,,;
-        list_dependencies( $tree, $origin, $level, $dependencies{$deporigin} );
+        list_dependencies( $tree, $deporigin, $level,
+            $dependencies{$deporigin} );
     }
     return;
 }
@@ -128,7 +131,8 @@ sub list_dependencies_short($$$$$)
     my $flags  = shift;
     my $seen   = shift;
 
-    my $port = $tree->get("$Config{PortsDir}/$origin");
+    my $port = $tree->get($origin);
+    my $relorigin;
     my %dependencies;
 
     if ( !defined $port ) {
@@ -138,8 +142,10 @@ sub list_dependencies_short($$$$$)
         return;
     }
 
+    ( $relorigin = $origin ) =~ s,^.+/ports/,,;
+
     $flags = pretty_flags($flags);
-    print "[$flags] ", "- " x $level, $port->PKGNAME(), " ($origin)";
+    print "[$flags] ", "- " x $level, $port->PKGNAME(), " ($relorigin)";
 
     # Short circuit this branch if its somewhere we've already been
     if ( defined $seen->{ $port->PKGNAME() } ) {
@@ -171,8 +177,7 @@ sub list_dependencies_short($$$$$)
     $level++;
 
     for my $deporigin ( sort keys %dependencies ) {
-        ( $origin = $deporigin ) =~ s,^.+/ports/,,;
-        list_dependencies_short( $tree, $origin, $level,
+        list_dependencies_short( $tree, $deporigin, $level,
             $dependencies{$deporigin}, $seen );
     }
     return;
@@ -193,7 +198,8 @@ sub graph_dependencies($$$$$$)
     my $flags  = shift;
     my $seen   = shift;
 
-    my $port = $tree->get("$Config{PortsDir}/$origin");
+    my $port = $tree->get($origin);
+    my $relorigin;
     my %dependencies;
 
     if ( !defined $port ) {
@@ -203,12 +209,14 @@ sub graph_dependencies($$$$$$)
         return;
     }
 
+    ( $relorigin = $origin ) =~ s,^.+/ports/,,;
+
     # Short circuit this branch if its somewhere we've already been
     if ( defined $seen->{ $port->PKGNAME() } ) {
         return;
     }
 
-    $graph->add_node( $origin, label => $port->PKGNAME() . "\n($origin)" );
+    $graph->add_node( $origin, label => $port->PKGNAME() . "\n($relorigin)" );
 
     # Recurse through this port's dependencies
 
@@ -222,15 +230,14 @@ sub graph_dependencies($$$$$$)
     $level++;
 
     for my $deporigin ( sort keys %dependencies ) {
-        my $dorigin;
-        ( $dorigin = $deporigin ) =~ s,^.+/ports/,,;
-        graph_dependencies( $tree, $graph, $dorigin, $level,
+        graph_dependencies( $tree, $graph, $deporigin, $level,
             $dependencies{$deporigin}, $seen );
         $graph->add_edge(
-            $origin => $dorigin,
+            $origin => $deporigin,
             label   => $dependencies{$deporigin},
-            color   => join ':',
-            map { $depends_colours{$_} } split( //, $dependencies{$deporigin} ),
+            color   => join( ':',
+                map { $depends_colours{$_} }
+                  split( //, $dependencies{$deporigin} ) ),
         );
     }
     return;
@@ -257,10 +264,8 @@ MAIN:
     # out the dependency tree (recursively)
 
     for my $portorigin (@ARGV) {
-        if ( $portorigin =~ m,^[^/], ) {
-
-            # Strip any mention of
-            $portorigin =~ s@^.*/?ports/@@;
+        if ( $portorigin =~ m,^[^/]+/[^/]+\Z, ) {
+            $portorigin = "$Config{PortsDir}/$portorigin";
         }
         if ( $Config{OutputStyle} eq 'graph' ) {
             my $graph = FreeBSD::Portindex::GraphViz->new();
