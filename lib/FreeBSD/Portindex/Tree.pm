@@ -126,7 +126,7 @@ sub new ($@)
     $self->{MAKEFILE_LOCATIONS} = qr{
         \A
             (
-             /var/db/ports
+             \Q$Config{PortDBDir}\E
              |
              \Q$Config{PortsDir}\E
              )           
