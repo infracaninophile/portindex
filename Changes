@@ -297,3 +297,12 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 2.7 Mon Nov 07 16:17:13 2011
 
         - RELEASE_2_7
+
+2.7 Thu Nov 10 10:31:40 2011
+
+        - Recognise more things as 'not ports' when updating cache
+
+	- Allow portdepends arguments to be fully qualified paths or
+          relative to $Config{PortsDir}.  Do less work adding and
+          removing this text during processing.
+
