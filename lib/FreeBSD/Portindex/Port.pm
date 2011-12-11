@@ -279,7 +279,7 @@ sub _makefile_list ($$$)
     my $discards      = shift;    # MAKEFILE_EXCEPTIONS
     my %seen;
 
-    # List all of the makefiles under ${PORTSDIR} or /var/db/ports
+    # List all of the makefiles under ${PORTSDIR} or ${PORT_DBDIR}
     # which affect the compilation of a port.  Don't include
     # ${PORTSDIR}/Mk/bsd.port.mk, because that affects *everything*,
     # nor include ${PORTSDIR}/Mk/bsd.sites.mk since that has no
