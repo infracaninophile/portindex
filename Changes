@@ -306,3 +306,7 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           relative to $Config{PortsDir}.  Do less work adding and
           removing this text during processing.
 
+2.7 Sun Dec 11 14:43:43 2001
+
+        - Use the %Config value for PortDBDir instead of hardwired
+          /var/db/ports when loading and updating the cache.
