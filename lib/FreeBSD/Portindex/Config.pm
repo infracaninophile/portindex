@@ -73,9 +73,20 @@ sub read_config ($)
         CacheFilename    => "$pkgname-cache.db",
         CrunchWhitespace => 0,
         EndemicMakefiles => [
-            "Mk/bsd.sites.mk",   "Mk/bsd.commands.mk",
-            "Mk/bsd.destdir.mk", "Mk/bsd.licenses.mk",
-            "Mk/bsd.licenses.db.mk"
+            qw(
+              /usr/ports/Mk/bsd.commands.mk
+              /usr/ports/Mk/bsd.licenses.db.mk
+              /usr/ports/Mk/bsd.licenses.mk
+              /usr/ports/Mk/bsd.sites.mk
+              /usr/share/mk/bsd.compat.mk
+              /usr/share/mk/bsd.cpu.mk
+              /usr/share/mk/bsd.own.mk
+              /usr/share/mk/bsd.port.mk
+              /usr/share/mk/bsd.port.options.mk
+              /usr/share/mk/bsd.port.post.mk
+              /usr/share/mk/bsd.port.pre.mk
+              /usr/share/mk/sys.mk
+              )
         ],
         Format              => 'cvsup-output,options',
         Input               => '-',
@@ -83,14 +94,28 @@ sub read_config ($)
         OutputStyle         => 'default',
         PortDBDir           => $ENV{PORT_DBDIR} || '/var/db/ports',
         PortsDir            => $ENV{PORTSDIR} || '/usr/ports',
-        PropagationDelay    => 3600,                                    # 1 hour
+        PropagationDelay    => 3600,                                  # 1 hour
         ScrubEnvironment    => 0,
         ShLibs              => 0,
         Strict              => 1,
         TimestampFilename   => "$pkgname-timestamp",
-        UbiquitousMakefiles => [ "Mk/bsd.port.mk", "/etc/make.conf", ],
-        Verbose             => 1,
-        Warnings            => 0,
+        UbiquitousMakefiles => [
+            qw(
+              /etc/make.conf
+              /usr/ports/Mk/bsd.commands.mk
+              /usr/ports/Mk/bsd.licenses.mk
+              /usr/ports/Mk/bsd.perl.mk
+              /usr/ports/Mk/bsd.port.mk
+              /usr/ports/Mk/bsd.sites.mk
+              /usr/share/mk/bsd.compat.mk
+              /usr/share/mk/bsd.cpu.mk
+              /usr/share/mk/bsd.own.mk
+              /usr/share/mk/bsd.port.mk
+              /usr/share/mk/sys.mk
+              )
+        ],
+        Verbose  => 1,
+        Warnings => 0,
     );
 
     @optargs = (
