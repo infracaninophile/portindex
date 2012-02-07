@@ -4,15 +4,16 @@ FreeBSD-Portindex version 2.0
 
 $Id$
 
-   portindex, cache-init, cache-update and find-updated are a set of
-   perl scripts built around the common core of the FreeBSD::Portindex
-   perl modules. Their use is to generate and maintain the ports
-   INDEX-N files speedily and efficiently (where N is one of 5, 6 or 7
-   depending on FreeBSD major version number.) Ultimately they work in
-   a very similar way to the standard make index command, except that
-   the FreeBSD::Portindex tools keep a cache of the make describe
-   output from each port, and can update that cached data
-   incrementally as the ports tree itself is updated.
+   portindex, portdepends, cache-init, cache-update and find-updated
+   are a set of perl scripts built around the common core of the
+   FreeBSD::Portindex perl modules. Their use is to generate and
+   maintain the ports INDEX-N files speedily and efficiently (where N
+   is one of 5, 6 or 7 depending on FreeBSD major version number) or
+   to produce alternatively formatted representations of the same
+   data.  Ultimately they work in a very similar way to the standard
+   make index command, except that the FreeBSD::Portindex tools keep a
+   cache of the make describe output from each port, and can update
+   that cached data incrementally as the ports tree itself is updated.
 
    Incremental updating is much faster than building the INDEX
    entirely from scratch every time. Once the cache has been
@@ -46,25 +47,27 @@ $Id$
 DEPENDENCIES
 
    Prerequisites: you will need to have installed a recent version of
-   Perl, preferably
+   Perl, at least
 
-     perl-5.8.8_1 (lang/perl5.8).
+     perl-5.10.1 (lang/perl5.10)
+
+   but any more recent version will work.
 
    Additionally you will need
 
-     p5-BerkeleyDB-0.34 (databases/p5-BerkeleyDB)
+     p5-BerkeleyDB-0.50 (databases/p5-BerkeleyDB)
 
    and one of the Berkeley Database Library ports such as
    
-     db44-4.4.20.4 (databases/db44).
+     db44-4.8.30.0 (databases/db48).
 
-   Other Perl or BDB versions probably will work, but have not been
-   thoroughly tested.
+   Other Perl or BDB versions will work, but have not been thoroughly
+   tested.
 
 INSTALLATION
 
-   Of course, now that ports/73612 has been committed, installing via
-   the sysutils/p5-FreeBSD-Portindex port is the recommended method.
+   Of course installing via the sysutils/p5-FreeBSD-Portindex port is
+   the recommended method.
 
    However, for completeness' sake, here are the instructions for how
    to do a manual installation.
@@ -143,7 +146,7 @@ BUGS
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2004-2008 by Matthew Seaman
+Copyright (C) 2004-2012 by Matthew Seaman
 
 This library is free software; you can redistribute it and/or modify
 it under the following 2-clause BSD style license:
