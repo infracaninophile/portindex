@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2011 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2012 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -31,27 +31,36 @@
 #
 
 #
-# Base class for Port, Category, Makefile objects that can be stored
-# in the Tree.  This just abstracts the common code used for all of
-# these objects, which are representations of files or directories
+# Base class for Port, Category, Makefile or PkgDescr objects that are
+# part of the Tree.  This just abstracts the common code used for all
+# of these objects, which are representations of files or directories
 # involved in the FreeBSD ports.
 #
 package FreeBSD::Portindex::TreeObject;
 
-require 5.008_003;
+require 5.10.1;
 
 use strict;
 use warnings;
-use Exporter qw(import);
+use Carp;
+use Scalar::Util qw(blessed);
 
-our $VERSION = '2.7';              # Release
-our @EXPORT  = qw(_sort_unique);
+use FreeBSD::Portindex::ListVal;
+
+our $VERSION = '2.8';    # Release
 
 #
-# All TreeObjects have an ORIGIN -- the filesystem path of the
-# underlying item, and the key used to look up the object from the
-# Tree.  They also have a MTIME -- the last time the object was
-# instantiated.
+# All TreeObjects have an ORIGIN -- the key used to look up the object
+# in the Tree, frequently the filesystem path of the underlying item
+# or the path relative to ${PORTSDIR}.
+#
+# _needs_flush_to_cache tracks whether the object has been modified since
+# the last flush or commit to the underlying persistent (disk)
+# storage.
+#
+# Values in the $self hash are either scalars or blessed array refs
+# which are FreeBSD::Portindex::ListVal objects -- values are sorted
+# and uniqued
 #
 sub new ($@)
 {
@@ -59,38 +68,75 @@ sub new ($@)
     my %args  = @_;
     my $self;
 
-    die "$0: error instantiating $class object -- ORIGIN missing\n"
+    croak "$0: error instantiating $class object -- ORIGIN missing\n"
       unless defined $args{ORIGIN};
 
     $self = {
         ORIGIN => $args{ORIGIN},
-        MTIME  => defined( $args{MTIME} ) ? $args{MTIME} : time(),
+        _needs_flush_to_cache => 1,
     };
     return bless $self, $class;
 }
 
 #
-# Accessor methods
+# Function to generate accessor methods for Scalars
 #
-sub ORIGIN ($;$)
-{
-    my $self = shift;
 
-    if (@_) {
-        $self->{ORIGIN} = shift;
-    }
-    return $self->{ORIGIN};
+sub scalar_accessor($$)
+{
+    my $class  = shift;
+    my $method = shift;
+
+    return sub ($;$) {
+        my $self = shift;
+
+        if (@_) {
+            $self->{_needs_flush_to_cache} = 1;
+            $self->{$method} = shift;
+        }
+        return $self->{$method};
+    };
 }
 
 #
-# MTIME can only be read or set to the current time. Any method
-# argument that evaluates to true will cause the value to be updated.
+# Function to generate accessor methods for ListVals
 #
-sub MTIME ($;$)
+
+sub list_val_accessor($$)
+{
+    my $class  = shift;
+    my $method = shift;
+
+    return sub ($;@) {
+        my $self = shift;
+
+        if (@_) {
+            $self->{_needs_flush_to_cache} = 1;
+            return $self->{$method}->set(@_);
+        } else {
+            return $self->{$method}->get();
+        }
+    };
+}
+
+#
+# Does this object need to be flushed to persistent storage?
+#
+sub is_dirty($)
+{
+    return +shift->{_needs_flush_to_cache};
+}
+
+#
+# Set object clean after flushing.
+#
+sub was_flushed($)
 {
     my $self = shift;
-    $self->{MTIME} = time() if ( @_ && $_[0] );
-    return $self->{MTIME};
+
+    $self->{_needs_flush_to_cache} = 0;
+
+    return $self;
 }
 
 #
@@ -98,7 +144,7 @@ sub MTIME ($;$)
 # hash ref, whose values are either scalars or arrays.  The format is
 # TAG1\0DATA1a\0DATA1b\0DATA1c\n...TAGn\nDATAn...__CLASS\nobjectclass
 # Where data represents an array it is transformed into a null
-# separated list.  Implicit assumption: filenames do not contains any
+# separated list.  Implicit assumption: filenames do not contain any
 # of the following characters: \0 \n.
 #
 sub freeze ($)
@@ -107,12 +153,13 @@ sub freeze ($)
     my $string = '';
 
     while ( my ( $k, $v ) = each %{$self} ) {
-        if ( ref($v) eq 'ARRAY' ) {
+        next
+          if ( $k eq '_needs_flush_to_cache' );
 
-            # Array valued item: Add trailing null as marker
-            $string .= "$k\n" . join( "\000", @{$v} ) . "\000";
+        if ( blessed($v) && $v->isa('FreeBSD::Portindex::ListVal') ) {
+            $string .= "$k\n" . $v->freeze();    # Array valued item
         } else {
-            $string .= "$k\n$v";    # Scalar valued item
+            $string .= "$k\n$v";                 # Scalar valued item
         }
         $string .= "\n";
     }
@@ -134,7 +181,7 @@ sub thaw ($$)
     $self = { split( /\n/, $string ) };
 
     if ( !defined $self->{__CLASS} ) {
-        warn "$0: Error. Cannot regenerate object from stringified data\n";
+        carp "$0: Error. Cannot regenerate object from stringified data\n";
         return undef;
     }
 
@@ -142,43 +189,17 @@ sub thaw ($$)
 
     while ( my ( $k, $v ) = each %{$self} ) {
         next unless $v =~ m/\000/;
-
-        # split throws away trailing null fields.
-        $self->{$k} = [ split( /\000/, $v ) ];
+        $self->{$k} = FreeBSD::Portindex::ListVal->thaw($v);
     }
+    $self->{_needs_flush_to_cache} = 0;
+
     return bless $self, $class;
-}
-
-#
-# Not a method call. Utility function returns sorted and uniqued
-# version of the array referenced by the argument
-#
-sub _sort_unique ($)
-{
-    my %seen;
-
-    return sort grep { !$seen{$_}++ } @{ +shift };
-}
-
-#
-# Modify an array valued item so that entries are sorted and unique.
-#
-sub sort_unique ($$)
-{
-    my $self = shift;
-    my $slot = shift;
-    my %seen;
-
-    if ( ref( $self->{$slot} ) eq 'ARRAY' ) {
-        $self->{$slot} = [ _sort_unique $self->{$slot} ];
-    }
-    return $self;
 }
 
 #
 # Compare this TreeObject with that one: return true if they are
 # equal, false if not.  Equal means exactly the same ORIGIN, class and
-# data, but not necessarily the same MTIME.
+# other data.
 #
 sub compare($$)
 {
@@ -203,18 +224,23 @@ sub compare($$)
     # contents
     for my $k ( keys %{$self} ) {
         next
-          if ( $k eq 'ORIGIN' || $k eq 'MTIME' );
+          if ( $k eq 'ORIGIN' );       # Already checked
 
         return 0
           unless ( ref( $self->{$k} ) eq ref( $other->{$k} ) );
 
-        if ( ref( $self->{$k} ) eq 'ARRAY' ) {
+        if ( blessed( $self->{$k} ) eq 'FreeBSD::Portindex::ListVal' ) {
 
-            # element by element comparison.  Lists are guaranteed
-            # sorted and uniqued
-            for ( my $i = 0 ; $i < @{ $self->{$k} } ; $i++ ) {
+            # Are the two lists the same length?
+            return 0
+              unless $self->{$k}->length() == $other->{$k}->length();
+
+            # element by element comparison.  ListVals are uniqued, so
+            # we don't need to check the converse, that all items in
+            # $self->{$k} exist in $other->{$k}.
+            foreach my $item ( $other->{$k}->get() ) {
                 return 0
-                  unless $self->{$k}->[$i] eq $other->{$k}->[$i];
+                  unless $self->{$k}->contains($item);
             }
         } else {
             return 0
@@ -223,6 +249,15 @@ sub compare($$)
     }
 
     return 1;    # They are the same...
+}
+
+#
+# Accessor methods
+#
+for my $slot ('ORIGIN') {
+    no strict qw(refs);
+
+    *$slot = __PACKAGE__->scalar_accessor($slot);
 }
 
 1;

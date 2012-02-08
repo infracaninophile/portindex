@@ -7,7 +7,7 @@ version_from	'lib/FreeBSD/Portindex/Tree.pm';
 abstract		'Incremental FreeBSD ports INDEX file generation';
 author			'Matthew Seaman <m.seaman@infracaninophile.co.uk>';
 license			'bsd';
-perl_version	'5.008003';
+perl_version	'5.010001';
 
 requires		'BerkeleyDB' => '0.25';
 install_script  'cache-init';

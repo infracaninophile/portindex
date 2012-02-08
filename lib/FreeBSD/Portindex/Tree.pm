@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2011 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2012 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -41,14 +41,17 @@ use strict;
 use warnings;
 use BerkeleyDB;
 use Scalar::Util qw(blessed);
+use Carp;
 
 use FreeBSD::Portindex::TreeObject;
 use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::Category;
+use FreeBSD::Portindex::FileObject;
+use FreeBSD::Portindex::Makefile;
 use FreeBSD::Portindex::Config qw{%Config counter};
 
-our $VERSION       = '2.7';    # Release
-our $CACHE_VERSION = '2.5';    # Earliest binary compat version
+our $VERSION       = '2.8';    # Release
+our $CACHE_VERSION = '2.8';    # Earliest binary compat version
 
 sub new ($@)
 {
@@ -70,7 +73,7 @@ sub new ($@)
     $args{-Flags} = 0
       unless defined $args{-Flags};
 
-    $self = { PORTS => {}, };
+    $self = { CACHE => {}, };
 
     # Test if the cache file name already exists.  If there is
     # already a file there, then after we tie to it, check for
@@ -90,11 +93,10 @@ sub new ($@)
 
     # Tie the PORTS hashes to our cache file -- a DB btree file.  Keep
     # various FreeBSD::Portindex::TreeObject objects in this cache --
-    # primarily the PORTS data, plus the CATEGORY.  Also contains the
-    # data about master/slave relationships (the MAKEFILE_LIST and the
-    # MASTER_PORT stuff).
+    # primarily the PORT data, plus the CATEGORY.  Also contains data
+    # data about dependencies on files -- Makefiles and pkg-descr files.
 
-    tie %{ $self->{PORTS} }, 'BerkeleyDB::Btree',
+    tie %{ $self->{CACHE} }, 'BerkeleyDB::Btree',
       -Env => $self->{ENV},
       %args, -Filename => $portscachefile
       or die "$0: Can\'t access $portscachefile -- $! $BerkeleyDB::Error";
@@ -104,55 +106,25 @@ sub new ($@)
     # make sure it's compatible.
 
     if ($cachewascreated) {
-        $self->{PORTS}->{__CACHE_VERSION} = $VERSION;
+        $self->{CACHE}->{__CACHE_VERSION} = $VERSION;
     } else {
-        unless ( exists $self->{PORTS}->{__CACHE_VERSION}
-            && $self->{PORTS}->{__CACHE_VERSION} >= $CACHE_VERSION )
+        unless ( exists $self->{CACHE}->{__CACHE_VERSION}
+            && $self->{CACHE}->{__CACHE_VERSION} >= $CACHE_VERSION )
         {
             die "$0: The cache in $portscachefile contains an incompatible ",
               "data format -- please re-run cache-init\n";
         }
     }
 
-    # Save some regex definitions for use in the make_describe()
-    # method.
+    # Area for holding any copy of any tree object unfrozen from the
+    # cache.
 
-    # Directories where ports-specific Makefiles are found.  Ignore
-    # the effect of any Makefile not matching these locations.
-    # Although other locations do contain Makefiles that will affect
-    # the result, those generally do not change that often, and tend
-    # to have minimal material effect on the final result.
+    $self->{LIVE} = {};
 
-    $self->{MAKEFILE_LOCATIONS} = qr{
-        \A
-            (
-             \Q$Config{PortDBDir}\E
-             |
-             \Q$Config{PortsDir}\E
-             )           
-        }x;
+    # Accumulated dependency data with port names converted to
+    # pkgnames
 
-    # Makefiles for which we ignore changes when producing the list of
-    # ports needing updating, and which aren't recorded as included
-    # Makefiles in the cache.  Either because changes to that file
-    # tend to have no effect on the final INDEX, or because changes to
-    # the file trigger update checks on too many (generally /all/)
-    # ports -- in which case a cache-init run is indicated
-
-    my $me = '\A('
-      . join( '|',
-        map { quotemeta } @{ $Config{UbiquitousMakefiles} },
-        @{ $Config{EndemicMakefiles} } )
-      . ')\Z';
-    $self->{MAKEFILE_EXCEPTIONS} = qr{$me};
-
-    # Area for holding any copy of a live port or category object
-    # unfrozen from the cache.
-
-    $self->{LIVE_PORTS} = {};
-
-    # Result of the last check on a port / category
-    $self->{LAST_RESULT} = "none";
+    $self->{ACCUMULATED} = {};
 
     return bless $self, $class;
 }
@@ -161,17 +133,15 @@ sub DESTROY
 {
     my $self = shift;
 
-    untie $self->{PORTS};
+    untie $self->{CACHE};
     undef $self;
 }
 
 #
-# Insert FreeBSD::Portindex::TreeObject object (eg. a Port from 'make
-# describe' output) into ports Tree structure according to the ORIGIN
-# -- freeze the object for external storage and keep the live copy
-# handy too.  Do this in a lazy fashion: only freeze the object and
-# write it to the tied backing store if the object was either never
-# previously inserted or if the MTIME of the object has been updated.
+# Insert FreeBSD::Portindex::TreeObject object (eg. a Port or Category
+# from 'make describe' output, or a Makefile or pkg-descr file) into
+# ports Tree structure according to the ORIGIN -- do this in a lazy
+# way: don't immediately freeze the object for persistent storage.
 #
 sub insert ($$)
 {
@@ -184,20 +154,53 @@ sub insert ($$)
           && $tree_object->isa('FreeBSD::Portindex::TreeObject');
 
     $origin = $tree_object->ORIGIN();
+    $self->{LIVE}->{$origin} = $tree_object;
 
-    if ( !exists $self->{LIVE_PORTS}->{$origin}
-        || $tree_object->MTIME() > $self->{LIVE_PORTS}->{$origin}->MTIME() )
-    {
-        $self->{LIVE_PORTS}->{$origin} = $tree_object;
-        $self->{PORTS}->{$origin}      = $tree_object->freeze();
+    return $self;
+}
+
+#
+# Commit an update of an object in the live cache to the frozen copy
+# in the disk cache.  Works on any FreeBSD::Portindex::TreeObject
+# object.
+#
+sub commit ($$)
+{
+    my $self   = shift;
+    my $origin = shift;
+    my $tree_object;
+
+    return undef if ( $origin eq '__CACHE_VERSION' );
+
+    return undef
+      unless exists $self->{LIVE}->{$origin};
+
+    $tree_object = $self->{LIVE}->{$origin};
+
+    if ( $tree_object->is_dirty() ) {
+        $self->{CACHE}->{$origin} = $tree_object->freeze();
+        $tree_object->was_flushed();
     }
     return $self;
 }
 
 #
-# Return the cached FreeBSD::Portindex::TreeObject for a given origin
-# path, deleting the frozen version from the tree hash.  Return undef
-# if port not found in tree
+# Commit any dirty TreeObjects to persistent storage in the cache.
+#
+sub flush ($)
+{
+    my $self = shift;
+
+    for my $origin ( keys %{ $self->{LIVE} } ) {
+        $self->commit($origin);
+    }
+    return $self;
+}
+
+#
+# Return the cached FreeBSD::Portindex::PortsTreeObject for a given
+# origin path, deleting the frozen version from both the cache and the
+# live collection.  Return undef if port not found in tree
 #
 sub delete ($$)
 {
@@ -207,22 +210,21 @@ sub delete ($$)
 
     return undef if ( $origin eq '__CACHE_VERSION' );
 
-    if ( exists $self->{LIVE_PORTS}->{$origin} ) {
-        delete $self->{LIVE_PORTS}->{$origin};
+    if ( exists $self->{LIVE}->{$origin} ) {
+        $tree_object = delete $self->{LIVE}->{$origin};
     }
-
-    if ( exists $self->{PORTS}->{$origin} ) {
-        $tree_object =
-          FreeBSD::Portindex::TreeObject->thaw( $self->{PORTS}->{$origin} );
-        delete $self->{PORTS}->{$origin};
+    if ( exists $self->{CACHE}->{$origin} ) {
+        $tree_object //=
+          FreeBSD::Portindex::TreeObject->thaw( $self->{CACHE}->{$origin} );
+        delete $self->{CACHE}->{$origin};
     }
     return $tree_object;
 }
 
 #
-# Return the cached cached FreeBSD::Portindex::TreeObject for a given
-# origin path.  Return undef if port not found in tree.  Stash a copy
-# of the live TreeObject for later use.
+# Return the FreeBSD::Portindex::TreeObject for a given origin path,
+# thawing from cache if needed.  Return undef if port not found in
+# tree.  Stash a copy of the live TreeObject for later use.
 #
 sub get ($$)
 {
@@ -232,36 +234,14 @@ sub get ($$)
 
     return undef if ( $origin eq '__CACHE_VERSION' );
 
-    if ( exists $self->{LIVE_PORTS}->{$origin} ) {
-        $tree_object = $self->{LIVE_PORTS}->{$origin};
-    } elsif ( exists $self->{PORTS}->{$origin} ) {
+    if ( exists $self->{LIVE}->{$origin} ) {
+        $tree_object = $self->{LIVE}->{$origin};
+    } elsif ( exists $self->{CACHE}->{$origin} ) {
         $tree_object =
-          FreeBSD::Portindex::TreeObject->thaw( $self->{PORTS}->{$origin} );
-        $self->{LIVE_PORTS}->{$origin} = $tree_object;
+          FreeBSD::Portindex::TreeObject->thaw( $self->{CACHE}->{$origin} );
+        $self->{LIVE}->{$origin} = $tree_object;
     }
     return $tree_object;
-}
-
-#
-# Set or get what the last result of a check on a port was
-#
-sub last_result($;$)
-{
-    my $self   = shift;
-    my $result = shift;
-
-    my %results = (
-        none      => "none",
-        new       => "new",
-        deleted   => "deleted",
-        unchanged => "unchanged",
-        modified  => "modified",
-        error     => "error"
-    );
-    if ( $result && $results{$result} eq $result ) {
-        $self->{LAST_RESULT} = $result;
-    }
-    return $self->{LAST_RESULT};
 }
 
 #
@@ -274,18 +254,19 @@ sub last_result($;$)
 # argument from each Makefile, and any Makefile.local in the
 # referenced directory and process each of those, recursively.
 #
-sub scan_makefiles($@)
+sub scan_makefiles($$)
 {
     my $self    = shift;
     my @paths   = @_;
     my $counter = 0;
 
     print STDERR "Processing make describe output",
-      @paths == 1 ? " for path \"$paths[0]\": " : ": "
+     @paths == 1 ? " for path \"$paths[0]\": " : ": " 
       if ( $Config{Verbose} );
     for my $path (@paths) {
-        $self->_scan_makefiles( $path, \$counter );
+	$self->_scan_makefiles( $path, \$counter );
     }
+    $self->flush();    # Ensure everything is in persistent storage
     print STDERR "<$counter>\n"
       if ( $Config{Verbose} );
     return $self;
@@ -304,6 +285,13 @@ sub _scan_makefiles($$;$)
 
     $port = $self->make_describe($path);
     if ( blessed $port ) {
+
+        # Create any new Makefile or FileObject (pkg-descr) objects
+        # for anything we haven't seen before, then update the USED_BY
+        # fields of every referenced file object.
+
+        $self->update_files_used_by($port);
+
         if ( $port->isa("FreeBSD::Portindex::Port") ) {
 
             # This is a port makefile, not a category one.
@@ -312,8 +300,8 @@ sub _scan_makefiles($$;$)
         } else {
 
             # A category -- process the subdirs, recursively
-            for my $subdir ( $port->SUBDIRS() ) {
-                $self->_scan_makefiles( $subdir, $counter );
+            for my $subdir ( $port->SUBDIR() ) {
+                $self->_scan_makefiles( "$path/$subdir", $counter );
             }
         }
     }
@@ -324,8 +312,8 @@ sub _scan_makefiles($$;$)
 # Generate the port description or category subdir listing without
 # actually running 'make describe'.  Instead, extract the values of a
 # series of variables that are processed during 'make describe', and
-# perform equivalent processing ourselves.  Returns a reference to
-# the port or category object generated and placed into the cache.
+# perform equivalent processing ourselves.  Returns a reference to the
+# port or category object generated and placed into the cache.
 # Changes current working directory of the process: does nothing if
 # 'no such directory'.  For that and other problems, returns undef to
 # signal problems to upper layers in that case.  Deals gracefully with
@@ -355,7 +343,6 @@ sub make_describe($$)
       BUILD_DEPENDS
       RUN_DEPENDS
       LIB_DEPENDS
-      MASTER_PORT
       .MAKEFILE_LIST
       SUBDIR
     };
@@ -413,11 +400,7 @@ sub make_describe($$)
         # Unlike 'make index' we can benefit by pressing on even if there
         # are errors.  Return undef to signal this to higher levels.
 
-        $port = FreeBSD::Portindex::Port->new_from_make_vars(
-            \%make_vars,
-            $self->{MAKEFILE_LOCATIONS},
-            $self->{MAKEFILE_EXCEPTIONS}
-          )
+        $port = FreeBSD::Portindex::Port->new_from_make_vars( \%make_vars )
           or do {
             warn "$0: $path Error.  Can\'t parse make output\n";
             return undef;
@@ -432,14 +415,106 @@ sub make_describe($$)
 }
 
 #
+# Update the File (Makefile, pkg-descr) objects referenced from a port
+# or category -- add $tree_object as using the file, even if it is
+# marked as doing so already.  Create new FileObjects as required.
+#
+sub update_files_used_by($$)
+{
+    my $self        = shift;
+    my $tree_object = shift;
+    my $origin;
+    my $file_object;
+
+    $origin = $tree_object->ORIGIN();
+
+    if ( $tree_object->can('MAKEFILE_LIST') ) {
+        for my $makefile ( $tree_object->MAKEFILE_LIST() ) {
+            eval {
+                $file_object = $self->get($makefile);
+
+                if ( !defined $file_object ) {
+                    $file_object =
+                      FreeBSD::Portindex::Makefile->new( ORIGIN => $makefile );
+                    $self->insert($file_object);
+                }
+                $file_object->used_by($origin);
+            };
+            if ($@) {
+
+                # File not found... turn the error into a warning.
+                carp $@;
+            }
+        }
+    }
+    if ( $tree_object->can('DESCR') ) {
+        my $descr = $tree_object->DESCR();
+
+        eval {
+            $file_object = $self->get($descr);
+
+            if ( !defined $file_object ) {
+                $file_object =
+                  FreeBSD::Portindex::FileObject->new( ORIGIN => $descr );
+                $self->insert($file_object);
+            }
+            $file_object->used_by($origin);
+        };
+        if ($@) {
+
+            # File not found... turn the error into a warning.
+            carp $@;
+        }
+    }
+    return $self;
+}
+
+#
+# Update the File (Makefile, pkg-descr) objects no-longer referenced
+# from a port or category -- delete $tree_object as using the file,
+# even if it is not marked as doing so already.  If the FileObject
+# doesn't already exist, that's OK.  Deleting USED_BY links could
+# leave the FileObject unused by anything, but that's OK too.
+#
+sub update_files_unused_by($$)
+{
+    my $self        = shift;
+    my $tree_object = shift;
+    my $origin;
+    my $file_object;
+
+    $origin = $tree_object->ORIGIN();
+
+    if ( $tree_object->can('MAKEFILE_LIST') ) {
+        for my $makefile ( $tree_object->MAKEFILE_LIST() ) {
+            $file_object = $self->get($makefile);
+
+            if ( defined $file_object ) {
+                $file_object->unused_by($origin);
+            }
+        }
+    }
+    if ( $tree_object->can('DESCR') ) {
+        my $descr = $tree_object->DESCR();
+
+        $file_object = $self->get($descr);
+
+        if ( defined $file_object ) {
+            $file_object->used_by($origin);
+        }
+    }
+    return $self;
+}
+
+#
 # Unpack all of the frozen FreeBSD::Portindex::TreeObject items from
-# the btree storage and stash in an internal hash for later use.
+# the btree storage and stash in some internal hashes for later use.
 #
 sub springtime($)
 {
     my $self = shift;
 
-    foreach my $origin ( keys %{ $self->{PORTS} } ) {
+    foreach my $origin ( keys %{ $self->{CACHE} } ) {
         next
           if ( $origin eq '__CACHE_VERSION' );
 
@@ -450,16 +525,19 @@ sub springtime($)
 
 #
 # Fill in the referenced hash with a list of all known ports (as keys)
-# and zero as values.  Includes all of the categories too.
+# and zero as values.  Includes all of the categories too.  Ports and
+# Category origins are stored relative to $PORTSDIR.
 #
 sub port_origins($$)
 {
     my $self     = shift;
     my $allports = shift;
 
-    foreach my $origin ( keys %{ $self->{PORTS} } ) {
+    foreach my $origin ( keys %{ $self->{CACHE} } ) {
         next
           if ( $origin eq '__CACHE_VERSION' );
+        next
+          if ( $origin =~ m@^/@ );
 
         $allports->{$origin} = 0;
     }
@@ -467,101 +545,19 @@ sub port_origins($$)
 }
 
 #
-# Invert all of the slave => master hash relationships, returning a
-# reference to a hash whose keys are the master port origins, and
-# whose values are refs to arrays of slave port origins.  Only
-# initialise on the first call.
-#
-sub init_masterslave($)
-{
-    my $self = shift;
-    my $port;
-
-    if ( !defined $self->{MASTERSLAVE} ) {
-        foreach my $origin ( keys %{ $self->{PORTS} } ) {
-            next
-              if ( $origin eq '__CACHE_VERSION' );
-
-            $port = $self->get($origin);
-
-            # This skips over all of the Category objects, as well as
-            # ports that don't have MASTER_PORT set.
-            next
-              unless ( $port->can("MASTER_PORT") && $port->MASTER_PORT() );
-
-            $self->{MASTERSLAVE}->{ $port->MASTER_PORT() } = []
-              unless ( defined $self->{MASTERSLAVE}->{ $port->MASTER_PORT() } );
-            push @{ $self->{MASTERSLAVE}->{ $port->MASTER_PORT() } }, $origin;
-        }
-    }
-    return $self;
-}
-
-#
-# Return array with list of slave ports of the master given in the
-# arg -- empty if none are known.
-#
-sub masterslave($$)
-{
-    my $self   = shift;
-    my $origin = shift;
-
-    return @{ $self->{MASTERSLAVE}->{$origin} || [] };
-}
-
-#
-# Another form of inversion: invert the .MAKEFILE_LIST data, returning
-# a hash with keys being the various Makefiles and targets being an
-# array of port origins depending on those Makefiles.  Only initialise
-# on the first call.
-#
-sub init_makefile_list ($)
-{
-    my $self = shift;
-    my $port;
-
-    if ( !defined $self->{MAKEFILE_LIST} ) {
-        foreach my $origin ( keys %{ $self->{PORTS} } ) {
-            next
-              if ( $origin eq '__CACHE_VERSION' );
-
-            $port = $self->get($origin);
-
-            # This skips over all of the Category objects.
-            next unless $port->can("MAKEFILE_LIST");
-
-            for my $makefile ( $port->MAKEFILE_LIST() ) {
-                $self->{MAKEFILE_LIST}->{$makefile} = []
-                  unless defined $self->{MAKEFILE_LIST}->{$makefile};
-                push @{ $self->{MAKEFILE_LIST}->{$makefile} }, $origin;
-            }
-        }
-    }
-    return $self;
-}
-
-#
-# Accessor for .MAKEFILE_LIST data
-#
-sub makefile_list($$)
-{
-    my $self = shift;
-    my $name = shift;
-
-    return @{ $self->{MAKEFILE_LIST}->{$name} || [] };
-}
-
-#
-# Test whether a given filename matches a known category type of thing.
-# Updates to a category Makefile mean we should compare the new and
-# old list of SUBDIRs carefully, as this can indicate a new port being
-# hooked up to the tree, or various other changes.
+# Test whether a given filename matches a known category type of
+# thing.  Updates to a category Makefile mean we should compare the
+# new and old list of SUBDIRs carefully, as this can indicate a new
+# port being hooked up to the tree, or various other changes. XXX --
+# sanity? does this still matter in the new regime?
 #
 sub category_match ($$)
 {
     my $self   = shift;
     my $origin = shift;
     my $port;
+
+    $origin =~ s@^$Config{PortsDir}/@@;
 
     $port = $self->get($origin);
 
@@ -570,9 +566,10 @@ sub category_match ($$)
 
 #
 # As a category Makefile has changed, regenerate the corresponding
-# category object, and compare it to the one from the cache.  Add
-# any differences to the list of ports to update, and replace the
-# category object in the cache.
+# category object, and compare it to the one from the cache.  Add any
+# differences to the list of ports to update, and replace the category
+# object in the cache. XXX -- sanity? does this still matter in the
+# new regime?
 #
 sub category_check ($$$)
 {
@@ -592,15 +589,11 @@ sub category_check ($$$)
     # Filter out those cases.
 
     if ( blessed $newcat && $newcat->isa("FreeBSD::Portindex::Category") ) {
-        $comm = $oldcat->comm($newcat);
-
-        if ( @{ $comm->[0] } || @{ $comm->[2] } ) {
-
-            # This category was modified: better check the contents
-
-            foreach my $o ( @{ $comm->[0] }, @{ $comm->[2] } ) {
-                $updaters->{$o}++;
-            }
+        my $list_changes =
+          FreeBSD::Portindex::ListVal->difference( $oldcat->SUBDIR(),
+            $newcat->SUBDIR() );
+        foreach my $o ( $list_changes->get() ) {
+            $updaters->{$o}++;
         }
     }
     return $self;
@@ -612,8 +605,8 @@ sub category_check ($$$)
 # 'springtime' has been called to populate the LIVE_PORTS hash.  See
 # FreeBSD::Portindex::Port::accumulate_dependencies() for details.
 #
-# **Note** This alters the contents of LIVE_PORTS without pushing the
-# same changes into the on-disk cache.
+# **Note** This alters the contents of LIVE without flushing the
+# same changes into the on-disk CACHE.
 #
 sub accumulate_dependencies($)
 {

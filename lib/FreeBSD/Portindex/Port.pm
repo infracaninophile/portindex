@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2011 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2012 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -33,45 +33,52 @@
 #
 # An object for holding various data used in creating a port -- mostly
 # this is used for generating the ports INDEX.  In addition to the
-# ORIGIN and MTIME fields provided by the superclass, this must at
-# least have a defined PKGNAME field.
+# ORIGIN and MAKEFILE_LIST fields provided by the superclasses, this
+# must at least have a defined PKGNAME field, and may have numerous
+# other fields.
 #
 package FreeBSD::Portindex::Port;
 
 use strict;
 use warnings;
+use Carp;
 
-use FreeBSD::Portindex::TreeObject;
+use FreeBSD::Portindex::PortsTreeObject;
 use FreeBSD::Portindex::Config qw{%Config counter};
+use FreeBSD::Portindex::ListVal;
 
-our @ISA     = ('FreeBSD::Portindex::TreeObject');
-our $VERSION = '2.7';                                # Release
+our @ISA     = ('FreeBSD::Portindex::PortsTreeObject');
+our $VERSION = '2.8';                                     # Release
 
 our %directorycache;    # Remember all the directories we've ever seen
 our %pkgnamecache;      # Remember all of the package names we've output
 
-sub new ($@)
+sub new($@)
 {
     my $class = shift;
     my %args  = @_;
     my $self;
 
-    $self = $class->SUPER::new(%args);
-
-    die "$0: error instantiating $class object -- PKGNAME missing\n"
+    croak "$0: error instantiating $class object -- PKGNAME missing\n"
       unless defined $args{PKGNAME};
 
-    $self->PKGNAME( $args{PKGNAME} );
-    $self->STUFF( $args{STUFF} );
-    $self->EXTRACT_DEPENDS( $args{EXTRACT_DEPENDS} );
-    $self->PATCH_DEPENDS( $args{PATCH_DEPENDS} );
-    $self->FETCH_DEPENDS( $args{FETCH_DEPENDS} );
-    $self->BUILD_DEPENDS( $args{BUILD_DEPENDS} );
-    $self->RUN_DEPENDS( $args{RUN_DEPENDS} );
-    $self->LIB_DEPENDS( $args{LIB_DEPENDS} );
-    $self->WWW( $args{WWW} );
-    $self->MASTER_PORT( $args{MASTER_PORT} );
-    $self->MAKEFILE_LIST( $args{MAKEFILE_LIST} );
+    $self = $class->SUPER::new(%args);
+
+    $self->{PKGNAME} = $args{PKGNAME};
+    $self->{STUFF}   = $args{STUFF};
+    $self->{EXTRACT_DEPENDS} =
+      FreeBSD::Portindex::ListVal->new( @{ $args{EXTRACT_DEPENDS} } );
+    $self->{PATCH_DEPENDS} =
+      FreeBSD::Portindex::ListVal->new( @{ $args{PATCH_DEPENDS} } );
+    $self->{FETCH_DEPENDS} =
+      FreeBSD::Portindex::ListVal->new( @{ $args{FETCH_DEPENDS} } );
+    $self->{BUILD_DEPENDS} =
+      FreeBSD::Portindex::ListVal->new( @{ $args{BUILD_DEPENDS} } );
+    $self->{RUN_DEPENDS} =
+      FreeBSD::Portindex::ListVal->new( @{ $args{RUN_DEPENDS} } );
+    $self->{LIB_DEPENDS} =
+      FreeBSD::Portindex::ListVal->new( @{ $args{LIB_DEPENDS} } );
+    $self->{WWW} = $args{WWW};
 
     return $self;
 }
@@ -85,12 +92,10 @@ sub new ($@)
 # of testing that referenced port directories exist -- so this should
 # be a bit more efficient.
 #
-sub new_from_make_vars ($$$$)
+sub new_from_make_vars($$$$)
 {
-    my $class               = shift;
-    my $args                = shift;
-    my $makefile_locations  = shift;
-    my $makefile_exceptions = shift;
+    my $class = shift;
+    my $args  = shift;
     my $self;
 
     my $origin;
@@ -104,7 +109,6 @@ sub new_from_make_vars ($$$$)
     my $lib_depends;
     my $descr;
     my $www;
-    my $master_port;
     my $makefile_list;
 
     # %{$args} should contain the value of the following port variables:
@@ -114,10 +118,9 @@ sub new_from_make_vars ($$$$)
     # Additionally, the file referenced by DESCR should be grepped to find
     # the WWW value.
     #
-    # To the usual ports index stuff we add the extra make variables:
-    # MASTER_PORT and .MAKEFILE_LIST which are used to control
-    # incremental updating.  MASTER_PORT is usually null, and where it
-    # is set is given as a relative path to PORTSDIR
+    # To the usual ports index stuff we add the extra make variable:
+    # .MAKEFILE_LIST which, together with DESCR is used to control
+    # incremental updating.
 
     $origin  = $args->{'.CURDIR'};
     $pkgname = $args->{PKGNAME};
@@ -131,10 +134,7 @@ sub new_from_make_vars ($$$$)
         $args->{PREFIX}, $args->{COMMENT}, $descr, $args->{MAINTAINER},
         $args->{CATEGORIES} );
 
-    $master_port = _master_port( $args->{MASTER_PORT}, $origin, $pkgname );
-
-    $makefile_list = _makefile_list( $args->{'.MAKEFILE_LIST'},
-        $makefile_locations, $makefile_exceptions );
+    $makefile_list = _makefile_list( $args->{'.MAKEFILE_LIST'}, $origin );
 
     # If any of the dependencies aren't there, then don't generate
     # a Port object.
@@ -186,7 +186,6 @@ sub new_from_make_vars ($$$$)
         RUN_DEPENDS     => $run_depends,
         LIB_DEPENDS     => $lib_depends,
         WWW             => $www,
-        MASTER_PORT     => $master_port,
         MAKEFILE_LIST   => $makefile_list,
     );
 
@@ -201,16 +200,14 @@ sub new_from_make_vars ($$$$)
 #  /usr/ports/foo/bar/../quux -> /usr/ports/foo/quux
 #  /usr/ports/foo/bar/ -> /usr/ports/foo/bar
 #
-sub _clean ($)
+sub _clean(@)
 {
-    my $d = shift;
-
-    chomp $d;
-    $d =~ s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
-    $d =~ s@/\w[^/]+/\.\./@/@g;
-    $d =~ s@/\Z@@;
-
-    return $d;
+    return map {
+        s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
+        s@/\w[^/]+/\.\./@/@g;
+        s@/\Z@@;
+        $_
+    } @_;
 }
 
 #
@@ -218,12 +215,12 @@ sub _clean ($)
 # otherwise return /dev/null instead.  If it does exist, grep through
 # it to find the WWW: reference.
 #
-sub _www_descr ($)
+sub _www_descr($)
 {
     my $descr = shift;
     my $www   = '';
 
-    $descr = _clean($descr);
+    ($descr) = _clean($descr);
     if ( -f $descr ) {
         open( DESCR, '<', $descr ) and do {
             while (<DESCR>) {
@@ -240,54 +237,24 @@ sub _www_descr ($)
     return ( $descr, $www );
 }
 
-# We're only interested in MASTER_PORT if it is set.  It can be the same
-# as ORIGIN, but that's OK.
-sub _master_port($$$)
-{
-    my $master_port = shift;
-    my $origin      = shift;
-    my $pkgname     = shift;
-
-    if ($master_port) {
-        if ( $master_port =~ m@^[a-zA-Z0-9._+-]+/[a-zA-Z0-9._+-]+$@ ) {
-            $master_port = "$Config{PortsDir}/$master_port";
-        } else {
-
-            # This is probably caused by a trailing '/' character
-            # on a MASTERDIR setting. In which case the result is
-            # '/usr/ports/foo/bar/' rather than 'foo/bar'
-            $master_port =~ s@/?$@@;
-
-            warn "$0:$origin($pkgname) warning -- ",
-              "\'MASTER_PORT=$master_port\' extraneous trailing /\n"
-              if $Config{Warnings};
-        }
-    }
-    return $master_port;
-}
-
 #
-# Another non-method sub: grep through the list of
-# makefiles given in .MAKEFILE_LIST and strip out what it does
-# not make sense to try and process.  Return the list of interesting
-# Makefiles an array
+# Another non-method sub: grep through the list of makefiles given in
+# .MAKEFILE_LIST and strip out what it does not make sense to try and
+# process.  Return a ref to the list of interesting Makefiles
 #
-sub _makefile_list ($$$)
+sub _makefile_list($$$)
 {
     my $makefile_list = shift;
-    my $keepers       = shift;    # MAKEFILE_LOCATIONS
-    my $discards      = shift;    # MAKEFILE_EXCEPTIONS
-    my %seen;
+    my $origin        = shift;
 
-    # List all of the makefiles under ${PORTSDIR} or ${PORT_DBDIR}
-    # which affect the compilation of a port.  Don't include
-    # ${PORTSDIR}/Mk/bsd.port.mk, because that affects *everything*,
-    # nor include ${PORTSDIR}/Mk/bsd.sites.mk since that has no
-    # material effect on the resulting port/package.
+    # List all of the makefiles which affect the compilation of a
+    # port.  Strip out bogus bits like '..', and make sure all path
+    # names are fully qualified.  Don't bother sort'n'uniquing here as
+    # that will be done when this Port object is instantiated.
 
     return [
-        grep { !$seen{$_}++ && m/$keepers/ && !m/$discards/ }
-          map { _clean $_ }
+        map { s@^(?!/)@$origin/@; $_ }
+          grep { !m/^\.\.$/ }
           split( ' ', $makefile_list )
     ];
 }
@@ -316,93 +283,56 @@ sub _depends_list($$$$)
     # what we want.  Note: some of these fields can be empty.  See
     # math/asymptote BUILD_DEPENDS for example.
 
-    foreach my $arg ( split /\s+/, $deplist ) {
+    foreach my $arg (
+        _clean( map { ( split( /:/, $_ ) )[1] } split( /\s+/, $deplist ) ) )
+    {
         next
           unless $arg;    # Leading whitespace causes a null element
 
-        $arg =~ s/^[^:]*:([^\s:]+)(?::\S+)?$/$1/;
-        $arg = _clean $arg;
-
-        if ( $directorycache{$arg} ) {
-            push @deps, $arg;
-        } else {
+        if ( !$directorycache{$arg}++ ) {
             if ( -d $arg ) {
 
                 # Sanity check -- is the dependency on what appears to
                 # be a port, rather than anything else?  The target
                 # may not be in the cache yet, so guess based on the
                 # file path.
-                if ( $arg =~ m@^$Config{PortsDir}(?:/[^/]+){2}\Z@ ) {
-                    $directorycache{$arg}++;
-                    push @deps, $arg;
-                } else {
+
+                if ( $arg !~ m@^$Config{PortsDir}/[^/]+/[^/]+\Z@ ) {
                     warn "$0:${origin} ($pkgname) Error. $whatdep $arg ",
                       "-- dependency is not a port\n";
                     $errorflag++;
+                    last;
                 }
             } else {
                 warn "$0:${origin} ($pkgname) Error. $whatdep $arg ",
                   "-- dependency not found\n";
                 $errorflag++;
+                last;
             }
         }
+        $arg =~ s@^$Config{PortsDir}/@@;
+        push @deps, $arg;
     }
     return $errorflag ? undef : \@deps;
 }
 
 #
-# Bulk creation of accessor methods -- SCALARs.
-#
-for my $slot (qw(PKGNAME STUFF WWW DEPENDENCIES_ACCUMULATED MASTER_PORT)) {
-    no strict qw(refs);
-
-    *$slot = sub {
-        my $self = shift;
-
-        if (@_) {
-            $self->{$slot} = shift;
-        }
-        return $self->{$slot};
-    };
-}
-
-#
-# Bulk creation of accessor methods -- ARRAYs.  These take references
-# to arrays but return arrays rather than array references.
-#
-for my $slot (
-    qw(BUILD_DEPENDS RUN_DEPENDS EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS
-    LIB_DEPENDS MAKEFILE_LIST)
-  )
-{
-    no strict qw(refs);
-
-    *$slot = sub {
-        my $self = shift;
-
-        if (@_) {
-            $self->{$slot} = [ _sort_unique +shift ];
-        }
-        return @{ $self->{$slot} };
-    };
-}
-
-#
-# Generic dependency accessor -- return array of the named type of
-# dependency
+# Generic dependency accessor -- return array or array_ref of the
+# named type of dependency.  If the named type doesn't exist, return
+# an empty array, or a reference to such.
 #
 sub depends($$;$)
 {
     my $self = shift;
     my $slot = shift;
 
-    if ( ref( $self->{$slot} ) eq 'ARRAY' ) {
+    if ( blessed( $self->{$slot} ) eq 'FreeBSD::Portindex::ListVal' ) {
         if (@_) {
-            $self->{$slot} = [ _sort_unique +shift ];
+            $self->{$slot}->set(@_);
         }
-        return @{ $self->{$slot} };
+        return $self->{$slot}->get();
     } else {
-        return ();
+        return wantarray ? () : [];
     }
 }
 
@@ -414,7 +344,7 @@ sub depends($$;$)
 # FreeBSD::Portindex::Port objects with accumulated dependencies in
 # the FreeBSD::Portindex::Tree structure.
 #
-sub accumulate_dependencies ($$$$$;$)
+sub accumulate_dependencies($$$$$;$)
 {
     my $self           = shift;
     my $allports       = shift;
@@ -471,7 +401,7 @@ sub accumulate_dependencies ($$$$$;$)
 #
 # Print out one line of the INDEX file
 #
-sub print_index ($*;$)
+sub print_index($*;$)
 {
     my $self     = shift;
     my $fh       = shift;
@@ -534,7 +464,8 @@ sub _chase_deps($$$)
     my $dep      = shift;
     my @dependencies;
 
-    # This should be done earlier...
+    # Conversion to PKGNAMEs should be done during the accumulation
+    # step -- one time and for all.
     for my $origin ( $self->depends( ${dep} ) ) {
         if ( defined $allports->{$origin}
             && $allports->{$origin}->can("PKGNAME") )
@@ -547,6 +478,29 @@ sub _chase_deps($$$)
         }
     }
     return join ' ', sort @dependencies;
+}
+
+#
+# Bulk creation of accessor methods -- SCALARs.
+#
+for my $slot (qw(PKGNAME STUFF WWW DEPENDENCIES_ACCUMULATED)) {
+    no strict qw(refs);
+
+    *$slot = __PACKAGE__->scalar_accessor($slot);
+}
+
+#
+# Bulk creation of accessor methods -- ARRAYs.  These are all
+# instantiated as FreeBSD::Portindex::ListVal objects.
+#
+for my $slot (
+    qw(BUILD_DEPENDS RUN_DEPENDS EXTRACT_DEPENDS PATCH_DEPENDS FETCH_DEPENDS
+    LIB_DEPENDS)
+  )
+{
+    no strict qw(refs);
+
+    *$slot = __PACKAGE__->list_val_accessor($slot);
 }
 
 1;

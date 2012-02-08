@@ -10,8 +10,12 @@ inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 lib/FreeBSD/Portindex/Category.pm
 lib/FreeBSD/Portindex/Config.pm
+lib/FreeBSD/Portindex/FileObject.pm
 lib/FreeBSD/Portindex/GraphViz.pm
+lib/FreeBSD/Portindex/ListVal.pm
+lib/FreeBSD/Portindex/Makefile.pm
 lib/FreeBSD/Portindex/Port.pm
+lib/FreeBSD/Portindex/PortsTreeObject.pm
 lib/FreeBSD/Portindex/Tree.pm
 lib/FreeBSD/Portindex/TreeObject.pm
 Makefile.PL

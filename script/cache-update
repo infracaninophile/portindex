@@ -32,10 +32,12 @@
 #
 
 # Generate an incremental update to the cached 'make describe' output,
-# for the listed port origins.  Requires (a) previously built cache of
-# the whole ports tree, including a table showing which ports are
-# slave ports and which are masters and (b) a method for automatically
-# determining which ports were affected since the last cache update
+# for the listed port origins.  Requires previously built cache of the
+# whole ports tree, including a table showing which makefiles and
+# pkg-descr files are used by which ports, together with the last
+# modification time of those files. This is the basis of the method
+# for automatically determining which ports should be check for
+# changes since the last cache update
 #
 # Running the make_describe method on a candidate port will chdir to
 # that path and run 'make -V ...' in the given directory, from which
@@ -45,20 +47,20 @@
 # port) and that is converted into a FreeBSD::Portindex::Port or a
 # FreeBSD::Portindex::Category object, which is frozen (serialized)
 # and saved in the ports cache.  It extracts the values of a couple of
-# other make variables: MASTER_PORT, .MAKEFILE_LIST and SUBDIRS. That
-# output is recorded in the cached object as well (MASTER_PORT only if
-# it set, and not the same as CWD, and only MAKEFILE_LIST items within
-# the ports tree, SUBDIRS only for Category objects).  Failing to run
-# make successfully results in that port data being removed from the
-# cache -- which is how deletions and port moves are handled.
+# other make variables: .MAKEFILE_LIST and SUBDIRS. That output is
+# recorded in the cached object as well (SUBDIRS only for Category
+# objects).  Failing to run make successfully results in that port
+# data being removed from the cache -- which is how deletions and port
+# moves are handled.
 #
-# The Master/Slave port relationships recorded from a previous run are
-# applied to force an update for all slave ports whenever the master
-# port is updated.  Ditto if an included Makefile is updated -- all
-# ports including it are added to the list of update candidates.  (If
-# it happens that /usr/ports/Mk/bsd.port.mk is updated, that means do
-# every port).  Also detects changes to OPTIONS settings by the
-# timestamp on files under /var/db/ports/
+# If an included Makefile is updated -- all ports including it are
+# added to the list of update candidates.  Exception: if it should
+# happens that /usr/ports/Mk/bsd.port.mk is updated, that means every
+# port should be checked, in which case it would be better to
+# reinitialise the cache from scratch.  This method also detects
+# changes to OPTIONS settings by the timestamp on files under
+# /var/db/ports/ -- In addition, /var/db/ports is scanned for new
+# files, where options have recently been set.
 
 use strict;
 use warnings;
@@ -85,15 +87,16 @@ sub add_to_updates_list ($$$)
     my $name    = shift;
     my $pdpart;
 
-    if ( $name !~
-        m@^$Config{PortsDir}/(?:
+    if (
+        $name !~ m@^$Config{PortsDir}/(?:
              Mk         |
              Templates  |
              Tools      |
              distfiles  |
              packages   |
              [A-Z]+s?\Z
-       )@ox )
+       )@ox
+      )
     {
 
         # Assume a two level deep ports heirarchy.  That's probably
@@ -314,7 +317,6 @@ MAIN:
     # $Config{Format} syntax. 'plain' now works with the output from
     # 'portsnap update'
 
-    $tree->init_makefile_list();
     if ( $Config{Format} =~ m/plain/ ) {
         read_plain( *STDIN, \%updates, $tree );
     } elsif ( $Config{Format} =~ m/cvsup-output/ ) {
@@ -327,7 +329,6 @@ MAIN:
     }
 
     if ( $Config{Format} =~ m/options/ ) {
-        $tree->init_makefile_list();
         check_port_options( \%updates, $tree );
     }
 
@@ -359,19 +360,6 @@ MAIN:
         }
     } while ( $counter > $startcounter );
 
-    # If one of the ports given in the @updaters list is the master of
-    # several slave ports, add all of those slave ports to the
-    # @updaters list, unconditionally.  This only works if the cache
-    # is largely complete.
-
-    $tree->init_masterslave();
-
-    # Include in the list of updated ports all of the suitable entries
-    # from the ports read from STDIN, plus the slaves of any masters
-    # listed.
-
-    map { $updates{$_}++ } map { $tree->masterslave($_) } keys %updates;
-
     # Mark the time at which the updates start
 
     update_timestamp();
@@ -401,12 +389,13 @@ B<cache-update> [B<-hvqs>] [B<-c> F<dir>] [B<-C> F<file>] [B<-T> F<file>] [B<-p>
 
 B<cache-update> processes a list of port origins, regenerating the
 index (C<make describe>) and F<Makefile> dependency data (C<make -V
-MASTER_PORT -V .MAKEFILE_LIST>) from each of them, and updating the
-record of thst data held in the B<portindex> cache.  If
-B<cache-update> is passed a port origin that no longer exists, it will
-delete any corresponding record from the cache. To handle a port that
-has been moved, it is necessary to pass B<cache-update> both the old
-and the new locations of the port for processing.
+.MAKEFILE_LIST>) or sub-directory list (C<make -V SUBDIR>) for
+categories from each of them, and updating the record of thst data
+held in the B<portindex> cache.  If B<cache-update> is passed a port
+origin that no longer exists, it will delete any corresponding record
+from the cache. To handle a port that has been moved, it is necessary
+to pass B<cache-update> both the old and the new locations of the port
+for processing.
 
 The list of ports to be processed by B<cache-update> may be supplied
 in four formats:
@@ -464,24 +453,11 @@ recognised:
 
 =item B<cvsup-checkouts,options>
 
-=back
-	
-Where one of the ports B<cache-update> has to process is recognised to
-be a master port, all known slave ports of that master are
-unconditionally added to the list of ports to reprocess.  This is
-necessary since two of the four input formats pick out the ports
-needed to be re-checked by detecting modifications to files within
-them.  However the C<make describe> output of a slave port may well be
-quite different after an update to its master port, even if none of
-the files within the slave port have been modified.
+=back 
 
-Similarly, where an update to a Makefile is detected, all ports where
-that Makefile is included will be added to the list of ports to
-reprocess.  Only Makefiles included from within the ports tree
-(ie. under F</usr/ports>, or F<$PORTSDIR> if it is set in the
-environment) and if C<OPTIONS> processing is enabled, from within the
-ports DB directory (ie under F</var/db/ports>, or F<$PORT_DBDIR>) are
-considered.  In certain circumstances it may be more advantageous to
+Where an update to a Makefile or pkg-descr is detected, all ports
+where that file is included will be added to the list of ports to
+reprocess.  In certain circumstances it may be more advantageous to
 run B<cache-init> rather than B<cache-update>.
 
 =head2 When to run B<cache-init> and when to run B<cache-update>
@@ -512,18 +488,18 @@ environment, or whatever the C<PortsDir> configuration file setting
 contains.
 
 Technically there are a number of other makefiles located outside
-F</usr/ports> (C<$PORTSDIR>) which will be included any time B<make>
-is invoked within the ports system, but these are ignored by
-B<cache-update> and B<cache-init>.  Most of those makefiles rarely
-change, and when they do, the changes are unlikely to have any
-material effect on the generated ports F<INDEX>.
+F</usr/ports> (C<$PORTSDIR>) and other than the port options stored in
+F</var/db/ports> (C<$PORT_DBDIR>) which will be included any time
+B<make> is invoked within the ports system. These are recorded by
+B<cache-init> and checked for modification by B<cache-update>, but new
+instances of such files may not be picked up on update, only on cache
+initialization.
 
 The C<--endemic-makefile> option or C<EndemicMakefiles> configuration
-file setting can be used to tell B<cache-update> of any other
-makefiles (ie. from within C<PortsDir>) to be considered to have no
-effect on the outcome of generating the F<INDEX> at all.  Again,
-non-absolute paths are taken to be relative to C<PortsDir>.  Repeat
-the option to add several entries.
+file setting can be used to tell B<cache-update> of makefiles where
+changes should have no effect on the outcome of generating the
+F<INDEX> at all.  Again, non-absolute paths are taken to be relative
+to C<PortsDir>.  Repeat the option to add several entries.
 
 =item *
 

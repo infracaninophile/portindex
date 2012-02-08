@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2011 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2012 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
 #
 
 #
-# An object for holding the lists of SUBDIRS from the per category
+# An object for holding the lists of SUBDIR from the per category
 # or top level Makefiles.  These are used to detect certain types
 # of update to the ports tree that may otherwise be missed between
 # running 'cache-init' and a subsequent 'cache-update'
@@ -40,15 +40,18 @@ package FreeBSD::Portindex::Category;
 
 use strict;
 use warnings;
+use Carp;
 
-use FreeBSD::Portindex::TreeObject;
+use FreeBSD::Portindex::PortsTreeObject;
+use FreeBSD::Portindex::Config qw(%Config);
+use FreeBSD::Portindex::ListVal;
 
-our $VERSION = '2.7';                                # Release
-our @ISA     = ('FreeBSD::Portindex::TreeObject');
+our $VERSION = '2.8';                                     # Release
+our @ISA     = ('FreeBSD::Portindex::PortsTreeObject');
 
 #
 # In addition to ORIGIN and MTIME provided by the base class, the data
-# held by this object are the list of SUBDIRS -- the list of other
+# held by this object are the list of SUBDIR -- the list of other
 # categories or portnames extracted from the Makefile.  Also contains
 # the equivalent data extracted from any Makefile.local additions to
 # the tree.
@@ -59,68 +62,46 @@ sub new ($@)
     my %args  = @_;
     my $self;
 
+    # SUBDIR should be an array ref, but can be empty
+    croak "$0: error instantiating $class object -- SUBDIR not an array ref\n"
+      unless ref $args{SUBDIR} eq 'ARRAY';
+
     $self = $class->SUPER::new(%args);
 
-    # SUBDIRS should be an array ref, but can be empty or absent
-    die "$0: error instantiating $class object -- SUBDIRS not an array ref\n"
-      unless ref $args{SUBDIRS} eq 'ARRAY';
-
-    $self->{SUBDIRS} = [ _sort_unique $args{SUBDIRS} ];
+    $self->{SUBDIR} = FreeBSD::Portindex::ListVal->new( @{$args{SUBDIR}} );
 
     return $self;
 }
 
 #
 # Create a Category object from the value of certain variables
-# extracted from one of the ports category Makefiles.
+# extracted from one of the ports category Makefiles.  The top level
+# node is thus "", corresponding to data read from
+# /usr/ports/Makefile.
 #
 sub new_from_make_vars ($$)
 {
     my $class = shift;
     my $args  = shift;
+    my @subdir;
+    my @makefile_list;
+    my $origin;
 
-    my $origin = $args->{'.CURDIR'};
-    my @subdirs = map { "$origin/$_" } split ' ', $args->{SUBDIR};
+    ( $origin = $args->{'.CURDIR'} ) =~ s,^$Config{PortsDir}/?,,;
 
-    return $class->new( ORIGIN => $origin, SUBDIRS => \@subdirs );
-}
+    @subdir = split ' ', $args->{SUBDIR};
 
-# Accessor methods (ARRAYS): Only SUBDIRS to deal with
-sub SUBDIRS ($;@)
-{
-    my $self = shift;
+    # Paths in .MAKEFILE_LIST are either absolute or relative to
+    # .CURDIR Get rid of all the '..' entries.
 
-    if (@_) {
-        $self->{SUBDIRS} = [ _sort_unique \@_ ];
-    }
-    return @{ $self->{SUBDIRS} };
-}
+    @makefile_list = map { s@^(?!/)@$args->{'.CURDIR'}/@; $_ }
+      grep { !m/^\.\.$/ } split ' ', $args->{'.MAKEFILE_LIST'};
 
-#
-# Sort the SUBDIRS entries from two Category objects into three
-# classes: those present only in the first, those present in both
-# and those present only in the second.  Similar to the comm(1)
-# program.  Return the results as a reference to a 3xN array
-#
-sub comm($$)
-{
-    my $self   = shift;
-    my $other  = shift;
-    my $result = [ [], [], [] ];
-    my %comm;
-
-    if ( defined $other && $other->can("SUBDIRS") ) {
-        for my $sd ( $self->SUBDIRS() ) {
-            $comm{$sd}--;
-        }
-        for my $sd ( $other->SUBDIRS() ) {
-            $comm{$sd}++;
-        }
-        for my $sd ( sort keys %comm ) {
-            push @{ $result->[ $comm{$sd} + 1 ] }, $sd;
-        }
-    }
-    return $result;
+    return $class->new(
+        ORIGIN        => $origin,
+        SUBDIR        => \@subdir,
+        MAKEFILE_LIST => \@makefile_list
+    );
 }
 
 #
@@ -133,11 +114,14 @@ sub is_known_subdir($$)
     my $self   = shift;
     my $origin = shift;
 
-    for my $sd ( $self->SUBDIRS() ) {
-        return 1
-          if ( $sd eq $origin );    # Found it
-    }
-    return 0;                       # Unknown
+    return $self->{SUBDIR}->contains($origin);
+}
+
+# Accessor methods (ARRAYS): Only SUBDIR to deal with
+for my $slot ('SUBDIR') {
+    no strict qw(refs);
+
+    *$slot = __PACKAGE__->list_val_accessor($slot);
 }
 
 1;

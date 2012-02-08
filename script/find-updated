@@ -75,7 +75,7 @@ sub look_for_updated_files ($$$$)
                 if ( -f _ && $mtime > $refmtime ) {
                     $is_updated++;
                     map { $updaters->{$_}++ }
-                      $tree->makefile_list($File::Find::name);
+                      ###$tree->makefile_list($File::Find::name);
 
                     warn "$0: ",
                       strftime( '%Y.%m.%d.%H.%M.%S', localtime($mtime) ),
@@ -235,7 +235,7 @@ MAIN:
     }
 
     $tree->port_origins( \%allports );
-    $tree->init_makefile_list();
+    ###$tree->init_makefile_list();
 
     # Check the standard ports makefiles in /usr/ports/Mk -- updates
     # to these generally affect a lot of ports.
