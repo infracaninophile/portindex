@@ -72,7 +72,7 @@ sub new ($@)
       unless defined $args{ORIGIN};
 
     $self = {
-        ORIGIN => $args{ORIGIN},
+        ORIGIN                => $args{ORIGIN},
         _needs_flush_to_cache => 1,
     };
     return bless $self, $class;

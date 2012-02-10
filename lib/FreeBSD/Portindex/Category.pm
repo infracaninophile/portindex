@@ -68,7 +68,7 @@ sub new ($@)
 
     $self = $class->SUPER::new(%args);
 
-    $self->{SUBDIR} = FreeBSD::Portindex::ListVal->new( @{$args{SUBDIR}} );
+    $self->{SUBDIR} = FreeBSD::Portindex::ListVal->new( @{ $args{SUBDIR} } );
 
     return $self;
 }
@@ -94,8 +94,11 @@ sub new_from_make_vars ($$)
     # Paths in .MAKEFILE_LIST are either absolute or relative to
     # .CURDIR Get rid of all the '..' entries.
 
-    @makefile_list = _clean( map { s@^(?!/)@$args->{'.CURDIR'}/@; $_ }
-      grep { !m/^\.\.$/ } split ' ', $args->{'.MAKEFILE_LIST'} );
+    @makefile_list = _clean(
+        map { s@^(?!/)@$args->{'.CURDIR'}/@; $_ }
+          grep { !m/^\.\.$/ } split ' ',
+        $args->{'.MAKEFILE_LIST'}
+    );
 
     return $class->new(
         ORIGIN        => $origin,

@@ -173,10 +173,11 @@ sub read_config ($)
         'propagation-delay|P=i' => \$Config{PropagationDelay},
         'port-dbdir|d=s'        => \$Config{PortDBDir},
     ) if ( $0 eq 'cache-update' );
-    push @optargs, (
-        'ports-dir=s'              => \$Config{PortsDir},
-        'scrub-environment|s!'     => \$Config{ScrubEnvironment},
-    ) if ( $0 eq 'cache-init' || $0 eq 'cache-update' );
+    push @optargs,
+      (
+        'ports-dir=s'          => \$Config{PortsDir},
+        'scrub-environment|s!' => \$Config{ScrubEnvironment},
+      ) if ( $0 eq 'cache-init' || $0 eq 'cache-update' );
     push @optargs, (
         'ubiquitous-makefile|M=s@' => sub {
             my $optname  = shift;

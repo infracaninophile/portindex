@@ -58,7 +58,7 @@ sub new ($;@)
     my $self  = {};
 
     if (@_) {
-	%{$self} = map { ( $_ => 1 ) } @_;
+        %{$self} = map { ( $_ => 1 ) } @_;
     }
     return bless $self, $class;
 }

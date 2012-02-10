@@ -406,7 +406,7 @@ sub print_index($*;$)
     $stuff =~ s@\s+@ @g if ( $Config{CrunchWhitespace} );
 
     print $fh $self->PKGNAME(), '|';
-    print $fh $Config{PortsDir}, '/', $self->ORIGIN(),  '|';
+    print $fh $Config{PortsDir}, '/', $self->ORIGIN(), '|';
     print $fh $stuff, '|';
     print $fh $self->_chase_deps( $allports, 'BUILD_DEPENDS' ), '|';
     print $fh $self->_chase_deps( $allports, 'RUN_DEPENDS' ),   '|';

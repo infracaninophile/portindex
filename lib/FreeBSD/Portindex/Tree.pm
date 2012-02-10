@@ -261,10 +261,10 @@ sub scan_makefiles($$)
     my $counter = 0;
 
     print STDERR "Processing make describe output",
-     @paths == 1 ? " for path \"$paths[0]\": " : ": " 
+      @paths == 1 ? " for path \"$paths[0]\": " : ": "
       if ( $Config{Verbose} );
     for my $path (@paths) {
-	$self->_scan_makefiles( $path, \$counter );
+        $self->_scan_makefiles( $path, \$counter );
     }
     $self->flush();    # Ensure everything is in persistent storage
     print STDERR "<$counter>\n"
@@ -518,13 +518,13 @@ sub allports($)
 
     @allports = grep { m@^[^/]+/[^/]+$@ } keys %{ $self->{CACHE} };
 
-    return wantarray ? @allports : \@allports ;
+    return wantarray ? @allports : \@allports;
 }
 
 #
 # Unpack all of the frozen FreeBSD::Portindex::Port objects from the
 # btree storage and stash in an internal hash for use when printing
-# out the index.  
+# out the index.
 #
 sub springtime($)
 {
@@ -668,8 +668,7 @@ sub print_index($*)
       if ( $Config{Verbose} );
 
     foreach my $origin ( $self->allports() ) {
-	$self->{LIVE}->{$origin}
-	    ->print_index( $fh, $self->{LIVE}, \$counter );
+        $self->{LIVE}->{$origin}->print_index( $fh, $self->{LIVE}, \$counter );
     }
     print STDERR "<${counter}>\n"
       if ( $Config{Verbose} );
