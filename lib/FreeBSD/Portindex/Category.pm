@@ -43,7 +43,7 @@ use warnings;
 use Carp;
 
 use FreeBSD::Portindex::PortsTreeObject;
-use FreeBSD::Portindex::Config qw(%Config);
+use FreeBSD::Portindex::Config qw(%Config _clean);
 use FreeBSD::Portindex::ListVal;
 
 our $VERSION = '2.8';                                     # Release
@@ -94,8 +94,8 @@ sub new_from_make_vars ($$)
     # Paths in .MAKEFILE_LIST are either absolute or relative to
     # .CURDIR Get rid of all the '..' entries.
 
-    @makefile_list = map { s@^(?!/)@$args->{'.CURDIR'}/@; $_ }
-      grep { !m/^\.\.$/ } split ' ', $args->{'.MAKEFILE_LIST'};
+    @makefile_list = _clean( map { s@^(?!/)@$args->{'.CURDIR'}/@; $_ }
+      grep { !m/^\.\.$/ } split ' ', $args->{'.MAKEFILE_LIST'} );
 
     return $class->new(
         ORIGIN        => $origin,

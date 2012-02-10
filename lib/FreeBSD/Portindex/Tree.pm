@@ -91,7 +91,7 @@ sub new ($@)
       %{ $args{-Env} };
     delete $args{-Env};
 
-    # Tie the PORTS hashes to our cache file -- a DB btree file.  Keep
+    # Tie the CACHE hashes to our cache file -- a DB btree file.  Keep
     # various FreeBSD::Portindex::TreeObject objects in this cache --
     # primarily the PORT data, plus the CATEGORY.  Also contains data
     # data about dependencies on files -- Makefiles and pkg-descr files.
@@ -507,41 +507,33 @@ sub update_files_unused_by($$)
 }
 
 #
-# Unpack all of the frozen FreeBSD::Portindex::TreeObject items from
-# the btree storage and stash in some internal hashes for later use.
+# Return an array or array_ref of all of the Port names, in sorted
+# order.  Relies on the underlying btree file to provide the sorting.
+# Port ORIGINS are matched by pattern.
+#
+sub allports($)
+{
+    my $self = shift;
+    my @allports;
+
+    @allports = grep { m@^[^/]+/[^/]+$@ } keys %{ $self->{CACHE} };
+
+    return wantarray ? @allports : \@allports ;
+}
+
+#
+# Unpack all of the frozen FreeBSD::Portindex::Port objects from the
+# btree storage and stash in an internal hash for use when printing
+# out the index.  
 #
 sub springtime($)
 {
     my $self = shift;
 
-    foreach my $origin ( keys %{ $self->{CACHE} } ) {
-        next
-          if ( $origin eq '__CACHE_VERSION' );
-
+    foreach my $origin ( $self->allports() ) {
         $self->get($origin);
     }
     return $self;
-}
-
-#
-# Fill in the referenced hash with a list of all known ports (as keys)
-# and zero as values.  Includes all of the categories too.  Ports and
-# Category origins are stored relative to $PORTSDIR.
-#
-sub port_origins($$)
-{
-    my $self     = shift;
-    my $allports = shift;
-
-    foreach my $origin ( keys %{ $self->{CACHE} } ) {
-        next
-          if ( $origin eq '__CACHE_VERSION' );
-        next
-          if ( $origin =~ m@^/@ );
-
-        $allports->{$origin} = 0;
-    }
-    return $allports;
 }
 
 #
@@ -602,7 +594,7 @@ sub category_check ($$$)
 #
 # For all of the known ports (but not the categories), accumulate the
 # various dependencies as required for the INDEX or SHLIB file.  Assumes
-# 'springtime' has been called to populate the LIVE_PORTS hash.  See
+# 'springtime' has been called to populate the LIVE hash.  See
 # FreeBSD::Portindex::Port::accumulate_dependencies() for details.
 #
 # **Note** This alters the contents of LIVE without flushing the
@@ -651,8 +643,8 @@ sub accumulate_dependencies($)
 
     print STDERR "Accumulating dependency information: "
       if ( $Config{Verbose} );
-    for my $port ( values %{ $self->{LIVE_PORTS} } ) {
-        $port->accumulate_dependencies( $self->{LIVE_PORTS}, $whatdeps,
+    for my $port ( values %{ $self->{LIVE} } ) {
+        $port->accumulate_dependencies( $self->{LIVE}, $whatdeps,
             $accumulate_deps, 0, \$counter )
           if ( blessed $port
             && $port->isa("FreeBSD::Portindex::Port") );
@@ -671,42 +663,13 @@ sub print_index($*)
     my $self    = shift;
     my $fh      = shift;
     my $counter = 0;
-    my $parentorigin;
 
     print STDERR "Writing INDEX file: "
       if ( $Config{Verbose} );
 
-    foreach my $origin ( keys %{ $self->{PORTS} } ) {
-        next
-          if ( $origin eq '__CACHE_VERSION' );
-
-        if ( blessed $self->{LIVE_PORTS}->{$origin}
-            && $self->{LIVE_PORTS}->{$origin}->isa("FreeBSD::Portindex::Port") )
-        {
-
-            if ( $Config{Strict} ) {
-                ( $parentorigin = $origin ) =~ s@/[^/]*$@@;
-
-                if ( blessed $self->{LIVE_PORTS}->{$parentorigin}
-                    && $self->{LIVE_PORTS}->{$parentorigin}
-                    ->isa("FreeBSD::Portindex::Category")
-                    && $self->{LIVE_PORTS}->{$parentorigin}
-                    ->is_known_subdir($origin) )
-                {
-                    $self->{LIVE_PORTS}->{$origin}
-                      ->print_index( $fh, $self->{LIVE_PORTS}, \$counter );
-                } else {
-                    warn "$0: $origin is not referenced from the ",
-                      "$parentorigin category -- not added to INDEX\n"
-                      if $Config{Warnings};
-                }
-            } else {
-
-                # Not strict...
-                $self->{LIVE_PORTS}->{$origin}
-                  ->print_index( $fh, $self->{LIVE_PORTS}, \$counter );
-            }
-        }
+    foreach my $origin ( $self->allports() ) {
+	$self->{LIVE}->{$origin}
+	    ->print_index( $fh, $self->{LIVE}, \$counter );
     }
     print STDERR "<${counter}>\n"
       if ( $Config{Verbose} );
@@ -727,12 +690,12 @@ sub print_shlibs($*)
     print STDERR "Writing SHLIBS file: "
       if ( $Config{Verbose} );
 
-    foreach my $origin ( keys %{ $self->{PORTS} } ) {
-        if ( blessed $self->{LIVE_PORTS}->{$origin}
-            && $self->{LIVE_PORTS}->{$origin}->isa("FreeBSD::Portindex::Port") )
+    foreach my $origin ( $self->allports() ) {
+        if ( blessed $self->{LIVE}->{$origin}
+            && $self->{LIVE}->{$origin}->isa("FreeBSD::Portindex::Port") )
         {
-            $self->{LIVE_PORTS}->{$origin}
-              ->print_shlibs( $fh, $self->{LIVE_PORTS}, \$counter );
+            $self->{LIVE}->{$origin}
+              ->print_shlibs( $fh, $self->{LIVE}, \$counter );
         }
     }
     print STDERR "<$counter}>\n"

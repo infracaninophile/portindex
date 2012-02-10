@@ -31,10 +31,9 @@
 #
 
 #
-# Makefile objects.  Corresponds to a
-# single file.  These type of objects have an ORIGIN (the fully
-# qualified path) and an MTIME (last modified time of the file as
-# returned by stat(2)).
+# Makefile objects.  Correspond to a single file.  These type of
+# objects have an ORIGIN (the fully qualified path) and an MTIME (last
+# modified time of the file as returned by stat(2)).
 #
 package FreeBSD::Portindex::Makefile;
 
@@ -45,24 +44,17 @@ use warnings;
 use Carp;
 
 use FreeBSD::Portindex::Config qw(%Config);
+use FreeBSD::Portindex::ListVal;
 
 our $VERSION = '2.8';                                # Release
 our @ISA     = ('FreeBSD::Portindex::FileObject');
 
-our %EndemicMakefiles;
-our %UbiquitousMakefiles;
-
 # Ensure fully qualified paths are used -- any relative paths in
 # %Config are assumed to be relative to $Config{PortsDir}, usually
 # /usr/ports.
-BEGIN {
-    %EndemicMakefiles =
-      map { s@(?!/)@$Config{PortsDir}/@; ( $_ => 1 ) }
-      @{ $Config{EndemicMakefiles} };
-    %UbiquitousMakefiles =
-      map { s@(?!/)@$Config{PortsDir}/@; ( $_ => 1 ) }
-      @{ $Config{UbiquitousMakefiles} };
-}
+
+our $EndemicMakefiles;
+our $UbiquitousMakefiles;
 
 #
 # All TreeObjects have an ORIGIN -- the key used to look up the object
@@ -91,13 +83,21 @@ sub new ($@)
     my %args  = @_;
     my $self;
 
+    $EndemicMakefiles //=
+      FreeBSD::Portindex::ListVal->new( map { s@^(?!/)@$Config{PortsDir}/@; $_ }
+          @{ $Config{EndemicMakefiles} } );
+
+    $UbiquitousMakefiles //=
+      FreeBSD::Portindex::ListVal->new( map { s@^(?!/)@$Config{PortsDir}/@; $_ }
+          @{ $Config{UbiquitousMakefiles} } );
+
     $self = $class->SUPER::new(%args);
 
     $self->{IS_ENDEMIC} = 1
-      if ( defined $EndemicMakefiles{ $self->ORIGIN() } );
+      if ( $EndemicMakefiles->contains( $self->ORIGIN() ) );
 
     $self->{IS_UBIQUITOUS} = 1
-      if ( defined $UbiquitousMakefiles{ $self->ORIGIN() } );
+      if ( $UbiquitousMakefiles->contains( $self->ORIGIN() ) );
 
     return $self;
 }

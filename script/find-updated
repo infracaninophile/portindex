@@ -234,7 +234,7 @@ MAIN:
           or die "$0: Can't open output \'$Config{Output}\' -- $!\n";
     }
 
-    $tree->port_origins( \%allports );
+    %allports = map { ( $_ => 0 ) } $tree->allports();
     ###$tree->init_makefile_list();
 
     # Check the standard ports makefiles in /usr/ports/Mk -- updates

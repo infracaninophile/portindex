@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2011 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2012 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -44,8 +44,8 @@ use POSIX qw(strftime);
 use Exporter qw(import);
 
 our @EXPORT_OK = qw(%Config read_config update_timestamp get_timestamp
-  compare_timestamps scrub_environment counter);
-our $VERSION = '2.7';    # Release
+  compare_timestamps scrub_environment counter _clean);
+our $VERSION = '2.8';    # Release
 
 # The ultimate defaults...
 our %Config;
@@ -176,6 +176,8 @@ sub read_config ($)
     push @optargs, (
         'ports-dir=s'              => \$Config{PortsDir},
         'scrub-environment|s!'     => \$Config{ScrubEnvironment},
+    ) if ( $0 eq 'cache-init' || $0 eq 'cache-update' );
+    push @optargs, (
         'ubiquitous-makefile|M=s@' => sub {
             my $optname  = shift;
             my $optvalue = shift;
@@ -200,7 +202,7 @@ sub read_config ($)
 
             push @{ $Config{EndemicMakefiles} }, $optvalue;
         },
-    ) if ( $0 eq 'cache-init' || $0 eq 'cache-update' );
+    ) if ( $0 eq 'cache-init' );
     push @optargs, (
         'ports-dir=s' => \$Config{PortsDir},
         '<>'          => sub {
@@ -250,8 +252,8 @@ sub read_config ($)
 # command line have been processed.
 sub show_config ()
 {
-    my $um_fmt = "  Ubiquitous Makefiles (cache-update, cache-init) . ";
-    my $em_fmt = "  Endemic Makefiles (cache-update, cache-init) .... ";
+    my $um_fmt = "  UbiquitousMakefiles (cache-init) ............ ";
+    my $em_fmt = "  EndemicMakefiles (cache-init) ............... ";
 
     print <<"E_O_CONFIG";
 
@@ -260,22 +262,22 @@ Current Configuration:
   Settings after reading all configuration files and parsing the
   command line.  They apply to all programs, except as marked.
 
-  CacheDir ........................................ $Config{CacheDir}
-  CacheFilename ................................... $Config{CacheFilename}
-  CrunchWhitespace (portindex)..................... $Config{CrunchWhitespace}
-  Format (cache-update) ........................... $Config{Format}
-  Input (cache-update) ............................ $Config{Input}
-  Output (portindex, portdepends, find-updated) ... $Config{Output}
-  OutputStyle (portdepends) ....................... $Config{OutputStyle}
-  PortDBDir (cache-update) ........................ $Config{PortDBDir}
-  PortsDir (cache-init, cache-update, find-updated) $Config{PortsDir}
-  PropagationDelay (cache-update) ................. $Config{PropagationDelay}
-  ScrubEnvironment (cache-init, cache-update) ..... $Config{ScrubEnvironment}
-  ShLibs (portindex) .............................. $Config{ShLibs}
-  Strict (portindex) .............................. $Config{Strict}
-  TimestampFilename ............................... $Config{TimestampFilename}
-  Verbose ......................................... $Config{Verbose}
-  Warnings ........................................ $Config{Warnings} 
+  CacheDir .................................... $Config{CacheDir}
+  CacheFilename ............................... $Config{CacheFilename}
+  CrunchWhitespace (portindex)................. $Config{CrunchWhitespace}
+  Format (cache-update) ....................... $Config{Format}
+  Input (cache-update) ........................ $Config{Input}
+  Output (portindex, portdepends, find-updated) $Config{Output}
+  OutputStyle (portdepends) ................... $Config{OutputStyle}
+  PortDBDir (cache-update) .................... $Config{PortDBDir}
+  PortsDir .................................... $Config{PortsDir}
+  PropagationDelay (cache-update) ............. $Config{PropagationDelay}
+  ScrubEnvironment (cache-init, cache-update) . $Config{ScrubEnvironment}
+  ShLibs (portindex) .......................... $Config{ShLibs}
+  Strict (portindex) .......................... $Config{Strict}
+  TimestampFilename ........................... $Config{TimestampFilename}
+  Verbose ..................................... $Config{Verbose}
+  Warnings .................................... $Config{Warnings} 
 E_O_CONFIG
     for my $um ( @{ $Config{UbiquitousMakefiles} } ) {
         print $um_fmt, $um, "\n";
@@ -362,6 +364,25 @@ sub counter ($)
             print STDERR '.';
         }
     }
+}
+
+#
+# The make describe data may contain several undesirable constructs
+# where ports or files are referred to by path.  Strip these out as
+# follows:
+#
+#  /usr/ports/foo/bar/../../baz/blurfl -> /usr/ports/baz/blurfl
+#  /usr/ports/foo/bar/../quux -> /usr/ports/foo/quux
+#  /usr/ports/foo/bar/ -> /usr/ports/foo/bar
+#
+sub _clean(@)
+{
+    return map {
+        s@/[^/]+/[^/]+/\.\./\.\./@/@g;
+        s@/[^/]+/\.\./@/@g;
+        s@/\Z@@;
+        $_
+    } @_;
 }
 
 1;

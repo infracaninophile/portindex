@@ -42,9 +42,10 @@ package FreeBSD::Portindex::Port;
 use strict;
 use warnings;
 use Carp;
+use Scalar::Util qw{blessed};
 
 use FreeBSD::Portindex::PortsTreeObject;
-use FreeBSD::Portindex::Config qw{%Config counter};
+use FreeBSD::Portindex::Config qw{%Config counter _clean};
 use FreeBSD::Portindex::ListVal;
 
 our @ISA     = ('FreeBSD::Portindex::PortsTreeObject');
@@ -122,7 +123,7 @@ sub new_from_make_vars($$$$)
     # .MAKEFILE_LIST which, together with DESCR is used to control
     # incremental updating.
 
-    $origin  = $args->{'.CURDIR'};
+    ( $origin = $args->{'.CURDIR'} ) =~ s,^$Config{PortsDir}/?,,;
     $pkgname = $args->{PKGNAME};
 
     ( $descr, $www ) = _www_descr( $args->{DESCR} );
@@ -134,7 +135,8 @@ sub new_from_make_vars($$$$)
         $args->{PREFIX}, $args->{COMMENT}, $descr, $args->{MAINTAINER},
         $args->{CATEGORIES} );
 
-    $makefile_list = _makefile_list( $args->{'.MAKEFILE_LIST'}, $origin );
+    $makefile_list =
+      _makefile_list( $args->{'.MAKEFILE_LIST'}, $args->{'.CURDIR'} );
 
     # If any of the dependencies aren't there, then don't generate
     # a Port object.
@@ -190,24 +192,6 @@ sub new_from_make_vars($$$$)
     );
 
     return $self;
-}
-
-#
-# The make describe line may contain several undesirable constructs in
-# the list of dependency origins.  Strip these out as follows:
-#
-#  /usr/ports/foo/bar/../../baz/blurfl -> /usr/ports/baz/blurfl
-#  /usr/ports/foo/bar/../quux -> /usr/ports/foo/quux
-#  /usr/ports/foo/bar/ -> /usr/ports/foo/bar
-#
-sub _clean(@)
-{
-    return map {
-        s@/\w[^/]+/\w[^/]+/\.\./\.\./@/@g;
-        s@/\w[^/]+/\.\./@/@g;
-        s@/\Z@@;
-        $_
-    } @_;
 }
 
 #
@@ -422,7 +406,7 @@ sub print_index($*;$)
     $stuff =~ s@\s+@ @g if ( $Config{CrunchWhitespace} );
 
     print $fh $self->PKGNAME(), '|';
-    print $fh $self->ORIGIN(),  '|';
+    print $fh $Config{PortsDir}, '/', $self->ORIGIN(),  '|';
     print $fh $stuff, '|';
     print $fh $self->_chase_deps( $allports, 'BUILD_DEPENDS' ), '|';
     print $fh $self->_chase_deps( $allports, 'RUN_DEPENDS' ),   '|';

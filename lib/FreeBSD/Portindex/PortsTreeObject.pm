@@ -67,7 +67,7 @@ sub new ($@)
     $self = $class->SUPER::new(%args);
 
     $self->{MAKEFILE_LIST} =
-      FreeBSD::Portindex::ListVal->new( @{$args{MAKEFILE_LIST}} );
+      FreeBSD::Portindex::ListVal->new( @{ $args{MAKEFILE_LIST} } );
 
     return $self;
 }
