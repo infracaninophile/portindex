@@ -77,7 +77,7 @@ sub look_for_updated_files ($$$$)
                     map { $updaters->{$_}++ }
                       ###$tree->makefile_list($File::Find::name);
 
-                    warn "$0: ",
+                      warn "$0: ",
                       strftime( '%Y.%m.%d.%H.%M.%S', localtime($mtime) ),
                       " $File::Find::name\n"
                       if $Config{Verbose};
