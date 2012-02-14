@@ -85,7 +85,6 @@ sub list_dependencies($$$$)
     my $flags  = shift;
 
     my $port = $tree->get($origin);
-    my $relorigin;
     my %dependencies;
 
     if ( !defined $port ) {
@@ -95,10 +94,8 @@ sub list_dependencies($$$$)
         return;
     }
 
-    ( $relorigin = $origin ) =~ s,^.+/ports/,,;
-
     $flags = pretty_flags($flags);
-    print "[$flags] ", "- " x $level, $port->PKGNAME(), " ($relorigin)\n";
+    print "[$flags] ", "- " x $level, $port->PKGNAME(), " ($origin)\n";
 
     # Recurse through this port's dependencies
 
@@ -132,7 +129,6 @@ sub list_dependencies_short($$$$$)
     my $seen   = shift;
 
     my $port = $tree->get($origin);
-    my $relorigin;
     my %dependencies;
 
     if ( !defined $port ) {
@@ -142,10 +138,8 @@ sub list_dependencies_short($$$$$)
         return;
     }
 
-    ( $relorigin = $origin ) =~ s,^.+/ports/,,;
-
     $flags = pretty_flags($flags);
-    print "[$flags] ", "- " x $level, $port->PKGNAME(), " ($relorigin)";
+    print "[$flags] ", "- " x $level, $port->PKGNAME(), " ($origin)";
 
     # Short circuit this branch if its somewhere we've already been
     if ( defined $seen->{ $port->PKGNAME() } ) {
@@ -199,7 +193,6 @@ sub graph_dependencies($$$$$$)
     my $seen   = shift;
 
     my $port = $tree->get($origin);
-    my $relorigin;
     my %dependencies;
 
     if ( !defined $port ) {
@@ -209,14 +202,12 @@ sub graph_dependencies($$$$$$)
         return;
     }
 
-    ( $relorigin = $origin ) =~ s,^.+/ports/,,;
-
     # Short circuit this branch if its somewhere we've already been
     if ( defined $seen->{ $port->PKGNAME() } ) {
         return;
     }
 
-    $graph->add_node( $origin, label => $port->PKGNAME() . "\n($relorigin)" );
+    $graph->add_node( $origin, label => $port->PKGNAME() . "\n($origin)" );
 
     # Recurse through this port's dependencies
 
@@ -264,8 +255,8 @@ MAIN:
     # out the dependency tree (recursively)
 
     for my $portorigin (@ARGV) {
-        if ( $portorigin =~ m,^[^/]+/[^/]+\Z, ) {
-            $portorigin = "$Config{PortsDir}/$portorigin";
+        if ( $portorigin =~ m,^$Config{PortsDir}/([^/]+/[^/]+)\Z, ) {
+            $portorigin = $1;
         }
         if ( $Config{OutputStyle} eq 'graph' ) {
             my $graph = FreeBSD::Portindex::GraphViz->new();
