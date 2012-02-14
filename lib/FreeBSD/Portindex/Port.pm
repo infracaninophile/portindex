@@ -340,8 +340,7 @@ sub accumulate_dependencies($$$$$;$)
             my $seen = FreeBSD::Portindex::ListVal->new();
 
             for my $dep ( $self->depends($thisdep) ) {
-                if ( defined $allports->{$dep} )
-                {
+                if ( defined $allports->{$dep} ) {
                     $allports->{$dep}->accumulate_dependencies(
                         $allports,       $whatdeps,
                         $accumulate_dep, $recdepth + 1
