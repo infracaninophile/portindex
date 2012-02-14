@@ -103,35 +103,37 @@ sub has_been_modified($)
     $mtime = ( stat $self->ORIGIN() )[9]
       or croak "$0: Cannot determine mtime for ", $self->ORIGIN(), " -- $!\n";
 
-    return $mtime <=> $self->mtime();
+    return $mtime <=> $self->MTIME();
 }
 
 #
 # Insert a list of port ORIGINs into the USED_BY list,
 # and return the result.
 #
-sub used_by($;@)
+sub mark_used_by($;@)
 {
     my $self = shift;
 
     if (@_) {
         $self->{_needs_to_flush_cache} = 1;
+	$self->{USED_BY}->insert(@_);
     }
-    return $self->{USED_BY}->insert(@_);
+    return $self;
 }
 
 #
 # Remove values from the USED_BY list, returning the
 # result.
 #
-sub unused_by($;@)
+sub mark_unused_by($;@)
 {
     my $self = shift;
 
     if (@_) {
         $self->{_needs_to_flush_cache} = 1;
+	$self->{USED_BY}->delete(@_);
     }
-    return $self->{USED_BY}->delete(@_);
+    return $self;
 }
 
 #
@@ -153,6 +155,15 @@ for my $slot ('MTIME') {
     no strict qw(refs);
 
     *$slot = __PACKAGE__->scalar_accessor($slot);
+}
+
+#
+# USED_BY -- cross reference 
+#
+for my $slot ('USED_BY') {
+    no strict qw(refs);
+
+    *$slot = __PACKAGE__->list_val_accessor($slot);
 }
 
 1;

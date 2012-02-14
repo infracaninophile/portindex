@@ -438,7 +438,7 @@ sub update_files_used_by($$)
                       FreeBSD::Portindex::Makefile->new( ORIGIN => $makefile );
                     $self->insert($file_object);
                 }
-                $file_object->used_by($origin);
+                $file_object->mark_used_by($origin);
             };
             if ($@) {
 
@@ -458,7 +458,7 @@ sub update_files_used_by($$)
                   FreeBSD::Portindex::FileObject->new( ORIGIN => $descr );
                 $self->insert($file_object);
             }
-            $file_object->used_by($origin);
+            $file_object->mark_used_by($origin);
         };
         if ($@) {
 
@@ -490,7 +490,7 @@ sub update_files_unused_by($$)
             $file_object = $self->get($makefile);
 
             if ( defined $file_object ) {
-                $file_object->unused_by($origin);
+                $file_object->mark_unused_by($origin);
             }
         }
     }
@@ -500,7 +500,7 @@ sub update_files_unused_by($$)
         $file_object = $self->get($descr);
 
         if ( defined $file_object ) {
-            $file_object->used_by($origin);
+            $file_object->mark_unused_by($origin);
         }
     }
     return $self;

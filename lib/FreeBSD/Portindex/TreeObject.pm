@@ -112,10 +112,9 @@ sub list_val_accessor($$)
 
         if (@_) {
             $self->{_needs_flush_to_cache} = 1;
-            return $self->{$method}->set(@_);
-        } else {
-            return $self->{$method}->get();
+            $self->{$method}->set(@_);
         }
+	return $self->{$method}->get();
     };
 }
 

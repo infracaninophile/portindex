@@ -110,30 +110,22 @@ sub item($$)
     return ( sort keys %{$self} )[$index];
 }
 
-# Return undef in void context, list of contents in array context,
-# array_ref otherwise.  Results are unsorted.
+# Return list of contents in array context, array_ref otherwise.
+# Results are unsorted.
 sub get ($)
 {
-    if ( defined wantarray ) {
-        my @vals = keys %{ +shift };
+    my @vals = keys %{ +shift };
 
-        return wantarray ? @vals : \@vals;
-    } else {
-        return undef;
-    }
+    return wantarray ? @vals : \@vals;
 }
 
-# Return undef in void context, list of contents in array context,
-# array_ref otherwise. Results are sorted.
+# Return list of contents in array context, array_ref
+# otherwise. Results are sorted.
 sub get_sorted ($)
 {
-    if ( defined wantarray ) {
-        my @vals = sort keys %{ +shift };
+    my @vals = sort keys %{ +shift };
 
-        return wantarray ? @vals : \@vals;
-    } else {
-        return undef;
-    }
+    return wantarray ? @vals : \@vals;
 }
 
 sub set ($@)
@@ -142,7 +134,7 @@ sub set ($@)
 
     %{$self} = map { ( $_ => 1 ) } @_;
 
-    return $self->get();
+    return $self;
 }
 
 # Merge the values from the arg list into the list.
@@ -153,7 +145,7 @@ sub insert ($@)
     for my $v (@_) {
         $self->{$v} = 1;
     }
-    return $self->get();
+    return $self;
 }
 
 # Delete any values matching anything in the arglist
@@ -164,7 +156,7 @@ sub delete ($@)
     for my $v (@_) {
         delete $self->{$v};
     }
-    return $self->get();
+    return $self;
 }
 
 # Serialization.  Adds trailing NULL as a marker.

@@ -128,14 +128,14 @@ sub used_by($;@)
         $self->{_needs_flush_to_cache} = 1;
         $self->{USED_BY}->insert(@_);
     }
-    return $self->{USED_BY}->get();
+    return $self;
 }
 
 #
 # Remove values from the USED_BY list, unless this is a ubiquitous
 # Makefile. Return the result.
 #
-sub unused_by($;@)
+sub mark_unused_by($;@)
 {
     my $self = shift;
 
@@ -143,7 +143,7 @@ sub unused_by($;@)
         $self->{_needs_flush_to_cache} = 1;
         $self->{USED_BY}->delete(@_);
     }
-    return $self->{USED_BY}->get();
+    return $self;
 }
 
 1;
