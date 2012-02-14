@@ -522,6 +522,22 @@ sub allports($)
 }
 
 #
+# Return an array or array_ref of all of the Port objects, in sorted
+# order. Relies on the underlying btree file to provide the sorting.
+# Port ORIGINS are matched by pattern.
+#
+sub allports_data($)
+{
+    my $self = shift;
+    my @allports;
+
+    @allports = map { $self->{LIVE}->{$_} }
+      grep { m@^[^/]+/[^/]+$@ } keys %{ $self->{CACHE} };
+
+    return wantarray ? @allports : \@allports;
+}
+
+#
 # Unpack all of the frozen FreeBSD::Portindex::Port objects from the
 # btree storage and stash in an internal hash for use when printing
 # out the index.
@@ -643,11 +659,9 @@ sub accumulate_dependencies($)
 
     print STDERR "Accumulating dependency information: "
       if ( $Config{Verbose} );
-    for my $port ( values %{ $self->{LIVE} } ) {
+    for my $port ( $self->allports_data() ) {
         $port->accumulate_dependencies( $self->{LIVE}, $whatdeps,
-            $accumulate_deps, 0, \$counter )
-          if ( blessed $port
-            && $port->isa("FreeBSD::Portindex::Port") );
+            $accumulate_deps, 0, \$counter );
     }
     print STDERR "<${counter}>\n" if ( $Config{Verbose} );
 
@@ -690,12 +704,7 @@ sub print_shlibs($*)
       if ( $Config{Verbose} );
 
     foreach my $origin ( $self->allports() ) {
-        if ( blessed $self->{LIVE}->{$origin}
-            && $self->{LIVE}->{$origin}->isa("FreeBSD::Portindex::Port") )
-        {
-            $self->{LIVE}->{$origin}
-              ->print_shlibs( $fh, $self->{LIVE}, \$counter );
-        }
+        $self->{LIVE}->{$origin}->print_shlibs( $fh, \$counter );
     }
     print STDERR "<$counter}>\n"
       if ( $Config{Verbose} );

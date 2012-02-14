@@ -310,14 +310,10 @@ sub depends($$;$)
     my $self = shift;
     my $slot = shift;
 
-    if ( blessed( $self->{$slot} ) eq 'FreeBSD::Portindex::ListVal' ) {
-        if (@_) {
-            $self->{$slot}->set(@_);
-        }
-        return $self->{$slot}->get();
-    } else {
-        return wantarray ? () : [];
+    if (@_) {
+        $self->{$slot}->set(@_);
     }
+    return $self->{$slot}->get();
 }
 
 #
@@ -340,35 +336,32 @@ sub accumulate_dependencies($$$$$;$)
     unless ( $self->{DEPENDENCIES_ACCUMULATED} ) {
         $self->{DEPENDENCIES_ACCUMULATED} = 1;    # Accumulation in progress
 
-        for my $whatdep ( @{$whatdeps} ) {
-            my %seen = ();
+        for my $thisdep ( @{$whatdeps} ) {
+            my $seen = FreeBSD::Portindex::ListVal->new();
 
-            for my $dep ( $self->depends($whatdep) ) {
-                if ( defined $allports->{$dep}
-                    && $allports->{$dep}->can("accumulate_dependencies") )
+            for my $dep ( $self->depends($thisdep) ) {
+                if ( defined $allports->{$dep} )
                 {
                     $allports->{$dep}->accumulate_dependencies(
                         $allports,       $whatdeps,
                         $accumulate_dep, $recdepth + 1
                     );
 
-                    $seen{$dep}++;
+                    $seen->insert($dep);
                 } else {
                     warn "$0:", $self->ORIGIN(), " (", $self->PKGNAME(),
-                      ") $whatdep on \'$dep\' not recognised as a port\n"
+                      ") $thisdep on \'$dep\' not recognised as a port\n"
                       if $Config{Warnings};
                 }
             }
 
-            if ( keys %seen ) {
-                my @s;
-                for my $dep ( keys %seen ) {
+            if ( $seen->length() ) {
+                for my $dep ( $seen->get() ) {
                     for my $d ( $allports->{$dep}->depends($accumulate_dep) ) {
-                        $seen{$d}++;
+                        $seen->insert($d);
                     }
                 }
-                @s = keys %seen;
-                $self->depends( $whatdep, \@s );
+                $self->depends( $thisdep, $seen->get() );
             }
         }
         $self->{DEPENDENCIES_ACCUMULATED} = 2;    # Accumulation done
@@ -385,7 +378,7 @@ sub accumulate_dependencies($$$$$;$)
 #
 # Print out one line of the INDEX file
 #
-sub print_index($*;$)
+sub print_index($*$$)
 {
     my $self     = shift;
     my $fh       = shift;
@@ -394,12 +387,12 @@ sub print_index($*;$)
     my $stuff;
 
     # Duplicate package names are an error to 'make index'.
-    if ( defined $pkgnamecache{ $self->{PKGNAME} } ) {
-        warn "$0: warning duplicate package name ", $self->{PKGNAME}, " (",
-          $self->{ORIGIN}, " and ", $pkgnamecache{ $self->{PKGNAME} }, ")\n"
+    if ( defined $pkgnamecache{ $self->PKGNAME() } ) {
+        warn "$0: warning duplicate package name ", $self->PKGNAME(), " (",
+          $self->ORIGIN(), " and ", $pkgnamecache{ $self->PKGNAME() }, ")\n"
           if $Config{Warnings};
     } else {
-        $pkgnamecache{ $self->{PKGNAME} } = $self->{ORIGIN};
+        $pkgnamecache{ $self->PKGNAME() } = $self->ORIGIN();
     }
 
     $stuff = $self->{STUFF};
@@ -410,7 +403,7 @@ sub print_index($*;$)
     print $fh $stuff, '|';
     print $fh $self->_chase_deps( $allports, 'BUILD_DEPENDS' ), '|';
     print $fh $self->_chase_deps( $allports, 'RUN_DEPENDS' ),   '|';
-    print $fh $self->{WWW}, '|';
+    print $fh $self->WWW(), '|';
     print $fh $self->_chase_deps( $allports, 'EXTRACT_DEPENDS' ), '|';
     print $fh $self->_chase_deps( $allports, 'PATCH_DEPENDS' ),   '|';
     print $fh $self->_chase_deps( $allports, 'FETCH_DEPENDS' ),   "\n";
@@ -422,12 +415,11 @@ sub print_index($*;$)
 #
 # Print out one line of the SHLIBS file
 #
-sub print_shlibs($*;$)
+sub print_shlibs($*$)
 {
-    my $self     = shift;
-    my $fh       = shift;
-    my $allports = shift;
-    my $counter  = shift;
+    my $self    = shift;
+    my $fh      = shift;
+    my $counter = shift;
 
     print $fh $self->PKGNAME(), '|';
     print $fh $self->ORIGIN(),  '|';
