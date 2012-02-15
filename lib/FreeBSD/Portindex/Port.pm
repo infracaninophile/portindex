@@ -233,8 +233,8 @@ sub _makefile_list($$$)
 
     # List all of the makefiles which affect the compilation of a
     # port.  Strip out bogus bits like '..', and make sure all path
-    # names are fully qualified.  Don't bother sort'n'uniquing here as
-    # that will be done when this Port object is instantiated.
+    # names are fully qualified.  Don't bother uniquing here as that
+    # will be done when this Port object is instantiated.
 
     return [
         map { s@^(?!/)@$origin/@; $_ }
