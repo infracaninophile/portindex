@@ -317,6 +317,37 @@ sub depends($$;$)
 }
 
 #
+# Generic dependency modifier -- insert values into the list for the
+# named dependency type.
+#
+sub insert($$;@)
+{
+    my $self = shift;
+    my $slot = shift;
+
+    if (@_) {
+        $self->{$slot}->insert(@_);
+    }
+    return $self;
+}
+
+#
+# For the given dependency, convert all of the port origins in the
+# dependency list to pkgnames.
+#
+sub convert_to_pkgnames($$$)
+{
+    my $self     = shift;
+    my $allports = shift;
+    my $slot     = shift;
+
+    $self->{$slot}
+      ->set( map { $allports->{$_}->PKGNAME() } $self->{$slot}->get() );
+
+    return $self;
+}
+
+#
 # Accumulate all of the various dependencies for this port.  If a port
 # has a FOO_DEPENDS entry for /usr/ports/foo/bar, then the FOO_DEPENDS
 # entry should have all of the RUN_DEPENDS items for the foo/bar port
@@ -336,9 +367,11 @@ sub accumulate_dependencies($$$$$;$)
     unless ( $self->{DEPENDENCIES_ACCUMULATED} ) {
         $self->{DEPENDENCIES_ACCUMULATED} = 1;    # Accumulation in progress
 
-        for my $thisdep ( @{$whatdeps} ) {
+        for my $thisdep ( keys %{$whatdeps} ) {
             my $seen = FreeBSD::Portindex::ListVal->new();
 
+            # Recurse through the tree -- find the ends of any
+            # dependency chains and accumulate upwards from there.
             for my $dep ( $self->depends($thisdep) ) {
                 if ( defined $allports->{$dep} ) {
                     $allports->{$dep}->accumulate_dependencies(
@@ -354,13 +387,17 @@ sub accumulate_dependencies($$$$$;$)
                 }
             }
 
+            # Convert port origins to pkg names if required.
+            if ( $whatdeps->{$thisdep} ) {
+                $self->convert_to_pkgnames( $allports, $thisdep );
+            }
+
             if ( $seen->length() ) {
                 for my $dep ( $seen->get() ) {
                     for my $d ( $allports->{$dep}->depends($accumulate_dep) ) {
-                        $seen->insert($d);
+                        $self->insert( $thisdep, $d );
                     }
                 }
-                $self->depends( $thisdep, $seen->get() );
             }
         }
         $self->{DEPENDENCIES_ACCUMULATED} = 2;    # Accumulation done
@@ -404,12 +441,12 @@ sub print_index($*$$)
     print $fh $self->DESCR(),      '|';
     print $fh $self->MAINTAINER(), '|';
     print $fh $self->CATEGORIES(), '|';
-    print $fh $self->_chase_deps( $allports, 'BUILD_DEPENDS' ), '|';
-    print $fh $self->_chase_deps( $allports, 'RUN_DEPENDS' ),   '|';
+    print $fh join( ' ', $self->{BUILD_DEPENDS}->get_sorted() ), '|';
+    print $fh join( ' ', $self->{RUN_DEPENDS}->get_sorted() ),   '|';
     print $fh $self->WWW(), '|';
-    print $fh $self->_chase_deps( $allports, 'EXTRACT_DEPENDS' ), '|';
-    print $fh $self->_chase_deps( $allports, 'PATCH_DEPENDS' ),   '|';
-    print $fh $self->_chase_deps( $allports, 'FETCH_DEPENDS' ),   "\n";
+    print $fh join( ' ', $self->{EXTRACT_DEPENDS}->get_sorted() ), '|';
+    print $fh join( ' ', $self->{PATCH_DEPENDS}->get_sorted() ),   '|';
+    print $fh join( ' ', $self->{FETCH_DEPENDS}->get_sorted() ),   "\n";
 
     counter($counter);
     return $self;
@@ -426,37 +463,10 @@ sub print_shlibs($*$)
 
     print $fh $self->PKGNAME(), '|';
     print $fh $self->ORIGIN(),  '|';
-    print $fh join( ' ', $self->LIB_DEPENDS() ), "\n";
+    print $fh join( ' ', $self->{LIB_DEPENDS}->get_sorted() ), "\n";
 
     counter($counter);
     return $self;
-}
-
-#
-# Currently, just turns the dependency array into a space separated
-# list and translates from ORIGINs into PKGNAMEs
-#
-sub _chase_deps($$$)
-{
-    my $self     = shift;
-    my $allports = shift;
-    my $dep      = shift;
-    my @dependencies;
-
-    # Conversion to PKGNAMEs should be done during the accumulation
-    # step -- one time and for all.
-    for my $origin ( $self->depends( ${dep} ) ) {
-        if ( defined $allports->{$origin}
-            && $allports->{$origin}->can("PKGNAME") )
-        {
-            push @dependencies, $allports->{$origin}->PKGNAME();
-        } else {
-            warn "$0: ", $self->PKGNAME(),
-              " No PKGNAME found for ($dep) $origin\n"
-              if $Config{Warnings};
-        }
-    }
-    return join ' ', sort @dependencies;
 }
 
 #

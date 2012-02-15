@@ -619,26 +619,25 @@ sub accumulate_dependencies($)
     my $accumulate_deps;
 
     # If printing INDEX:
-    # On output:
+    # On output -- all converted to pkg name:
     # EXTRACT_DEPENDS <-- RUN_DEPENDS
     # PATCH_DEPENDS   <-- RUN_DEPENDS
     # FETCH_DEPENDS   <-- RUN_DEPENDS
     # BUILD_DEPENDS   <-- RUN_DEPENDS (Includes LIB_DEPENDS already)
     # RUN_DEPENDS     <-- RUN_DEPENDS (Includes LIB_DEPENDS already)
 
-    my $index_deps = [
-        qw{
-          EXTRACT_DEPENDS
-          PATCH_DEPENDS
-          FETCH_DEPENDS
-          BUILD_DEPENDS
-          RUN_DEPENDS }
-    ];
+    my $index_deps = {
+          EXTRACT_DEPENDS => 1,
+          PATCH_DEPENDS   => 1,
+          FETCH_DEPENDS   => 1,
+          BUILD_DEPENDS   => 1,
+          RUN_DEPENDS     => 1,
+    };
 
     # If printing SHLIBS:
     # On output
-    # LIB_DEPENDS  <--- LIB_DEPENDS
-    my $shlib_deps = ["LIB_DEPENDS"];
+    # LIB_DEPENDS  <--- LIB_DEPENDS (as port origins)
+    my $shlib_deps = { LIB_DEPENDS => 0 };
 
     if ( $Config{ShLibs} == 0 ) {
 
