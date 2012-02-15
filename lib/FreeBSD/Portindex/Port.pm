@@ -414,12 +414,11 @@ sub accumulate_dependencies($$$$$;$)
 #
 # Print out one line of the INDEX file
 #
-sub print_index($*$$)
+sub print_index($*$)
 {
-    my $self     = shift;
-    my $fh       = shift;
-    my $allports = shift;
-    my $counter  = shift;
+    my $self    = shift;
+    my $fh      = shift;
+    my $counter = shift;
     my $comment;
 
     # Duplicate package names are an error to 'make index'.

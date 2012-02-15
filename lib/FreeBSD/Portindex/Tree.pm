@@ -627,11 +627,11 @@ sub accumulate_dependencies($)
     # RUN_DEPENDS     <-- RUN_DEPENDS (Includes LIB_DEPENDS already)
 
     my $index_deps = {
-          EXTRACT_DEPENDS => 1,
-          PATCH_DEPENDS   => 1,
-          FETCH_DEPENDS   => 1,
-          BUILD_DEPENDS   => 1,
-          RUN_DEPENDS     => 1,
+        EXTRACT_DEPENDS => 1,
+        PATCH_DEPENDS   => 1,
+        FETCH_DEPENDS   => 1,
+        BUILD_DEPENDS   => 1,
+        RUN_DEPENDS     => 1,
     };
 
     # If printing SHLIBS:
@@ -676,7 +676,7 @@ sub print_index($*)
       if ( $Config{Verbose} );
 
     foreach my $port ( $self->allports_data() ) {
-        $port->print_index( $fh, $self->{LIVE}, \$counter );
+        $port->print_index( $fh, \$counter );
     }
     print STDERR "<${counter}>\n"
       if ( $Config{Verbose} );
