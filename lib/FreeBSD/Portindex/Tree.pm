@@ -121,11 +121,6 @@ sub new ($@)
 
     $self->{LIVE} = {};
 
-    # Accumulated dependency data with port names converted to
-    # pkgnames
-
-    $self->{ACCUMULATED} = {};
-
     return bless $self, $class;
 }
 
@@ -681,8 +676,8 @@ sub print_index($*)
     print STDERR "Writing INDEX file: "
       if ( $Config{Verbose} );
 
-    foreach my $origin ( $self->allports() ) {
-        $self->{LIVE}->{$origin}->print_index( $fh, $self->{LIVE}, \$counter );
+    foreach my $port ( $self->allports_data() ) {
+        $port->print_index( $fh, $self->{LIVE}, \$counter );
     }
     print STDERR "<${counter}>\n"
       if ( $Config{Verbose} );
@@ -703,8 +698,8 @@ sub print_shlibs($*)
     print STDERR "Writing SHLIBS file: "
       if ( $Config{Verbose} );
 
-    foreach my $origin ( $self->allports() ) {
-        $self->{LIVE}->{$origin}->print_shlibs( $fh, \$counter );
+    foreach my $port ( $self->allports_data() ) {
+        $port->print_shlibs( $fh, \$counter );
     }
     print STDERR "<$counter}>\n"
       if ( $Config{Verbose} );

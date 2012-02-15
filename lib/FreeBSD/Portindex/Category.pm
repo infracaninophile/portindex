@@ -69,6 +69,7 @@ sub new ($@)
     $self = $class->SUPER::new(%args);
 
     $self->{SUBDIR} = FreeBSD::Portindex::ListVal->new( @{ $args{SUBDIR} } );
+    $self->{COMMENT} = $args{COMMENT};    # Can be undef
 
     return $self;
 }
@@ -103,6 +104,7 @@ sub new_from_make_vars ($$)
     return $class->new(
         ORIGIN        => $origin,
         SUBDIR        => \@subdir,
+        COMMENT       => $args->{COMMENT},
         MAKEFILE_LIST => \@makefile_list
     );
 }
@@ -125,6 +127,13 @@ for my $slot ('SUBDIR') {
     no strict qw(refs);
 
     *$slot = __PACKAGE__->list_val_accessor($slot);
+}
+
+# Accessor methods (SCALARS): Only COMMENT to deal with
+for my $slot ('COMMENT') {
+    no strict qw(refs);
+
+    *$slot = __PACKAGE__->scalar_accessor($slot);
 }
 
 1;

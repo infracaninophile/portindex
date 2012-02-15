@@ -65,8 +65,12 @@ sub new($@)
 
     $self = $class->SUPER::new(%args);
 
-    $self->{PKGNAME} = $args{PKGNAME};
-    $self->{STUFF}   = $args{STUFF};
+    $self->{PKGNAME}    = $args{PKGNAME};
+    $self->{PREFIX}     = $args{PREFIX};
+    $self->{COMMENT}    = $args{COMMENT};
+    $self->{DESCR}      = $args{DESCR};
+    $self->{MAINTAINER} = $args{MAINTAINER};
+    $self->{CATEGORIES} = $args{CATEGORIES};
     $self->{EXTRACT_DEPENDS} =
       FreeBSD::Portindex::ListVal->new( @{ $args{EXTRACT_DEPENDS} } );
     $self->{PATCH_DEPENDS} =
@@ -101,7 +105,6 @@ sub new_from_make_vars($$$$)
 
     my $origin;
     my $pkgname;
-    my $stuff;
     my $build_depends;
     my $run_depends;
     my $extract_depends;
@@ -127,13 +130,6 @@ sub new_from_make_vars($$$$)
     $pkgname = $args->{PKGNAME};
 
     ( $descr, $www ) = _www_descr( $args->{DESCR} );
-
-    # [*] COMMENT doesn't need quoting to get it through several
-    # layers of shell.
-
-    $stuff = join( '|',
-        $args->{PREFIX}, $args->{COMMENT}, $descr, $args->{MAINTAINER},
-        $args->{CATEGORIES} );
 
     $makefile_list =
       _makefile_list( $args->{'.MAKEFILE_LIST'}, $args->{'.CURDIR'} );
@@ -180,7 +176,11 @@ sub new_from_make_vars($$$$)
     $self = $class->new(
         PKGNAME         => $pkgname,
         ORIGIN          => $origin,
-        STUFF           => $stuff,
+        PREFIX          => $args->{PREFIX},
+        COMMENT         => $args->{COMMENT},
+        DESCR           => $descr,
+        MAINTAINER      => $args->{MAINTAINER},
+        CATEGORIES      => $args->{CATEGORIES},
         EXTRACT_DEPENDS => $extract_depends,
         PATCH_DEPENDS   => $patch_depends,
         FETCH_DEPENDS   => $fetch_depends,
@@ -383,7 +383,7 @@ sub print_index($*$$)
     my $fh       = shift;
     my $allports = shift;
     my $counter  = shift;
-    my $stuff;
+    my $comment;
 
     # Duplicate package names are an error to 'make index'.
     if ( defined $pkgnamecache{ $self->PKGNAME() } ) {
@@ -394,12 +394,16 @@ sub print_index($*$$)
         $pkgnamecache{ $self->PKGNAME() } = $self->ORIGIN();
     }
 
-    $stuff = $self->{STUFF};
-    $stuff =~ s@\s+@ @g if ( $Config{CrunchWhitespace} );
+    $comment = $self->COMMENT();
+    $comment =~ s@\s+@ @g if ( $Config{CrunchWhitespace} );
 
     print $fh $self->PKGNAME(), '|';
     print $fh $Config{PortsDir}, '/', $self->ORIGIN(), '|';
-    print $fh $stuff, '|';
+    print $fh $self->PREFIX(), '|';
+    print $fh $comment, '|';
+    print $fh $self->DESCR(),      '|';
+    print $fh $self->MAINTAINER(), '|';
+    print $fh $self->CATEGORIES(), '|';
     print $fh $self->_chase_deps( $allports, 'BUILD_DEPENDS' ), '|';
     print $fh $self->_chase_deps( $allports, 'RUN_DEPENDS' ),   '|';
     print $fh $self->WWW(), '|';
@@ -458,7 +462,11 @@ sub _chase_deps($$$)
 #
 # Bulk creation of accessor methods -- SCALARs.
 #
-for my $slot (qw(PKGNAME STUFF WWW DEPENDENCIES_ACCUMULATED)) {
+for my $slot (
+    qw(PKGNAME PREFIX COMMENT DESCR MAINTAINER CATEGORIES
+    WWW DEPENDENCIES_ACCUMULATED )
+  )
+{
     no strict qw(refs);
 
     *$slot = __PACKAGE__->scalar_accessor($slot);
