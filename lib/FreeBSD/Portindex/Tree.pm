@@ -279,14 +279,7 @@ sub _scan_makefiles($$;$)
     # other IO error (undef); success (new object reference)
 
     $port = $self->make_describe($path);
-    if ( blessed $port ) {
-
-        # Create any new Makefile or FileObject (pkg-descr) objects
-        # for anything we haven't seen before, then update the USED_BY
-        # fields of every referenced file object.
-
-        $self->update_files_used_by($port);
-
+    if ($port) {
         if ( $port->isa("FreeBSD::Portindex::Port") ) {
 
             # This is a port makefile, not a category one.
@@ -345,9 +338,11 @@ sub make_describe($$)
 
     chdir $path
       or do {
+        $port = $self->delete($path);    # Make sure old cruft is deleted
 
-        # Make sure old cruft is deleted
-        if ( $self->delete($path) ) {
+        if ($port) {
+            $self->update_files_unused_by($port);
+
             warn "$0: $path -- deleted from cache\n"
               if $Config{Warnings};
         } else {
@@ -375,9 +370,11 @@ sub make_describe($$)
     }
     close MAKE
       or do {
+        $port = $self->delete($path);    # There's a Makefile, but not valid.
 
-        # There's a Makefile, but it's not a valid one.
-        if ( $? && $self->delete($path) ) {
+        if ( $? && $port ) {
+            $self->update_files_unused_by($port);
+
             warn "$0: $path Error. Invalid port deleted from cache\n";
         } else {
             warn "$0: $path Error. ",
@@ -406,6 +403,13 @@ sub make_describe($$)
         $port = FreeBSD::Portindex::Category->new_from_make_vars( \%make_vars );
     }
     $self->insert($port);
+
+    # Create any new Makefile or FileObject (pkg-descr) objects
+    # for anything we haven't seen before, then update the USED_BY
+    # fields of every referenced file object.
+
+    $self->update_files_used_by($port);
+
     return $port;
 }
 
