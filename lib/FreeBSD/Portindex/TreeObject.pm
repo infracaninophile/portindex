@@ -79,6 +79,16 @@ sub new ($@)
 }
 
 #
+# Utility functions to mark what sort of object this is There should
+# be no instances of the generic TreeObject added to the Tree: only
+# subclasses.  Override these methods in the appropriate subclasses.
+#
+sub is_port($)     { return undef; }
+sub is_category($) { return undef; }
+sub is_file($)     { return undef; }
+sub is_makefile($) { return undef; }
+
+#
 # Function to generate accessor methods for Scalars
 #
 
@@ -114,7 +124,7 @@ sub list_val_accessor($$)
             $self->{_needs_flush_to_cache} = 1;
             $self->{$method}->set(@_);
         }
-	return $self->{$method}->get();
+        return $self->{$method}->get();
     };
 }
 

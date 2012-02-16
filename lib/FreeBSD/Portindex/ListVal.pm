@@ -73,7 +73,7 @@ sub difference($$$)
 
     my $self = $class->new();
 
-    for my $i ( @{$left}, @{$right} ) {
+    for my $i ( keys %{$left}, keys %{$right} ) {
         if ( exists $self->{$i} ) {
             delete $self->{$i};
         } else {

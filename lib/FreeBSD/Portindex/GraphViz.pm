@@ -1,4 +1,4 @@
-# Copyright (c) 2011 Matthew Seaman. All rights reserved.
+# Copyright (c) 2011-2012 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -46,7 +46,7 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '2.7';    # Release
+our $VERSION = '2.8';    # Release
 
 #
 # Graphs are essentially a list of nodes, and a list of edges

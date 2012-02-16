@@ -44,6 +44,7 @@ use warnings;
 use Carp;
 
 use FreeBSD::Portindex::Config qw(%Config);
+use FreeBSD::Portindex::FileObject;
 use FreeBSD::Portindex::ListVal;
 
 our $VERSION = '2.8';                                # Release
@@ -101,6 +102,9 @@ sub new ($@)
 
     return $self;
 }
+
+# Acknowledge $self is a Makefile
+sub is_makefile($) { return 1; }
 
 sub is_endemic($)
 {

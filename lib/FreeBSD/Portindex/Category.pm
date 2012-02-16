@@ -42,9 +42,9 @@ use strict;
 use warnings;
 use Carp;
 
-use FreeBSD::Portindex::PortsTreeObject;
 use FreeBSD::Portindex::Config qw(%Config _clean);
 use FreeBSD::Portindex::ListVal;
+use FreeBSD::Portindex::PortsTreeObject;
 
 our $VERSION = '2.8';                                     # Release
 our @ISA     = ('FreeBSD::Portindex::PortsTreeObject');
@@ -73,6 +73,9 @@ sub new ($@)
 
     return $self;
 }
+
+# Acknowledge that $self is a category
+sub is_category($) { return 1; }
 
 #
 # Create a Category object from the value of certain variables

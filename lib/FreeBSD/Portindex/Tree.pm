@@ -43,12 +43,12 @@ use BerkeleyDB;
 use Scalar::Util qw(blessed);
 use Carp;
 
-use FreeBSD::Portindex::TreeObject;
-use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::Category;
+use FreeBSD::Portindex::Config qw{%Config counter};
 use FreeBSD::Portindex::FileObject;
 use FreeBSD::Portindex::Makefile;
-use FreeBSD::Portindex::Config qw{%Config counter};
+use FreeBSD::Portindex::Port;
+use FreeBSD::Portindex::TreeObject;
 
 our $VERSION       = '2.8';    # Release
 our $CACHE_VERSION = '2.8';    # Earliest binary compat version
@@ -205,13 +205,13 @@ sub delete ($$)
 
     return undef if ( $origin eq '__CACHE_VERSION' );
 
-    if ( exists $self->{LIVE}->{$origin} ) {
-        $tree_object = delete $self->{LIVE}->{$origin};
-    }
     if ( exists $self->{CACHE}->{$origin} ) {
-        $tree_object //=
+        $tree_object =
           FreeBSD::Portindex::TreeObject->thaw( $self->{CACHE}->{$origin} );
         delete $self->{CACHE}->{$origin};
+    }
+    if ( exists $self->{LIVE}->{$origin} ) {
+        $tree_object = delete $self->{LIVE}->{$origin};
     }
     return $tree_object;
 }
@@ -318,20 +318,22 @@ sub make_describe($$)
     my $port;
 
     my @make_var_list = qw{
-      PKGNAME
       .CURDIR
-      PREFIX
+      .MAKEFILE_LIST
+      BUILD_DEPENDS
+      CATEGORIES
       COMMENT
       DESCR
-      MAINTAINER
-      CATEGORIES
       EXTRACT_DEPENDS
-      PATCH_DEPENDS
       FETCH_DEPENDS
-      BUILD_DEPENDS
-      RUN_DEPENDS
       LIB_DEPENDS
-      .MAKEFILE_LIST
+      MAINTAINER
+      OPTIONS
+      OPTIONSFILE
+      PATCH_DEPENDS
+      PKGNAME
+      PREFIX
+      RUN_DEPENDS
       SUBDIR
     };
     my %make_vars;
@@ -397,6 +399,24 @@ sub make_describe($$)
             warn "$0: $path Error.  Can\'t parse make output\n";
             return undef;
           };
+
+        # If the port uses OPTIONS, force a Makefile entry to be made
+        # for the options file even though it doesn't exist yet.  (Set
+        # mtime to 0 in this case)  This will trigger a cache update if
+        # OPTIONS are set at a later date.
+
+        if ( $make_vars{OPTIONS} ) {
+            my $makefile = $self->get( $make_vars{OPTIONSFILE} );
+
+            if ( !$makefile ) {
+                $makefile = FreeBSD::Portindex::Makefile->new(
+                    ORIGIN => $make_vars{OPTIONSFILE},
+                    MTIME  => 0,
+                );
+                $self->insert($makefile);
+            }
+            $makefile->mark_used_by( $port->ORIGIN() );
+        }
     } else {
 
         # A category Makefile
@@ -555,8 +575,7 @@ sub springtime($)
 # Test whether a given filename matches a known category type of
 # thing.  Updates to a category Makefile mean we should compare the
 # new and old list of SUBDIRs carefully, as this can indicate a new
-# port being hooked up to the tree, or various other changes. XXX --
-# sanity? does this still matter in the new regime?
+# port being hooked up to the tree, or various other changes.
 #
 sub category_match ($$)
 {
@@ -568,7 +587,7 @@ sub category_match ($$)
 
     $port = $self->get($origin);
 
-    return ( blessed $port && $port->isa("FreeBSD::Portindex::Category") );
+    return defined $port ? $port->is_category() : undef;
 }
 
 #
@@ -588,21 +607,120 @@ sub category_check ($$$)
     my $oldcat;
     my $comm;
 
-    $newcat = $self->make_describe($origin);
     $oldcat = $self->get($origin);
-    delete $updaters->{$origin};
+    $newcat = $self->make_describe($origin);
+    $updaters->delete($origin);
 
     # Sometimes a deleted port may be mixed up with a category.
     # Filter out those cases.
 
-    if ( blessed $newcat && $newcat->isa("FreeBSD::Portindex::Category") ) {
-        my $list_changes =
-          FreeBSD::Portindex::ListVal->difference( $oldcat->SUBDIR(),
-            $newcat->SUBDIR() );
-        foreach my $o ( $list_changes->get() ) {
-            $updaters->{$o}++;
+    if ( blessed $newcat && $newcat->is_category() ) {
+        $updaters->insert(
+            FreeBSD::Portindex::ListVal->difference(
+                $oldcat->SUBDIR(), $newcat->SUBDIR()
+            )
+        );
+    }
+    return $self;
+}
+
+#
+# Check file object or makefile for updates to mtime and add any ports
+# that use it to the $updaters ListVal.
+#
+sub add_to_updates_if_modified($$$)
+{
+    my $self    = shift;
+    my $updates = shift;
+    my $name    = shift;
+    my $makefile;
+
+    $makefile = $self->get($name);
+
+    return undef
+      unless ($makefile);
+
+    if (   $makefile->is_file()
+        && !$makefile->is_endemic()
+        && $makefile->has_been_modified() )
+    {
+        if ( $makefile->is_ubiquitous() ) {
+            warn "$0: WARNING: $name modified since last update ",
+              "-- time for cache-init again?\n";
+        } else {
+            $updates->insert( $makefile->USED_BY() );
+        }
+        $makefile->update_mtime();
+    }
+    return $self;
+}
+
+#
+# Scan through all Makefile or other files that don't sit under PORTSDIR
+# or PORT_DBDIR, and check them for updates
+#
+sub check_other_makefiles($$)
+{
+    my $self    = shift;
+    my $updates = shift;
+    my $makefile;
+
+    for my $name ( keys %{$self->{CACHE}} ) {
+
+        # Skip ports etc. where the origin doesn't start with '/'
+        next
+          unless ( $name =~ m@^/@ );
+
+        # Skip anything under PORTSDIR or PORT_DBDIR
+        next
+          if ( $name =~ m@^(?:$Config{PortsDir}|$Config{PortDBDir})@ );
+
+        $self->add_to_updates_if_modified( $updates, $name );
+    }
+    return $self;
+}
+
+#
+# Scan through the PORT_DBDIR looking for 'options' files.  Compare
+# the mtime of the file with the last update timestamp from the cache
+# -- add the port to the list to be checked if the options have been
+# modified more recently.
+#
+sub check_port_options ($$)
+{
+    my $self    = shift;
+    my $updates = shift;
+    my $options;
+    my $makefile;
+
+    opendir PORT_DBDIR, $Config{PortDBDir}
+      or do {
+        warn "$0: Error. Cannot read directory \'$Config{PortDBDir}\' -- $!\n";
+        return $updates;
+      };
+    while ( my $dir = readdir PORT_DBDIR ) {
+        next
+          unless $dir =~ m/[\w-]+/;    # Skip things with dots in the name
+
+        # The Makefile generated by and included due to OPTIONS
+        # processing
+        $options = "$Config{PortDBDir}/$dir/options";
+
+        next
+          unless ( -f $options );      # $dir may be empty
+
+        if ( !$self->add_to_updates_if_modified( $updates, $options ) ) {
+
+            # It looks like an options file, but since we load the
+            # cache with all posible names of the known options files,
+            # it must be something else.
+            warn "$0: WARNING unknown options file \"$options\" -- ignored\n"
+              if $Config{Verbose};
         }
     }
+    closedir PORT_DBDIR
+      or warn "$0: Error. Closing directory \'$Config{PortDBDir}\' -- $!\n";
+
     return $self;
 }
 

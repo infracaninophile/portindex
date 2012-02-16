@@ -44,8 +44,8 @@ use strict;
 use warnings;
 use Carp;
 
-use FreeBSD::Portindex::TreeObject;
 use FreeBSD::Portindex::ListVal;
+use FreeBSD::Portindex::TreeObject;
 
 our $VERSION = '2.8';                                # Release
 our @ISA     = ('FreeBSD::Portindex::TreeObject');

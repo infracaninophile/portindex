@@ -44,7 +44,7 @@ use POSIX qw(strftime);
 use Exporter qw(import);
 
 our @EXPORT_OK = qw(%Config read_config update_timestamp get_timestamp
-  compare_timestamps scrub_environment counter _clean);
+  scrub_environment counter _clean);
 our $VERSION = '2.8';    # Release
 
 # The ultimate defaults...
@@ -88,7 +88,7 @@ sub read_config ($)
               /usr/share/mk/sys.mk
               )
         ],
-        Format              => 'cvsup-output,options',
+        Format              => 'cvsup-output,options,other',
         Input               => '-',
         Output              => '-',
         OutputStyle         => 'default',
@@ -155,18 +155,12 @@ sub read_config ($)
             my $optname  = shift;
             my $optvalue = shift;
 
+            my $a = qr/(?:plain|cvsup-(?:output|checkouts))/i;
+            my $b = qr/options/i;
+            my $c = qr/other/i;
+
             die "$0: Option --$optname unrecognised argument: $optvalue\n"
-              unless $optvalue =~ m@
-                  ^(
-                     (
-                      plain|cvsup-(output|checkouts)
-                     )
-                     (,options)?
-                   )
-                  |
-                   options
-                  \Z
-                  @x;
+              unless $optvalue =~ m@^(?:$a|$a,$b|$a,$b,$c|$b,$c|$c)\Z@;
 
             $Config{Format} = $optvalue;
         },
@@ -311,32 +305,6 @@ sub get_timestamp ()
 {
     return ( stat "$Config{CacheDir}/$Config{TimestampFilename}" )[9]
       or die "$0: can't stat $Config{TimestampFilename} -- $!\n";
-}
-
-# Return true if the portindex timestamp is *newer* than the file
-# timestamp, false otherwise -- in which case, it's probably time to
-# re-run cache-init.
-sub compare_timestamps ()
-{
-    my $p_mtime;
-    my $f_mtime;
-    my $was_updated = 0;
-
-    $p_mtime = get_timestamp();
-
-    for my $file ( @{ $Config{UbiquitousMakefiles} } ) {
-        $f_mtime = ( stat $file )[9]
-          or do {
-            warn "$0: can't stat $file -- $!\n";
-            next;
-          };
-        warn "$0: WARNING: $file more recently modified than last ",
-          "cache update -- time for cache-init again?\n"
-          if ( $Config{Verbose}
-            && ( !defined $f_mtime || $f_mtime > $p_mtime ) );
-        $was_updated += ( $p_mtime > $f_mtime );
-    }
-    return $was_updated;
 }
 
 # Clear everything out of the environment except for some standard

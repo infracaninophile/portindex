@@ -44,9 +44,9 @@ use warnings;
 use Carp;
 use Scalar::Util qw{blessed};
 
-use FreeBSD::Portindex::PortsTreeObject;
 use FreeBSD::Portindex::Config qw{%Config counter _clean};
 use FreeBSD::Portindex::ListVal;
+use FreeBSD::Portindex::PortsTreeObject;
 
 our @ISA     = ('FreeBSD::Portindex::PortsTreeObject');
 our $VERSION = '2.8';                                     # Release
@@ -87,6 +87,9 @@ sub new($@)
 
     return $self;
 }
+
+# Acknowledge that $self is a port.
+sub is_port($) { return 1; }
 
 #
 # Generate the same result using the values of a number of variables
@@ -340,9 +343,22 @@ sub convert_to_pkgnames($$$)
     my $self     = shift;
     my $allports = shift;
     my $slot     = shift;
+    my @pkgnames;
 
-    $self->{$slot}
-      ->set( map { $allports->{$_}->PKGNAME() } $self->{$slot}->get() );
+    for my $dependency ( $self->{$slot}->get() ) {
+        my $p = $allports->{$dependency};
+
+        if ( $p && $p->can("PKGNAME") ) {
+            push @pkgnames, $p->PKGNAME();
+        } else {
+            carp "$0: ", $self->ORIGIN(), " (", $self->PKGNAME(),
+              ") has a $slot dependency on \"$dependency\"\n";
+        }
+    }
+    $self->{$slot}->set(@pkgnames);
+
+    #$self->{$slot}
+    #  ->set( map { $allports->{$_}->PKGNAME() } $self->{$slot}->get() );
 
     return $self;
 }

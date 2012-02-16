@@ -45,6 +45,7 @@ use warnings;
 use Carp;
 
 use FreeBSD::Portindex::ListVal;
+use FreeBSD::Portindex::TreeObject;
 
 our $VERSION = '2.8';                                # Release
 our @ISA     = ('FreeBSD::Portindex::TreeObject');
@@ -71,12 +72,12 @@ sub new ($@)
 
     $self = $class->SUPER::new(%args);
 
-    if ( defined $args{mtime} ) {
+    if ( defined $args{MTIME} ) {
         croak "$0: error instantiating $class object -- ",
-          "MTIME=$args{mtime} is bogus\n"
-          unless $args{mtime} =~ m/^\d+$/;
+          "MTIME=$args{MTIME} is bogus\n"
+          unless $args{MTIME} =~ m/^\d+$/;
 
-        $self->{MTIME} = $args{mtime};
+        $self->{MTIME} = $args{MTIME};
     } else {
         my $mtime = ( stat $self->ORIGIN() )[9]
           or croak "$0: error instantiating $class object -- ",
@@ -90,20 +91,42 @@ sub new ($@)
     return $self;
 }
 
+# Acknowledge $self is a file
+sub is_file($) { return 1; }
+
+# Stub methods: these properly apply to Makefiles only: for any other
+# File objects just return undef (ie. neither endemic, nor ubiquitous)
+sub is_endemic($)    { return undef; }
+sub is_ubiquitous($) { return undef; }
+
 #
-# Did the mtime of the file change since the last update?  Returns
-# -1 if the file is now /older/ than it was, 0 if the same age or
-# 1 if the file is newer.
+# Did the mtime of the file change since the last update?  Returns -1
+# if the file is now /older/ than it was, 0 if the same age or 1 if
+# the file is newer.  Use MTIME==0 for un-stat'able files.
 #
 sub has_been_modified($)
 {
     my $self = shift;
     my $mtime;
 
-    $mtime = ( stat $self->ORIGIN() )[9]
-      or croak "$0: Cannot determine mtime for ", $self->ORIGIN(), " -- $!\n";
+    $mtime = ( stat $self->ORIGIN() )[9] or $mtime = 0;
 
     return $mtime <=> $self->MTIME();
+}
+
+#
+# Record the current mtime of the file
+#
+sub update_mtime($)
+{
+    my $self = shift;
+    my $mtime;
+
+    $mtime = ( stat $self->ORIGIN() )[9] or $mtime = 0;
+
+    $self->MTIME($mtime);
+
+    return $self;
 }
 
 #
@@ -116,7 +139,7 @@ sub mark_used_by($;@)
 
     if (@_) {
         $self->{_needs_to_flush_cache} = 1;
-	$self->{USED_BY}->insert(@_);
+        $self->{USED_BY}->insert(@_);
     }
     return $self;
 }
@@ -131,7 +154,7 @@ sub mark_unused_by($;@)
 
     if (@_) {
         $self->{_needs_to_flush_cache} = 1;
-	$self->{USED_BY}->delete(@_);
+        $self->{USED_BY}->delete(@_);
     }
     return $self;
 }
@@ -158,7 +181,7 @@ for my $slot ('MTIME') {
 }
 
 #
-# USED_BY -- cross reference 
+# USED_BY -- cross reference
 #
 for my $slot ('USED_BY') {
     no strict qw(refs);
