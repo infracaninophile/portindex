@@ -306,7 +306,7 @@ MAIN:
         $counter++;
         print STDERR "$0:$counter: Updating cached data for $path\n"
           if $Config{Verbose};
-        $tree->make_describe($path);
+        $tree->make_describe("$Config{PortsDir}/$path");
     }
 
     $tree->flush();
