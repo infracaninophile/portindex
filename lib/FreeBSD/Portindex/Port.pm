@@ -343,23 +343,15 @@ sub convert_to_pkgnames($$$)
     my $self     = shift;
     my $allports = shift;
     my $slot     = shift;
-    my @pkgnames;
 
-    for my $dependency ( $self->{$slot}->get() ) {
-        my $p = $allports->{$dependency};
-
-        if ( $p && $p->can("PKGNAME") ) {
-            push @pkgnames, $p->PKGNAME();
-        } else {
-            carp "$0: ", $self->ORIGIN(), " (", $self->PKGNAME(),
-              ") has a $slot dependency on \"$dependency\"\n";
-        }
+    eval {
+	$self->{$slot}
+	->set( map { $allports->{$_}->PKGNAME() } $self->{$slot}->get() );
+    };
+    if ( $@ ) {
+	carp "Missing $slot dependency $_ for ", $self->ORIGIN(), " (",
+	$self->PKGNAME(), ") -- $@\n"
     }
-    $self->{$slot}->set(@pkgnames);
-
-    #$self->{$slot}
-    #  ->set( map { $allports->{$_}->PKGNAME() } $self->{$slot}->get() );
-
     return $self;
 }
 
