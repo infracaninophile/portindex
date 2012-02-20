@@ -345,12 +345,12 @@ sub convert_to_pkgnames($$$)
     my $slot     = shift;
 
     eval {
-	$self->{$slot}
-	->set( map { $allports->{$_}->PKGNAME() } $self->{$slot}->get() );
+        $self->{$slot}
+          ->set( map { $allports->{$_}->PKGNAME() } $self->{$slot}->get() );
     };
-    if ( $@ ) {
-	carp "Missing $slot dependency $_ for ", $self->ORIGIN(), " (",
-	$self->PKGNAME(), ") -- $@\n"
+    if ($@) {
+        carp "Missing $slot dependency $_ for ", $self->ORIGIN(), " (",
+          $self->PKGNAME(), ") -- $@\n";
     }
     return $self;
 }

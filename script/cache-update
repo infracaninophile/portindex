@@ -207,6 +207,7 @@ MAIN:
     my $tree;
     my $allports;
     my $updates;
+    my $category_updates;
     my $counter;
     my $startcounter;
 
@@ -284,20 +285,29 @@ MAIN:
     # SUBDIRS from that category since the last update.  After this
     # process, $updates should contain only ports, without categories.
 
+    # Select the categories marked as 'for upgrade'
+    $category_updates = FreeBSD::Portindex::ListVal->new();
+
+    for my $path ( $updates->get_sorted() ) {
+	if ( $tree->category_match($path) ) {
+	    $category_updates->insert($path);
+	    $updates->delete($path);
+	}
+    }
+
     $counter = 0;
     do {
         $startcounter = $counter;
 
-        for my $path ( $updates->get_sorted() ) {
-            if ( $tree->category_match($path) ) {
-                $counter++;
-                print STDERR
-                  "$0:$counter: Checking for category changes at $path\n"
-                  if $Config{Verbose};
-                $tree->category_check( $path, $updates );
-            }
+        for my $path ( $category_updates->get_sorted() ) {
+	    $counter++;
+	    print STDERR
+		"$0:$counter: Checking for category changes at $path\n"
+		if $Config{Verbose};
+	    $tree->category_check( $path, $category_updates, $updates );
         }
     } while ( $counter > $startcounter );
+
 
     # Regenerate the FreeBSD::Port objects for all listed ports
 
@@ -376,19 +386,40 @@ time the data for that port was updated.  If the port options have
 been updated more recently than the cache data, the cache entry is
 refreshed.
 
+=item B<other>
+
+B<cache-update> will check the last modification time on a number of
+makefiles outside C<PORTSDIR> and C<PORT_DBDIR>, and if they differ
+from the values stored in the cache, will cause a check for updates of
+any port that includes the makefile.  
+
 =back
 
 The B<options> format processing may also be combined with any of the
-first three formats.  The following alternative format settings are
-recognised:
+first three formats.  The following combinations are recognised in
+addition to the single options above:
 
 =over 8
 
 =item B<plain,options>
 
+=item B<plain,options,other>
+
+=item B<plain,other>
+
 =item B<cvsup-output,options>
 
+=item B<cvsup-output,options,other>
+
+=item B<cvsup-output,other>
+
 =item B<cvsup-checkouts,options>
+
+=item B<cvsup-checkouts,options,other>
+
+=item B<cvsup-checkouts,other>
+
+=item B<options,other>
 
 =back 
 

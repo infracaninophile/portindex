@@ -129,7 +129,7 @@ sub used_by($;@)
     my $self = shift;
 
     if ( @_ && !$self->is_ubiquitous() ) {
-        $self->{_needs_flush_to_cache} = 1;
+        $self->{_needs_flush} = 1;
         $self->{USED_BY}->insert(@_);
     }
     return $self;
@@ -144,7 +144,7 @@ sub mark_unused_by($;@)
     my $self = shift;
 
     if ( @_ && !$self->is_ubiquitous() ) {
-        $self->{_needs_flush_to_cache} = 1;
+        $self->{_needs_flush} = 1;
         $self->{USED_BY}->delete(@_);
     }
     return $self;

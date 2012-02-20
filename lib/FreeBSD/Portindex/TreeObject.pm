@@ -54,7 +54,7 @@ our $VERSION = '2.8';    # Release
 # in the Tree, frequently the filesystem path of the underlying item
 # or the path relative to ${PORTSDIR}.
 #
-# _needs_flush_to_cache tracks whether the object has been modified since
+# _needs_flush tracks whether the object has been modified since
 # the last flush or commit to the underlying persistent (disk)
 # storage.
 #
@@ -72,8 +72,8 @@ sub new ($@)
       unless defined $args{ORIGIN};
 
     $self = {
-        ORIGIN                => $args{ORIGIN},
-        _needs_flush_to_cache => 1,
+        ORIGIN       => $args{ORIGIN},
+        _needs_flush => 1,
     };
     return bless $self, $class;
 }
@@ -101,7 +101,7 @@ sub scalar_accessor($$)
         my $self = shift;
 
         if (@_) {
-            $self->{_needs_flush_to_cache} = 1;
+            $self->{_needs_flush} = 1;
             $self->{$method} = shift;
         }
         return $self->{$method};
@@ -121,7 +121,7 @@ sub list_val_accessor($$)
         my $self = shift;
 
         if (@_) {
-            $self->{_needs_flush_to_cache} = 1;
+            $self->{_needs_flush} = 1;
             $self->{$method}->set(@_);
         }
         return $self->{$method}->get();
@@ -133,7 +133,7 @@ sub list_val_accessor($$)
 #
 sub is_dirty($)
 {
-    return +shift->{_needs_flush_to_cache};
+    return +shift->{_needs_flush};
 }
 
 #
@@ -143,7 +143,7 @@ sub was_flushed($)
 {
     my $self = shift;
 
-    $self->{_needs_flush_to_cache} = 0;
+    $self->{_needs_flush} = 0;
 
     return $self;
 }
@@ -163,7 +163,7 @@ sub freeze ($)
 
     while ( my ( $k, $v ) = each %{$self} ) {
         next
-          if ( $k eq '_needs_flush_to_cache' );
+          if ( $k eq '_needs_flush' );
 
         if ( blessed($v) && $v->isa('FreeBSD::Portindex::ListVal') ) {
             $string .= "$k\n" . $v->freeze();    # Array valued item
@@ -200,7 +200,7 @@ sub thaw ($$)
         next unless $v =~ m/\000/;
         $self->{$k} = FreeBSD::Portindex::ListVal->thaw($v);
     }
-    $self->{_needs_flush_to_cache} = 0;
+    $self->{_needs_flush} = 0;
 
     return bless $self, $class;
 }

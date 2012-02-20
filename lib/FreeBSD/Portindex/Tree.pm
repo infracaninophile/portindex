@@ -597,11 +597,12 @@ sub category_match ($$)
 # object in the cache. XXX -- sanity? does this still matter in the
 # new regime?
 #
-sub category_check ($$$)
+sub category_check ($$$$)
 {
     my $self     = shift;
     my $origin   = shift;
-    my $updaters = shift;
+    my $category_updates = shift;
+    my $port_updates = shift;
 
     my $newcat;
     my $oldcat;
@@ -609,17 +610,22 @@ sub category_check ($$$)
 
     $oldcat = $self->get($origin);
     $newcat = $self->make_describe($origin);
-    $updaters->delete($origin);
+    $category_updaters->delete($origin);
 
     # Sometimes a deleted port may be mixed up with a category.
     # Filter out those cases.
 
     if ( blessed $newcat && $newcat->is_category() ) {
-        $updaters->insert(
-            FreeBSD::Portindex::ListVal->difference(
+	for my $path (FreeBSD::Portindex::ListVal->difference(
                 $oldcat->SUBDIR(), $newcat->SUBDIR()
-            )
-        );
+            ) )
+        {
+	    if ( $self->category_match($path) ) {
+		$category_updates->insert($path);
+	    } else {
+		$port_updates->insert($path);
+	    }
+	}
     }
     return $self;
 }
@@ -665,7 +671,7 @@ sub check_other_makefiles($$)
     my $updates = shift;
     my $makefile;
 
-    for my $name ( keys %{$self->{CACHE}} ) {
+    for my $name ( keys %{ $self->{CACHE} } ) {
 
         # Skip ports etc. where the origin doesn't start with '/'
         next
