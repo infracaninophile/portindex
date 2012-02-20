@@ -599,33 +599,33 @@ sub category_match ($$)
 #
 sub category_check ($$$$)
 {
-    my $self     = shift;
-    my $origin   = shift;
+    my $self             = shift;
+    my $origin           = shift;
     my $category_updates = shift;
-    my $port_updates = shift;
+    my $port_updates     = shift;
 
     my $newcat;
     my $oldcat;
-    my $comm;
 
-    $oldcat = $self->get($origin);
-    $newcat = $self->make_describe($origin);
+    $oldcat = $self->get($origin)->SUBDIR();
+    $self->make_describe("$Config{PortsDir}/$origin");
+    $newcat = $self->get($origin)->SUBDIR();
+
     $category_updates->delete($origin);
 
-    # Sometimes a deleted port may be mixed up with a category.
-    # Filter out those cases.
+    for my $path (
+        FreeBSD::Portindex::ListVal->difference( $oldcat, $newcat )->get() )
+    {
+        if ( $origin ne '' ) {
+            $path = "$origin/$path";
+        }
+        print STDERR "$path\n";
 
-    if ( blessed $newcat && $newcat->is_category() ) {
-	for my $path (FreeBSD::Portindex::ListVal->difference(
-                $oldcat->SUBDIR(), $newcat->SUBDIR()
-            ) )
-        {
-	    if ( $self->category_match($path) ) {
-		$category_updates->insert($path);
-	    } else {
-		$port_updates->insert($path);
-	    }
-	}
+        if ( $self->category_match($path) ) {
+            $category_updates->insert($path);
+        } else {
+            $port_updates->insert($path);
+        }
     }
     return $self;
 }

@@ -63,17 +63,19 @@ sub new ($;@)
     return bless $self, $class;
 }
 
-# Generate the list of items only in one of the argument lists, but
+# Generate the list of items only in one of the argument arrays, but
 # not both.
 sub difference($$$)
 {
     my $class = shift;
-    my $left  = shift;
-    my $right = shift;
+    my $left  = shift;    # Array ref
+    my $right = shift;    # Array ref
 
     my $self = $class->new();
 
-    for my $i ( keys %{$left}, keys %{$right} ) {
+    $self->insert( @{$left} );
+
+    for my $i ( @{$right} ) {
         if ( exists $self->{$i} ) {
             delete $self->{$i};
         } else {
