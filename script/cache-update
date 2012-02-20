@@ -289,10 +289,10 @@ MAIN:
     $category_updates = FreeBSD::Portindex::ListVal->new();
 
     for my $path ( $updates->get_sorted() ) {
-	if ( $tree->category_match($path) ) {
-	    $category_updates->insert($path);
-	    $updates->delete($path);
-	}
+        if ( $tree->category_match($path) ) {
+            $category_updates->insert($path);
+            $updates->delete($path);
+        }
     }
 
     $counter = 0;
@@ -300,14 +300,12 @@ MAIN:
         $startcounter = $counter;
 
         for my $path ( $category_updates->get_sorted() ) {
-	    $counter++;
-	    print STDERR
-		"$0:$counter: Checking for category changes at $path\n"
-		if $Config{Verbose};
-	    $tree->category_check( $path, $category_updates, $updates );
+            $counter++;
+            print STDERR "$0:$counter: Checking for category changes at $path\n"
+              if $Config{Verbose};
+            $tree->category_check( $path, $category_updates, $updates );
         }
     } while ( $counter > $startcounter );
-
 
     # Regenerate the FreeBSD::Port objects for all listed ports
 
