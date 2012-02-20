@@ -619,8 +619,6 @@ sub category_check ($$$$)
         if ( $origin ne '' ) {
             $path = "$origin/$path";
         }
-        print STDERR "$path\n";
-
         if ( $self->category_match($path) ) {
             $category_updates->insert($path);
         } else {
