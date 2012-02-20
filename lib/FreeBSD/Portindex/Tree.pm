@@ -610,7 +610,7 @@ sub category_check ($$$$)
 
     $oldcat = $self->get($origin);
     $newcat = $self->make_describe($origin);
-    $category_updaters->delete($origin);
+    $category_updates->delete($origin);
 
     # Sometimes a deleted port may be mixed up with a category.
     # Filter out those cases.
