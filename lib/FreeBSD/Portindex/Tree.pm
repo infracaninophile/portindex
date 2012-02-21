@@ -401,18 +401,17 @@ sub make_describe($$)
           };
 
         # If the port uses OPTIONS, force a Makefile entry to be made
-        # for the options file even though it doesn't exist yet.  (Set
-        # mtime to 0 in this case)  This will trigger a cache update if
-        # OPTIONS are set at a later date.
+        # for the options file even though it doesn't exist yet.  (It
+        # will set mtime to 0 in this case) This will trigger a cache
+        # update if OPTIONS are set at a later date.
 
         if ( $make_vars{OPTIONS} ) {
             my $makefile = $self->get( $make_vars{OPTIONSFILE} );
 
             if ( !$makefile ) {
-                $makefile = FreeBSD::Portindex::Makefile->new(
-                    ORIGIN => $make_vars{OPTIONSFILE},
-                    MTIME  => 0,
-                );
+                $makefile =
+                  FreeBSD::Portindex::Makefile->new(
+                    ORIGIN => $make_vars{OPTIONSFILE}, );
                 $self->insert($makefile);
             }
             $makefile->mark_used_by( $port->ORIGIN() );

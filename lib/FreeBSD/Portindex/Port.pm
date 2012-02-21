@@ -240,8 +240,15 @@ sub _makefile_list($$$)
     # will be done when this Port object is instantiated.
 
     return [
-        map { s@^(?!/)@$origin/@; $_ }
-          grep { !m/^\.\.$/ }
+        map {
+            s@^(?!/)@$origin/@;
+            s@/[^/]+/[^/]+/\.\./\.\./@/@g;
+            s@/[^/]+/\.\./@/@g;
+            $_
+          }
+          grep {
+            !m/^\.\.$/
+          }
           split( ' ', $makefile_list )
     ];
 }

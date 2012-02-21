@@ -43,6 +43,8 @@ use Pod::Usage;
 use POSIX qw(strftime);
 use Exporter qw(import);
 
+use FreeBSD::Portindex::ListVal;
+
 our @EXPORT_OK = qw(%Config read_config update_timestamp get_timestamp
   scrub_environment counter _clean htmlencode);
 our $VERSION = '2.8';    # Release
@@ -247,6 +249,18 @@ sub read_config ($)
     if ( $0 eq 'find-updated' && !exists $Config{ReferenceTime} ) {
         pod2usage(2);
     }
+
+    # Ensure fully qualified paths are used -- any relative paths in
+    # %Config are assumed to be relative to $Config{PortsDir}, usually
+    # /usr/ports.
+
+    $Config{EndemicMakefiles} =
+      FreeBSD::Portindex::ListVal->new( map { s@^(?!/)@$Config{PortsDir}/@; $_ }
+          @{ $Config{EndemicMakefiles} } );
+    $Config{UbiquitousMakefiles} =
+      FreeBSD::Portindex::ListVal->new( map { s@^(?!/)@$Config{PortsDir}/@; $_ }
+          @{ $Config{UbiquitousMakefiles} } );
+
     return;
 }
 
@@ -254,8 +268,8 @@ sub read_config ($)
 # command line have been processed.
 sub show_config ()
 {
-    my $um_fmt = "  UbiquitousMakefiles (cache-init) ............ ";
-    my $em_fmt = "  EndemicMakefiles (cache-init) ............... ";
+    my $um_fmt = "  UbiquitousMakefiles (cache-init, cache-update) ";
+    my $em_fmt = "  EndemicMakefiles (cache-init, cache-update) .. ";
 
     print <<"E_O_CONFIG";
 
@@ -264,22 +278,22 @@ Current Configuration:
   Settings after reading all configuration files and parsing the
   command line.  They apply to all programs, except as marked.
 
-  CacheDir .................................... $Config{CacheDir}
-  CacheFilename ............................... $Config{CacheFilename}
-  CrunchWhitespace (portindex)................. $Config{CrunchWhitespace}
-  Format (cache-update) ....................... $Config{Format}
-  Input (cache-update) ........................ $Config{Input}
-  Output (portindex, portdepends, find-updated) $Config{Output}
-  OutputStyle (portdepends) ................... $Config{OutputStyle}
-  PortDBDir (cache-update) .................... $Config{PortDBDir}
-  PortsDir .................................... $Config{PortsDir}
-  PropagationDelay (cache-update) ............. $Config{PropagationDelay}
-  ScrubEnvironment (cache-init, cache-update) . $Config{ScrubEnvironment}
-  ShLibs (portindex) .......................... $Config{ShLibs}
-  Strict (portindex) .......................... $Config{Strict}
-  TimestampFilename ........................... $Config{TimestampFilename}
-  Verbose ..................................... $Config{Verbose}
-  Warnings .................................... $Config{Warnings} 
+  CacheDir ..................................... $Config{CacheDir}
+  CacheFilename ................................ $Config{CacheFilename}
+  CrunchWhitespace (portindex).................. $Config{CrunchWhitespace}
+  Format (cache-update) ........................ $Config{Format}
+  Input (cache-update) ......................... $Config{Input}
+  Output (portindex, portdepends, find-updated). $Config{Output}
+  OutputStyle (portdepends) .................... $Config{OutputStyle}
+  PortDBDir (cache-update) ..................... $Config{PortDBDir}
+  PortsDir ..................................... $Config{PortsDir}
+  PropagationDelay (cache-update) .............. $Config{PropagationDelay}
+  ScrubEnvironment (cache-init, cache-update) .. $Config{ScrubEnvironment}
+  ShLibs (portindex) ........................... $Config{ShLibs}
+  Strict (portindex) ........................... $Config{Strict}
+  TimestampFilename ............................ $Config{TimestampFilename}
+  Verbose ...................................... $Config{Verbose}
+  Warnings ..................................... $Config{Warnings} 
 E_O_CONFIG
     for my $um ( @{ $Config{UbiquitousMakefiles} } ) {
         print $um_fmt, $um, "\n";

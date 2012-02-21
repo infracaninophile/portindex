@@ -50,21 +50,15 @@ use FreeBSD::Portindex::ListVal;
 our $VERSION = '2.8';                                # Release
 our @ISA     = ('FreeBSD::Portindex::FileObject');
 
-# Ensure fully qualified paths are used -- any relative paths in
-# %Config are assumed to be relative to $Config{PortsDir}, usually
-# /usr/ports.
-
-our $EndemicMakefiles;
-our $UbiquitousMakefiles;
-
 #
 # All TreeObjects have an ORIGIN -- the key used to look up the object
 # in the Tree, the filesystem path of the underlying file.  In
 # addition FileObjects also have an MTIME and a USED_BY list of ports
 # that include them.  USED_BY is created empty.
 #
-# MTIME is the last modification time of the underlying file.  Unless
-# set explicitly in the %args, MTIME is determined automatically.
+# MTIME is the last modification time of the underlying file.  MTIME
+# is determined automatically.  If the referenced file doesn't exist,
+# then MTIME is set to zero.
 #
 # Makefile objects additionally have two flag values that affect their
 # behaviour:
@@ -84,21 +78,13 @@ sub new ($@)
     my %args  = @_;
     my $self;
 
-    $EndemicMakefiles //=
-      FreeBSD::Portindex::ListVal->new( map { s@^(?!/)@$Config{PortsDir}/@; $_ }
-          @{ $Config{EndemicMakefiles} } );
-
-    $UbiquitousMakefiles //=
-      FreeBSD::Portindex::ListVal->new( map { s@^(?!/)@$Config{PortsDir}/@; $_ }
-          @{ $Config{UbiquitousMakefiles} } );
-
     $self = $class->SUPER::new(%args);
 
     $self->{IS_ENDEMIC} = 1
-      if ( $EndemicMakefiles->contains( $self->ORIGIN() ) );
+      if ( $Config{EndemicMakefiles}->contains( $self->ORIGIN() ) );
 
     $self->{IS_UBIQUITOUS} = 1
-      if ( $UbiquitousMakefiles->contains( $self->ORIGIN() ) );
+      if ( $Config{UbiquitousMakefiles}->contains( $self->ORIGIN() ) );
 
     return $self;
 }
@@ -122,13 +108,13 @@ sub is_ubiquitous($)
 
 #
 # Insert a list of port ORIGINs into the USED_BY list, unless this is
-# a ubiquitous Makefile.  Return the result.
+# a ubiquitous or endemc Makefile.
 #
 sub used_by($;@)
 {
     my $self = shift;
 
-    if ( @_ && !$self->is_ubiquitous() ) {
+    if ( @_ && !$self->is_ubiquitous() && !$self->is_endemic() ) {
         $self->{_needs_flush} = 1;
         $self->{USED_BY}->insert(@_);
     }
@@ -136,14 +122,14 @@ sub used_by($;@)
 }
 
 #
-# Remove values from the USED_BY list, unless this is a ubiquitous
-# Makefile. Return the result.
+# Remove values from the USED_BY list, unless this is a ubiquitous or
+# endemic Makefile.
 #
 sub mark_unused_by($;@)
 {
     my $self = shift;
 
-    if ( @_ && !$self->is_ubiquitous() ) {
+    if ( @_ && !$self->is_ubiquitous() && !$self->is_endemic() ) {
         $self->{_needs_flush} = 1;
         $self->{USED_BY}->delete(@_);
     }

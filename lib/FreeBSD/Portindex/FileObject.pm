@@ -56,8 +56,9 @@ our @ISA     = ('FreeBSD::Portindex::TreeObject');
 # addition FileObjects also have an MTIME and a USED_BY list of ports
 # that include them.  USED_BY is created empty.
 #
-# MTIME is the last modification time of the underlying file.  Unless
-# set explicitly in the %args, MTIME is determined automatically.
+# MTIME is the last modification time of the underlying file. MTIME is
+# determined automatically.  If the underlying file doesn't actually
+# exist, set MTIME to zero.
 #
 # USED_BY tracks which ports are affected by this file -- on creation,
 # it is always empty.  See the MAKEFILE_LIST and DESCR properties of
@@ -72,20 +73,7 @@ sub new ($@)
 
     $self = $class->SUPER::new(%args);
 
-    if ( defined $args{MTIME} ) {
-        croak "$0: error instantiating $class object -- ",
-          "MTIME=$args{MTIME} is bogus\n"
-          unless $args{MTIME} =~ m/^\d+$/;
-
-        $self->{MTIME} = $args{MTIME};
-    } else {
-        my $mtime = ( stat $self->ORIGIN() )[9]
-          or croak "$0: error instantiating $class object -- ",
-          "cannot obtain mtime for ", $self->ORIGIN(), " -- $!\n";
-
-        $self->{MTIME} = $mtime;
-    }
-
+    $self->{MTIME} = ( stat $self->ORIGIN() )[9] || 0;
     $self->{USED_BY} = FreeBSD::Portindex::ListVal->new();
 
     return $self;
@@ -122,7 +110,7 @@ sub update_mtime($)
     my $self = shift;
     my $mtime;
 
-    $mtime = ( stat $self->ORIGIN() )[9] or $mtime = 0;
+    $mtime = ( stat $self->ORIGIN() )[9] || 0;
 
     $self->MTIME($mtime);
 
