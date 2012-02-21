@@ -44,7 +44,7 @@ use warnings;
 use Carp;
 use Scalar::Util qw{blessed};
 
-use FreeBSD::Portindex::Config qw{%Config counter _clean};
+use FreeBSD::Portindex::Config qw{%Config counter _clean htmlencode};
 use FreeBSD::Portindex::ListVal;
 use FreeBSD::Portindex::PortsTreeObject;
 
@@ -474,6 +474,102 @@ sub print_shlibs($*$)
 
     counter($counter);
     return $self;
+}
+
+#
+# Get rid of everything except the last three parts of $descr.
+# Compare the first two of these to $self->ORIGIN -- if the same,
+# strip the value, otherwise prepend as many '..' elements as
+# required. (Not a class method)
+#
+sub _make_relative ($$)
+{
+    my @descr  = split( m@/@, shift );
+    my @origin = split( m@/@, shift );
+
+    @descr = splice @descr, -3, 3;
+
+    while ( @origin && $descr[0] eq $origin[0] ) {
+        shift(@descr);
+        shift(@origin);
+    }
+    for (@origin) {
+        unshift( @descr, '..' );
+    }
+    return join( '/', @descr );
+}
+
+#
+# Fill out README.html template
+#
+sub make_readme ($$$$)
+{
+    my $self     = shift;
+    my $file     = shift;
+    my $template = shift;
+    my $subdir   = shift;    # Not used
+    my $comment;
+    my $descr;
+    my $www;
+    my $build_depends;
+    my $run_depends;
+
+    # %%PORT%%
+
+    $template =~ s/%%PORT%%/$self->ORIGIN()/ge;
+
+    # %%COMMENT%% -- needs HTML escapes.
+
+    $comment = htmlencode( $self->COMMENT() );
+    $template =~ s/%%COMMENT%%/$comment/ge;
+
+    # %%PKG%%
+
+    $template =~ s/%%PKG%%/$self->PKGNAME()/ge;
+
+    # %%DESCR%% -- make relative to current directory.
+
+    $descr = _make_relative( $self->DESCR(), $self->ORIGIN() );
+    $template =~ s/%%DESCR%%/$descr/g;
+
+    # %%WEBSITE%%
+
+    $www = $self->WWW();
+    if ( length($www) > 0 ) {
+        $www = " and/or visit the <a href=\"$www\">web site</a>\n"
+          . "     for further information.";
+    }
+
+    $template =~ s/%%WEBSITE%%/$www/ge;
+
+    # %%EMAIL%%
+
+    $template =~ s/%%EMAIL%%/$self->MAINTAINER()/ge;
+
+    # %%BUILD_DEPENDS%% -- as pkgnames
+
+    $build_depends = join( ' ', $self->{BUILD_DEPENDS}->get_sorted() );
+    if ( length($build_depends) > 0 ) {
+        $build_depends =
+          "This port requires package(s) \"$build_depends\" to build.\n";
+    }
+    $template =~ s/%%BUILD_DEPENDS%%/$build_depends/g;
+
+    # %%RUN_DEPENDS%% -- as pkgnames
+
+    $run_depends = join( ' ', $self->{RUN_DEPENDS}->get_sorted() );
+    if ( length($run_depends) > 0 ) {
+        $run_depends =
+          "This port requires package(s) \"$run_depends\" to run.\n";
+    }
+    $template =~ s/%%RUN_DEPENDS%%/$run_depends/g;
+
+    # %%TOP%% -- PORTSDIR relative to here (why is this a template
+    # variable?)
+
+    $template =~ s@%%TOP%%@../..@g;
+
+    return $self->SUPER::make_readme( $file, $template );
 }
 
 #

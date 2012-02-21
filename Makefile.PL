@@ -15,5 +15,6 @@ install_script  'cache-update';
 install_script  'find-updated';
 install_script  'portindex';
 install_script  'portdepends';
+install_script  'make-readmes';
 
 WriteAll;

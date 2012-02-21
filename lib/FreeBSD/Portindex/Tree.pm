@@ -44,7 +44,7 @@ use Scalar::Util qw(blessed);
 use Carp;
 
 use FreeBSD::Portindex::Category;
-use FreeBSD::Portindex::Config qw{%Config counter};
+use FreeBSD::Portindex::Config qw{%Config counter htmlencode};
 use FreeBSD::Portindex::FileObject;
 use FreeBSD::Portindex::Makefile;
 use FreeBSD::Portindex::Port;
@@ -830,6 +830,75 @@ sub print_shlibs($*)
       if ( $Config{Verbose} );
 
     return $self;
+}
+
+#
+# Generate README.html files, recursing via SUBDIRS values
+#
+sub make_readmes($$$$$;$);    #  Prototype aids recursion
+
+sub make_readmes($$$$$;$)
+{
+    my $self      = shift;
+    my $dir       = shift;
+    my $origin    = shift;
+    my $templates = shift;
+    my $depth     = shift;
+    my $counter   = shift;
+    my $port;
+    my $subdirs;
+    my $comment;
+
+    my %t = (
+        1 => 'top',
+        2 => 'category',
+        3 => 'port',
+    );
+
+    # Retrieve data from cache
+
+    $port = $self->get($origin)
+      or croak "$0: FATAL: data for \"$origin\" not found in cache.\n";
+
+    # Create directory --
+
+    eval {
+        use autodie;
+
+        mkdir $dir;
+    };
+    if ( $@ && $@ !~ m/File exists/ ) {
+        croak "$0: FATAL -- $@\n";
+    }
+
+    # Recurse through subdirs (top and categories only)
+
+    if ( $depth == 1 ) {
+        for my $subdir ( sort $port->SUBDIR() ) {
+            my ( $p, $c ) =
+              $self->make_readmes( "$dir/$subdir", $subdir, $templates, 2,
+                $counter );
+            $subdirs .= "<a href=\"$subdir/README.html\">$subdir</a>: $c\n";
+        }
+    } elsif ( $depth == 2 ) {
+        for my $subdir ( sort $port->SUBDIR() ) {
+            my ( $p, $c ) =
+              $self->make_readmes( "$dir/$subdir", "$origin/$subdir",
+                $templates, 3, $counter );
+            $subdirs .= "<a href=\"$subdir/README.html\">$p</a>: $c\n";
+        }
+    }
+
+    # Process template and write to $dir/README.html
+    $port->make_readme( "$dir/README.html", $templates->{ $t{$depth} },
+        $subdirs );
+
+    $comment = htmlencode( $port->COMMENT() );
+
+    # Show progress
+    counter($counter);
+
+    return ( $port->can('PKGNAME') ? $port->PKGNAME() : '', $comment );
 }
 
 1;

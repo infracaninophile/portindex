@@ -125,6 +125,32 @@ sub is_known_subdir($$)
     return $self->{SUBDIR}->contains($origin);
 }
 
+sub make_readme ($$$)
+{
+    my $self     = shift;
+    my $file     = shift;
+    my $template = shift;
+    my $subdir   = shift;
+
+    # %%SUBDIR%%  (top, category)
+
+    $template =~ s/%%SUBDIR%%/$subdir/g;
+
+    # %%CATEGORY%% (category)
+
+    $template =~ s/%%CATEGORY%%/$self->ORIGIN()/ge;
+
+    # %%COMMENT%% (category)
+
+    $template =~ s/%%COMMENT%%/$self->COMMENT()/ge;
+
+    # Template also includes %%DESCR%%, but only ports have that.
+
+    $template =~ s/%%DESCR%%//g;
+
+    return $self->SUPER::make_readme( $file, $template );
+}
+
 # Accessor methods (ARRAYS): Only SUBDIR to deal with
 for my $slot ('SUBDIR') {
     no strict qw(refs);

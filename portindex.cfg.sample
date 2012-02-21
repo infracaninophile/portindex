@@ -115,6 +115,17 @@
 
 # $Config{PropagationDelay} = 60 * 60;
 
+## make-readmes (-d, --output-directory): top of the directory tree to
+## create, containing the generated README.html files.  Default: ./ports
+## (in current working directory).
+
+# $Config{ReadmeDir} = "./ports";
+
+## make-readmes (-t --template-directory): Where to read the template
+## README.html files from.
+
+# $Config{ReadmeTemplateDir} = "$ENV{PORTSDIR}/Templates" || '/usr/ports/Templats';
+
 ## cache-init, cache-update (-s, --scrub-environment,
 ## --noscrub-environment): Boolean -- delete everything from the
 ## environment except for USER, HOME, PATH, SHELL, TERM, TERMCAP if

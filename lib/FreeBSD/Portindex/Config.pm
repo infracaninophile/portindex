@@ -44,7 +44,7 @@ use POSIX qw(strftime);
 use Exporter qw(import);
 
 our @EXPORT_OK = qw(%Config read_config update_timestamp get_timestamp
-  scrub_environment counter _clean);
+  scrub_environment counter _clean htmlencode);
 our $VERSION = '2.8';    # Release
 
 # The ultimate defaults...
@@ -88,17 +88,19 @@ sub read_config ($)
               /usr/share/mk/sys.mk
               )
         ],
-        Format              => 'cvsup-output,options,other',
-        Input               => '-',
-        Output              => '-',
-        OutputStyle         => 'default',
-        PortDBDir           => $ENV{PORT_DBDIR} || '/var/db/ports',
-        PortsDir            => $ENV{PORTSDIR} || '/usr/ports',
-        PropagationDelay    => 3600,                                  # 1 hour
-        ScrubEnvironment    => 0,
-        ShLibs              => 0,
-        Strict              => 1,
-        TimestampFilename   => "$pkgname-timestamp",
+        Format           => 'cvsup-output,options,other',
+        Input            => '-',
+        Output           => '-',
+        OutputStyle      => 'default',
+        PortDBDir        => $ENV{PORT_DBDIR} || '/var/db/ports',
+        PortsDir         => $ENV{PORTSDIR} || '/usr/ports',
+        PropagationDelay => 3600,                                  # 1 hour
+        ReadmeDir        => './ports',
+        ReadmeTemplatesDir => ( $ENV{PORTSDIR} || '/usr/ports' ) . '/Templates',
+        ScrubEnvironment   => 0,
+        ShLibs             => 0,
+        Strict             => 1,
+        TimestampFilename  => "$pkgname-timestamp",
         UbiquitousMakefiles => [
             qw(
               /etc/make.conf
@@ -217,6 +219,11 @@ sub read_config ($)
             $Config{ReferenceTime} = strftime '%s', @date;    # Localtime
         },
     ) if ( $0 eq 'find-updated' );
+    push @optargs,
+      (
+        'output-directory|d=s' => \$Config{ReadmeDir},
+        'template-directory|t' => \$Config{ReadmeTemplateDir},
+      ) if ( $0 eq 'make-readmes' );
 
     for my $cf (
         "/usr/local/etc/${pkgname}.cfg",
@@ -351,6 +358,20 @@ sub _clean(@)
         s@/[^/]+/\.\./@/@g;
         s@/\Z@@;
         $_
+    } @_;
+}
+
+#
+# Encode string(s) as HTML -- replace characters '&<>' with URL
+# escapes.
+#
+sub htmlencode(@)
+{
+    return map {
+        s/&/&amp;/g;
+        s/</&lt;/g;
+        s/>/&gt;/g;
+        $_;
     } @_;
 }
 

@@ -73,6 +73,25 @@ sub new ($@)
 }
 
 #
+# Generate a README.html for this ports tree object.  By the time we
+# get here, all the required substitutions have been done, so all we
+# need to do is print out the result.
+#
+sub make_readme($$)
+{
+    my $self = shift;
+    my $file = shift;
+    my $text = shift;
+
+    open( README, ">$file" )
+      or croak "$0: Fatal -- can't open file \"$file\" -- $!\n";
+    print README $text;
+    close README;
+
+    return $self;
+}
+
+#
 # Accessor method
 #
 for my $slot ('MAKEFILE_LIST') {

@@ -28,4 +28,5 @@ script/cache-update
 script/find-updated
 script/portdepends
 script/portindex
+script/make-readmes
 t/FreeBSD-Portindex.t
