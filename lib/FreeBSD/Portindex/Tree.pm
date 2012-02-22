@@ -529,12 +529,13 @@ sub update_files_unused_by($$)
 # order.  Relies on the underlying btree file to provide the sorting.
 # Port ORIGINS are matched by pattern.
 #
-sub allports($)
+sub allports($;$)
 {
     my $self = shift;
+    my $filter = shift || qr@^[^/]+/[^/]+$@;
     my @allports;
 
-    @allports = grep { m@^[^/]+/[^/]+$@ } keys %{ $self->{CACHE} };
+    @allports = grep { m/$filter/ } keys %{ $self->{CACHE} };
 
     return wantarray ? @allports : \@allports;
 }
@@ -544,13 +545,14 @@ sub allports($)
 # order. Relies on the underlying btree file to provide the sorting.
 # Port ORIGINS are matched by pattern.
 #
-sub allports_data($)
+sub allports_data($;$)
 {
     my $self = shift;
+    my $filter = shift || qr@^[^/]+/[^/]+$@;
     my @allports;
 
     @allports = map { $self->{LIVE}->{$_} }
-      grep { m@^[^/]+/[^/]+$@ } keys %{ $self->{CACHE} };
+      grep { m/$filter/ } keys %{ $self->{CACHE} };
 
     return wantarray ? @allports : \@allports;
 }

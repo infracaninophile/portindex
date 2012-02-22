@@ -88,18 +88,21 @@ sub is_endemic($)    { return undef; }
 sub is_ubiquitous($) { return undef; }
 
 #
-# Did the mtime of the file change since the last update?  Returns -1
-# if the file is now /older/ than it was, 0 if the same age or 1 if
-# the file is newer.  Use MTIME==0 for un-stat'able files.
+# Did the mtime of the file change since the last update?  Returns 0
+# if the MTIME is unchanged, or the current mtime if different to what
+# is in the cache.  Use MTIME==0 for un-stat'able files.
 #
 sub has_been_modified($)
 {
     my $self = shift;
     my $mtime;
 
-    $mtime = ( stat $self->ORIGIN() )[9] or $mtime = 0;
+    $mtime = ( stat $self->ORIGIN() )[9] || 0;
 
-    return $mtime <=> $self->MTIME();
+    if ( $mtime == $self->MTIME() ) {
+        $mtime = 0;
+    }
+    return $mtime;
 }
 
 #
