@@ -90,7 +90,7 @@ sub read_config ($)
               /usr/share/mk/sys.mk
               )
         ],
-        Format           => 'cvsup-output,options,other',
+        Format           => 'cache',
         Input            => '-',
         Output           => '-',
         OutputStyle      => 'default',
@@ -162,11 +162,12 @@ sub read_config ($)
             my $a = qr/(?:plain|cvsup-(?:output|checkouts))/i;
             my $b = qr/options/i;
             my $c = qr/other/i;
+            my $d = qr/cache/i;
 
             die "$0: Option --$optname unrecognised argument: $optvalue\n"
-              unless $optvalue =~ m@^(?:$a|$a,$b|$a,$b,$c|$b,$c|$c)\Z@;
+              unless $optvalue =~ m@^(?:$a|$a,$b|$a,$b,$c|$b,$c|$b|$c|$d)\Z@;
 
-            $Config{Format} = $optvalue;
+            $Config{Format} = lc $optvalue;
         },
         'propagation-delay|P=i' => \$Config{PropagationDelay},
         'port-dbdir|d=s'        => \$Config{PortDBDir},
@@ -202,6 +203,7 @@ sub read_config ($)
             push @{ $Config{EndemicMakefiles} }, $optvalue;
         },
     ) if ( $0 eq 'cache-init' );
+
     #push @optargs, (
     #) if ( $0 eq 'find-updated' );
     push @optargs,

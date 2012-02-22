@@ -666,22 +666,21 @@ sub add_to_updates_if_modified($$$)
 #
 sub check_other_makefiles($$)
 {
-    my $self    = shift;
-    my $updates = shift;
-    my $makefile;
+    my $self     = shift;
+    my $updaters = shift;
+    my $counter  = 0;
 
-    for my $name ( keys %{ $self->{CACHE} } ) {
-
-        # Skip ports etc. where the origin doesn't start with '/'
-        next
-          unless ( $name =~ m@^/@ );
-
-        # Skip anything under PORTSDIR or PORT_DBDIR
-        next
-          if ( $name =~ m@^(?:$Config{PortsDir}|$Config{PortDBDir})@ );
-
-        $self->add_to_updates_if_modified( $updates, $name );
+    # Skip anything under PORTSDIR or PORT_DBDIR
+    print STDERR "Checking timestamps on other makefiles:"
+      if $Config{Verbose};
+    for my $name (
+        $self->allports(qr@^(?!$Config{PortsDir}|$Config{PortDBDir})/@) )
+    {
+        $self->add_to_updates_if_modified( $updaters, $name );
+        counter( \$counter );
     }
+    print "<$counter>\n"
+      if $Config{Verbose};
     return $self;
 }
 
@@ -689,20 +688,23 @@ sub check_other_makefiles($$)
 # Scan through the PORT_DBDIR looking for 'options' files.  Compare
 # the mtime of the file with the last update timestamp from the cache
 # -- add the port to the list to be checked if the options have been
-# modified more recently.
+# modified more recently.  ??? Switch this to just using the options
+# files already in the cache?
 #
 sub check_port_options ($$)
 {
-    my $self    = shift;
-    my $updates = shift;
+    my $self     = shift;
+    my $updaters = shift;
     my $options;
-    my $makefile;
+    my $counter = 0;
 
     opendir PORT_DBDIR, $Config{PortDBDir}
       or do {
         warn "$0: Error. Cannot read directory \'$Config{PortDBDir}\' -- $!\n";
-        return $updates;
+        return $self;
       };
+    print STDERR "Checking timestamps on options makefiles:"
+      if $Config{Verbose};
     while ( my $dir = readdir PORT_DBDIR ) {
         next
           unless $dir =~ m/[\w-]+/;    # Skip things with dots in the name
@@ -714,7 +716,7 @@ sub check_port_options ($$)
         next
           unless ( -f $options );      # $dir may be empty
 
-        if ( !$self->add_to_updates_if_modified( $updates, $options ) ) {
+        if ( !$self->add_to_updates_if_modified( $updaters, $options ) ) {
 
             # It looks like an options file, but since we load the
             # cache with all posible names of the known options files,
@@ -722,10 +724,35 @@ sub check_port_options ($$)
             warn "$0: WARNING unknown options file \"$options\" -- ignored\n"
               if $Config{Verbose};
         }
+        counter( \$counter );
     }
+    print "<$counter>\n"
+      if $Config{Verbose};
     closedir PORT_DBDIR
       or warn "$0: Error. Closing directory \'$Config{PortDBDir}\' -- $!\n";
 
+    return $self;
+}
+
+#
+# Just compare the cached timestamp of all file objects in the cache
+# with the timestamp from the filesystem.
+#
+sub check_cache_makefiles($$)
+{
+    my $self     = shift;
+    my $updaters = shift;
+    my $counter  = 0;
+
+    # Skip anything that doesn't start with a '/'
+    print STDERR "Checking timestamps and comparing with cache:"
+      if $Config{Verbose};
+    for my $name ( $self->allports(qr@^/@) ) {
+        $self->add_to_updates_if_modified( $updaters, $name );
+        counter( \$counter );
+    }
+    print "<$counter>\n"
+      if $Config{Verbose};
     return $self;
 }
 

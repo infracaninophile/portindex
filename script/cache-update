@@ -267,6 +267,15 @@ MAIN:
         $tree->check_port_options($updates);
     }
 
+    # Just compare all of the timestamps in the cache (for Makefiles
+    # and pkg-descr files) against the current state of the
+    # filesystem.  This is a super-set of check_other_makefiles() and
+    # check_port_options().
+
+    if ( $Config{Format} =~ m/cache/ ) {
+        $tree->check_cache_makefiles($updates);
+    }
+
     # If there's nothing to update, exit immediately.
 
     unless ( $updates->length() ) {

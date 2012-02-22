@@ -65,15 +65,20 @@
 ##    options         -- Scan the contents of PORTS_DBDIR to find port
 ##                       OPTIONS settings changed more recently than the
 ##                       data in the ports cache.
+##    other           -- check timestamps for various makefiles outside
+##                       PORTSDIR or PORT_DBDIR
+##    cache           -- compare timestamps of makefiles and pkg-descr files
+##                       against values recorded in cache (default) 
 
-## Additionally you can append ',options' to any of the first three
-## to make cache-update scan for changes to port OPTIONS as well as
-## using the primary input mechanism.
+## Additionally you can append ',options' and/or ',other' to any of
+## the first three to make cache-update scan for changes to port
+## OPTIONS or changes to other makefiles as well as using the primary
+## input mechanism.
 
 ## If the cvsup-checkouts format is chosen, the input file will
 ## usually be /var/db/sup/ports-all/checkouts.cvs:.
 
-# $Config{Format} = 'cvsup-output,options';
+# $Config{Format} = 'cache';
 
 ## cache-update (-i, --input): Filename to read input from, '-' for
 ## STDIN
