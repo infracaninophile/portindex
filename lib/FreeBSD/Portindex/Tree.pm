@@ -671,7 +671,7 @@ sub check_other_makefiles($$)
     my $counter  = 0;
 
     # Skip anything under PORTSDIR or PORT_DBDIR
-    print STDERR "Checking timestamps on other makefiles:"
+    print STDERR "Checking timestamps on other makefiles: "
       if $Config{Verbose};
     for my $name (
         $self->allports(qr@^(?!$Config{PortsDir}|$Config{PortDBDir})/@) )
@@ -703,7 +703,7 @@ sub check_port_options ($$)
         warn "$0: Error. Cannot read directory \'$Config{PortDBDir}\' -- $!\n";
         return $self;
       };
-    print STDERR "Checking timestamps on options makefiles:"
+    print STDERR "Checking timestamps on options makefiles: "
       if $Config{Verbose};
     while ( my $dir = readdir PORT_DBDIR ) {
         next
@@ -735,8 +735,8 @@ sub check_port_options ($$)
 }
 
 #
-# Just compare the cached timestamp of all file objects in the cache
-# with the timestamp from the filesystem.
+# Just compare the timestamp of all file objects in the cache with the
+# timestamp from the filesystem.
 #
 sub check_cache_makefiles($$)
 {
@@ -745,7 +745,7 @@ sub check_cache_makefiles($$)
     my $counter  = 0;
 
     # Skip anything that doesn't start with a '/'
-    print STDERR "Checking timestamps and comparing with cache:"
+    print STDERR "Comparing timestamps with cache: "
       if $Config{Verbose};
     for my $name ( $self->allports(qr@^/@) ) {
         $self->add_to_updates_if_modified( $updaters, $name );
