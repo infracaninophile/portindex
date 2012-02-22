@@ -202,25 +202,8 @@ sub read_config ($)
             push @{ $Config{EndemicMakefiles} }, $optvalue;
         },
     ) if ( $0 eq 'cache-init' );
-    push @optargs, (
-        'ports-dir=s' => \$Config{PortsDir},
-        '<>'          => sub {
-            my $optval = shift;
-            my @date;
-
-            die "$0: Incorrect time specification $optval\n"
-              unless $optval =~
-                  m@^(\d\d\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\.(\d\d)\Z@;
-            $date[5] = $1 - 1900;    # Year
-            $date[4] = $2 - 1;       # Month
-            $date[3] = $3;           # Day
-            $date[2] = $4;           # Hour
-            $date[1] = $5;           # Minute
-            $date[0] = $6;           # Second
-
-            $Config{ReferenceTime} = strftime '%s', @date;    # Localtime
-        },
-    ) if ( $0 eq 'find-updated' );
+    #push @optargs, (
+    #) if ( $0 eq 'find-updated' );
     push @optargs,
       (
         'output-directory|d=s' => \$Config{ReadmeDir},
@@ -239,15 +222,10 @@ sub read_config ($)
         do $cf;
     }
     GetOptions(@optargs) or pod2usage(2);
-    map { $_ = "$Config{PortsDir}/$_" unless m@^/@ }
-      @{ $Config{UbiquitousMakefiles} }, @{ $Config{EndemicMakefiles} };
     if ($help) {
         pod2usage( -exitval => 'NOEXIT', -verbose => 1 );
         show_config();
         exit(1);
-    }
-    if ( $0 eq 'find-updated' && !exists $Config{ReferenceTime} ) {
-        pod2usage(2);
     }
 
     # Ensure fully qualified paths are used -- any relative paths in
