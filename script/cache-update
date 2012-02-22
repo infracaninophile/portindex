@@ -272,6 +272,7 @@ MAIN:
     unless ( $updates->length() ) {
         print STDERR "$0: Nothing to do!\n"
           if $Config{Verbose};
+        $tree->flush();
         exit 0;
     }
 
@@ -318,6 +319,7 @@ MAIN:
     }
 
     $tree->flush();
+    exit 0;
 }
 
 __END__
