@@ -30,3 +30,4 @@ script/portdepends
 script/portindex
 script/make-readmes
 t/FreeBSD-Portindex.t
+t/ListVal.t

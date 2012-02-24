@@ -6,10 +6,21 @@
 
 # change 'tests => 1' to 'tests => last_test_to_print';
 
-use Test::More tests => 3;
-BEGIN { use_ok('FreeBSD::Portindex::Port');
-        use_ok('FreeBSD::Portindex::Tree');
-        use_ok('FreeBSD::Portindex::Config'); };
+use Test::More tests => 9;
+
+BEGIN {
+    use_ok('FreeBSD::Portindex::Category');
+    use_ok('FreeBSD::Portindex::Config');
+    use_ok('FreeBSD::Portindex::FileObject');
+    use_ok('FreeBSD::Portindex::GraphViz');
+    use_ok('FreeBSD::Portindex::ListVal');
+    use_ok('FreeBSD::Portindex::Port');
+    use_ok('FreeBSD::Portindex::PortsTreeObject');
+    use_ok('FreeBSD::Portindex::Tree');
+    use_ok('FreeBSD::Portindex::TreeObject');
+}
+
+# 9
 
 #########################
 
