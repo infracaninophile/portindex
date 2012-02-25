@@ -306,7 +306,22 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
           relative to $Config{PortsDir}.  Do less work adding and
           removing this text during processing.
 
-2.7 Sun Dec 11 14:43:43 2001
+2.7 Sun Dec 11 14:43:43 2011
 
         - Use the %Config value for PortDBDir instead of hardwired
           /var/db/ports when loading and updating the cache.
+
+2.8 Sat Feb 25 13:28:00 2012
+
+        - Release 2.8
+
+        - Radical changes to the cache: now stores a record for every
+          file that could affect the generated INDEX, which ports
+          those files belong to and the timestamp of the file.
+
+	- Default update mechanism is now to compare timestamps with
+          what is in the cache.  Doesn't need to parse the output of
+          any update mechanism (although you can still do that.)
+
+	- Added new make-readmes command to create a tree of README.html
+	  files.
