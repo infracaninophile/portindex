@@ -49,7 +49,7 @@ use FreeBSD::Portindex::ListVal;
 use FreeBSD::Portindex::PortsTreeObject;
 
 our @ISA     = ('FreeBSD::Portindex::PortsTreeObject');
-our $VERSION = '2.8';                                     # Release
+our $VERSION = '2.9';                                     # Release
 
 our %directorycache;    # Remember all the directories we've ever seen
 our %pkgnamecache;      # Remember all of the package names we've output

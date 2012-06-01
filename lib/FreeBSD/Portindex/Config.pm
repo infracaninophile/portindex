@@ -47,7 +47,7 @@ use FreeBSD::Portindex::ListVal;
 
 our @EXPORT_OK = qw(%Config read_config update_timestamp get_timestamp
   scrub_environment counter _clean htmlencode);
-our $VERSION = '2.8';    # Release
+our $VERSION = '2.9';    # Release
 
 # The ultimate defaults...
 our %Config;
@@ -79,6 +79,8 @@ sub read_config ($)
               /usr/ports/Mk/bsd.commands.mk
               /usr/ports/Mk/bsd.licenses.db.mk
               /usr/ports/Mk/bsd.licenses.mk
+              /usr/ports/Mk/bsd.options.desc.mk
+              /usr/ports/Mk/bsd.options.mk
               /usr/ports/Mk/bsd.sites.mk
               /usr/share/mk/bsd.compat.mk
               /usr/share/mk/bsd.cpu.mk
@@ -106,11 +108,7 @@ sub read_config ($)
         UbiquitousMakefiles => [
             qw(
               /etc/make.conf
-              /usr/ports/Mk/bsd.commands.mk
-              /usr/ports/Mk/bsd.licenses.mk
-              /usr/ports/Mk/bsd.perl.mk
               /usr/ports/Mk/bsd.port.mk
-              /usr/ports/Mk/bsd.sites.mk
               /usr/share/mk/bsd.compat.mk
               /usr/share/mk/bsd.cpu.mk
               /usr/share/mk/bsd.own.mk

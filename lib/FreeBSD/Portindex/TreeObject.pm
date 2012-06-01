@@ -47,7 +47,7 @@ use Scalar::Util qw(blessed);
 
 use FreeBSD::Portindex::ListVal;
 
-our $VERSION = '2.8';    # Release
+our $VERSION = '2.9';    # Release
 
 #
 # All TreeObjects have an ORIGIN -- the key used to look up the object

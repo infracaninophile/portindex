@@ -46,7 +46,7 @@ require 5.10.1;
 use strict;
 use warnings;
 
-our $VERSION = '2.8';    # Release
+our $VERSION = '2.9';    # Release
 
 #
 # Factory methods

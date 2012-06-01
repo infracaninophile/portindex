@@ -47,7 +47,7 @@ use FreeBSD::Portindex::Config qw(%Config);
 use FreeBSD::Portindex::FileObject;
 use FreeBSD::Portindex::ListVal;
 
-our $VERSION = '2.8';                                # Release
+our $VERSION = '2.9';                                # Release
 our @ISA     = ('FreeBSD::Portindex::FileObject');
 
 #

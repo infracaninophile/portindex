@@ -50,7 +50,7 @@ use FreeBSD::Portindex::Makefile;
 use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::TreeObject;
 
-our $VERSION       = '2.8';    # Release
+our $VERSION       = '2.9';    # Release
 our $CACHE_VERSION = '2.8';    # Earliest binary compat version
 
 sub new ($@)

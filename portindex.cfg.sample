@@ -43,18 +43,20 @@
 ## paths are taken as relative to $Config{PortsDir})
 
 # $Config{EndemicMakefiles} = [ qw(
-#         /usr/ports/Mk/bsd.commands.mk
-#         /usr/ports/Mk/bsd.licenses.db.mk
-#         /usr/ports/Mk/bsd.licenses.mk
-#         /usr/ports/Mk/bsd.sites.mk
-#         /usr/share/mk/bsd.compat.mk
-#         /usr/share/mk/bsd.cpu.mk
-#         /usr/share/mk/bsd.own.mk
-#         /usr/share/mk/bsd.port.mk
-#         /usr/share/mk/bsd.port.options.mk
-#         /usr/share/mk/bsd.port.post.mk
-#         /usr/share/mk/bsd.port.pre.mk
-#         /usr/share/mk/sys.mk
+#              /usr/ports/Mk/bsd.commands.mk
+#              /usr/ports/Mk/bsd.licenses.db.mk
+#              /usr/ports/Mk/bsd.licenses.mk
+#              /usr/ports/Mk/bsd.options.desc.mk
+#              /usr/ports/Mk/bsd.options.mk
+#              /usr/ports/Mk/bsd.sites.mk
+#              /usr/share/mk/bsd.compat.mk
+#              /usr/share/mk/bsd.cpu.mk
+#              /usr/share/mk/bsd.own.mk
+#              /usr/share/mk/bsd.port.mk
+#              /usr/share/mk/bsd.port.options.mk
+#              /usr/share/mk/bsd.port.post.mk
+#              /usr/share/mk/bsd.port.pre.mk
+#              /usr/share/mk/sys.mk
 #     ) ];
 
 ## cache-update (--input-format, --format): What format to treat the
@@ -172,17 +174,13 @@
 ## $Config{PortsDir})
 
 # $Config{UbiquitousMakefiles} = [ qw(
-#         /etc/make.conf
-#         /usr/ports/Mk/bsd.commands.mk
-#         /usr/ports/Mk/bsd.licenses.mk
-#         /usr/ports/Mk/bsd.perl.mk
-#         /usr/ports/Mk/bsd.port.mk
-#         /usr/ports/Mk/bsd.sites.mk
-#         /usr/share/mk/bsd.compat.mk
-#         /usr/share/mk/bsd.cpu.mk
-#         /usr/share/mk/bsd.own.mk
-#         /usr/share/mk/bsd.port.mk
-#         /usr/share/mk/sys.mk
+#              /etc/make.conf
+#              /usr/ports/Mk/bsd.port.mk
+#              /usr/share/mk/bsd.compat.mk
+#              /usr/share/mk/bsd.cpu.mk
+#              /usr/share/mk/bsd.own.mk
+#              /usr/share/mk/bsd.port.mk
+#              /usr/share/mk/sys.mk
 #     ) ];
 
 ## all (-v, -q, --verbose, --noverbose, --quiet): Boolean -- turn on
