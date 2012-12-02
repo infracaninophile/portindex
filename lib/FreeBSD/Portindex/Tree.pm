@@ -50,8 +50,8 @@ use FreeBSD::Portindex::Makefile;
 use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::TreeObject;
 
-our $VERSION       = '2.9';    # Release
-our $CACHE_VERSION = '2.8';    # Earliest binary compat version
+our $VERSION       = '3.0';    # Release
+our $CACHE_VERSION = '3.0';    # Earliest binary compat version
 
 sub new ($@)
 {
@@ -329,6 +329,7 @@ sub make_describe($$)
       LIB_DEPENDS
       MAINTAINER
       OPTIONS
+      OPTIONS_DEFINE
       OPTIONSFILE
       PATCH_DEPENDS
       PKGNAME
@@ -400,12 +401,13 @@ sub make_describe($$)
             return undef;
           };
 
-        # If the port uses OPTIONS, force a Makefile entry to be made
-        # for the options file even though it doesn't exist yet.  (It
-        # will set mtime to 0 in this case) This will trigger a cache
+        # If the port uses OPTIONS (old-style) or OPTIONS_DEFINE
+        # (new-style OPTIONSng), force a Makefile entry to be made for
+        # the options file even though it doesn't exist yet.  (It will
+        # set mtime to 0 in this case) This will trigger a cache
         # update if OPTIONS are set at a later date.
 
-        if ( $make_vars{OPTIONS} ) {
+        if ( $make_vars{OPTIONS} || $make_vars{OPTIONS_DEFINE} ) {
             my $makefile = $self->get( $make_vars{OPTIONSFILE} );
 
             if ( !$makefile ) {
@@ -688,8 +690,9 @@ sub check_other_makefiles($$)
 # Scan through the PORT_DBDIR looking for 'options' files.  Compare
 # the mtime of the file with the last update timestamp from the cache
 # -- add the port to the list to be checked if the options have been
-# modified more recently.  ??? Switch this to just using the options
-# files already in the cache?
+# modified more recently.  Since we check the OPTIONSFILE value for
+# every port that uses options, this should pick up creation of the
+# file when options are first set.
 #
 sub check_port_options ($$)
 {
@@ -718,9 +721,10 @@ sub check_port_options ($$)
 
         if ( !$self->add_to_updates_if_modified( $updaters, $options ) ) {
 
-            # It looks like an options file, but since we load the
-            # cache with all posible names of the known options files,
-            # it must be something else.
+            # It looks like an options file, but since we pre-load the
+            # cache with all possible names of options files for every
+            # port that uses options, it must be something else.
+
             warn "$0: WARNING unknown options file \"$options\" -- ignored\n"
               if $Config{Verbose};
         }
