@@ -31,7 +31,7 @@ RELEASEBRANCH="/tags/${RELEASETAG}/${NAME}"
 if svn info ^$RELEASEBRANCH >/dev/null 2>&1 ; then
    echo "$(basename $0): $RELEASEBRANCH already exists"
 else
-   svn copy -parents --message $RELEASETAG ^$TRUNK ^$RELEASEBRANCH || exit 1 
+   svn copy --parents --message $RELEASETAG ^$TRUNK ^$RELEASEBRANCH || exit 1 
    echo "$(basename $0): Created release branch $RELEASEBRANCH"
 fi
 
