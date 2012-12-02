@@ -31,16 +31,17 @@ RELEASEBRANCH="/tags/${RELEASETAG}/${NAME}"
 if svn info ^$RELEASEBRANCH >/dev/null 2>&1 ; then
    echo "$(basename $0): $RELEASEBRANCH already exists"
 else
-   svn copy ^$TRUNK ^$RELEASEBRANCH 
+   svn copy -parents --message $RELEASETAG ^$TRUNK ^$RELEASEBRANCH || exit 1 
    echo "$(basename $0): Created release branch $RELEASEBRANCH"
 fi
 
 (
     cd $TEMPDIR
-    svn export "${SVNURL}${RELEASEBRANCH}" $NAME
-    cd $NAME
-    perl Makefile.pl
-    make dist COMPRESS=xz SUFFIX=.xz
+    svn export "${SVNURL}${RELEASEBRANCH}" $NAME || exit 1
+    cd $NAME && \
+	perl Makefile.pl && \
+	make dist COMPRESS=xz SUFFIX=.xz && \
+	mv -v *.tar.xz ${TMPDIR:-/tmp}
 )
 
 
