@@ -325,3 +325,10 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 
 	- Added new make-readmes command to create a tree of README.html
 	  files.
+
+2.9 Fri Jun 1 15:40:58 2012 UTC
+
+        - New release 2.9
+
+        - Update the Ubiquitous / Endemic Makefile settings to account
+          for the OPTIONSng framework.
