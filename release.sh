@@ -37,9 +37,9 @@ fi
 
 (
     cd $TEMPDIR
-    svn export "${SVNURL}${RELEASEBRANCH}" $NAME || exit 1
+    svn export "${SVNROOT}${RELEASEBRANCH}" $NAME || exit 1
     cd $NAME && \
-	perl Makefile.pl && \
+	perl Makefile.PL && \
 	make dist COMPRESS=xz SUFFIX=.xz && \
 	mv -v *.tar.xz ${TMPDIR:-/tmp}
 )
