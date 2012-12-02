@@ -332,3 +332,21 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 
         - Update the Ubiquitous / Endemic Makefile settings to account
           for the OPTIONSng framework.
+
+3.0 Sun Dec  2 21:51:29 2012 GMT
+
+        - New release 3.0
+
+        - Fix detection of ports that use options with OPTIONSng.
+          Problem reported by Ion-Mihai Tetcu <itetcu@FreeBSD.org>
+
+        - Switch to 'use parent' pragma for inheritance where
+          relevant.  Also 'use fields' in GraphViz.pm
+
+        - Don't define $VERSION for *every* package, just
+          FreeBSD::Portindex:Tree, which is what is used for the
+          overall package version.
+
+        - Add the beginnings of a script to automate the release
+          process.
+
