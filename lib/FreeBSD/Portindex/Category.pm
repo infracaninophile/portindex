@@ -37,6 +37,7 @@
 # running 'cache-init' and a subsequent 'cache-update'
 #
 package FreeBSD::Portindex::Category;
+use parent qw(FreeBSD::Portindex::PortsTreeObject);
 
 use strict;
 use warnings;
@@ -44,10 +45,6 @@ use Carp;
 
 use FreeBSD::Portindex::Config qw(%Config _clean);
 use FreeBSD::Portindex::ListVal;
-use FreeBSD::Portindex::PortsTreeObject;
-
-our $VERSION = '2.9';                                     # Release
-our @ISA     = ('FreeBSD::Portindex::PortsTreeObject');
 
 #
 # In addition to ORIGIN and MTIME provided by the base class, the data

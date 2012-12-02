@@ -37,6 +37,7 @@
 #
 
 package FreeBSD::Portindex::PortsTreeObject;
+use parent qw(FreeBSD::Portindex::TreeObject);
 
 require 5.10.1;
 
@@ -45,10 +46,6 @@ use warnings;
 use Carp;
 
 use FreeBSD::Portindex::ListVal;
-use FreeBSD::Portindex::TreeObject;
-
-our $VERSION = '2.9';                                # Release
-our @ISA     = ('FreeBSD::Portindex::TreeObject');
 
 #
 # PortsTreeObjects are users of Makefiles and PkgDescr files

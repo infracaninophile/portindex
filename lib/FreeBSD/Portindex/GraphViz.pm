@@ -39,14 +39,13 @@
 #
 
 package FreeBSD::Portindex::GraphViz;
+use fields qw(NODES NODE_ORIGINS EDGES);
 
 require 5.008_003;
 
 use strict;
 use warnings;
 use Carp;
-
-our $VERSION = '2.9';    # Release
 
 #
 # Graphs are essentially a list of nodes, and a list of edges
@@ -55,14 +54,14 @@ our $VERSION = '2.9';    # Release
 sub new($)
 {
     my $class = shift;
-    my $self;
+    my $self  = fields::new($class);
 
-    $self = {
+    %{$self} = (
         NODES        => [],
         NODE_ORIGINS => {},
         EDGES        => [],
-    };
-    return bless $self, $class;
+    );
+    return $self;
 }
 
 sub add_node($$@)
@@ -163,14 +162,10 @@ E_O_HEADER
 
         $e->{to} = $self->{NODE_ORIGINS}->{ $e->{to} }->{name};
 
-        print ' ' x 8,
-          $e->{from},
-          ' -> ',
-          $e->{to},
-          ' [color=',
-          $e->{color},
-          ', label=',
-          $e->{label},
+        print ' ' x 8, $e->{from},
+          ' -> ',     $e->{to},
+          ' [color=', $e->{color},
+          ', label=', $e->{label},
           "];\n";
     }
 

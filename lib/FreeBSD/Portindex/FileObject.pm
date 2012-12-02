@@ -37,6 +37,7 @@
 # returned by stat(2)).
 #
 package FreeBSD::Portindex::FileObject;
+use parent qw(FreeBSD::Portindex::TreeObject);
 
 require 5.10.1;
 
@@ -45,10 +46,6 @@ use warnings;
 use Carp;
 
 use FreeBSD::Portindex::ListVal;
-use FreeBSD::Portindex::TreeObject;
-
-our $VERSION = '2.9';                                # Release
-our @ISA     = ('FreeBSD::Portindex::TreeObject');
 
 #
 # All FileObjects have an ORIGIN -- the key used to look up the object

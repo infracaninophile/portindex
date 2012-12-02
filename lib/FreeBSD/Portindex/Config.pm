@@ -47,7 +47,6 @@ use FreeBSD::Portindex::ListVal;
 
 our @EXPORT_OK = qw(%Config read_config update_timestamp get_timestamp
   scrub_environment counter _clean htmlencode);
-our $VERSION = '2.9';    # Release
 
 # The ultimate defaults...
 our %Config;

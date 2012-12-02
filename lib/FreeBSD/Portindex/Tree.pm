@@ -61,7 +61,7 @@ sub new ($@)
     my $portscachefile  = $Config{CacheFilename};
     my $cachewascreated = 0;
 
-    # Make sure that the certain defaults are set.
+    # Make sure that certain defaults are set.
 
     if ( defined $args{-CacheFilename} ) {
         $portscachefile = "$Config{CacheDir}/$args{-CacheFilename}";

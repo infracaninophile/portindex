@@ -38,6 +38,7 @@
 # other fields.
 #
 package FreeBSD::Portindex::Port;
+use parent qw(FreeBSD::Portindex::PortsTreeObject);
 
 use strict;
 use warnings;
@@ -46,10 +47,6 @@ use Scalar::Util qw{blessed};
 
 use FreeBSD::Portindex::Config qw{%Config counter _clean htmlencode};
 use FreeBSD::Portindex::ListVal;
-use FreeBSD::Portindex::PortsTreeObject;
-
-our @ISA     = ('FreeBSD::Portindex::PortsTreeObject');
-our $VERSION = '2.9';                                     # Release
 
 our %directorycache;    # Remember all the directories we've ever seen
 our %pkgnamecache;      # Remember all of the package names we've output
