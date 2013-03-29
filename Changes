@@ -360,3 +360,9 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 
         - Accordingly remove the PropagationDelay configuration item,
           that only applied to cvsup-mirroring.
+
+3.1 Fri Mar 29 15:39:16 GMT
+
+        - Update VERSION to 3.1: new release is coming.
+
+
