@@ -20,7 +20,6 @@ lib/FreeBSD/Portindex/Tree.pm
 lib/FreeBSD/Portindex/TreeObject.pm
 Makefile.PL
 MANIFEST
-META.yml			Module meta-data (added by MakeMaker)
 portindex.cfg.sample
 README
 script/cache-init
