@@ -350,3 +350,13 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
         - Add the beginnings of a script to automate the release
           process.
 
+3.1 Fri Mar 29 15:28:32 GMT
+
+        - Add support for parsing the output of 'svn update' as one
+          of the input formats for cache-update.
+
+        - Drop support for parsing cvsup output or the cvsup checkouts
+          file, as the ports no longer uses cvsup.
+
+        - Accordingly remove the PropagationDelay configuration item,
+          that only applied to cvsup-mirroring.

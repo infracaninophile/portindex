@@ -97,7 +97,6 @@ sub read_config ($)
         OutputStyle      => 'default',
         PortDBDir        => $ENV{PORT_DBDIR} || '/var/db/ports',
         PortsDir         => $ENV{PORTSDIR} || '/usr/ports',
-        PropagationDelay => 3600,                                  # 1 hour
         ReadmeDir        => './ports',
         ReadmeTemplatesDir => ( $ENV{PORTSDIR} || '/usr/ports' ) . '/Templates',
         ScrubEnvironment   => 0,
@@ -156,17 +155,16 @@ sub read_config ($)
             my $optname  = shift;
             my $optvalue = shift;
 
-            my $a = qr/(?:plain|svn-up|cvsup-(?:output|checkouts))/i;
+            my $a = qr/(?:plain|svn-up/i;
             my $b = qr/options/i;
             my $c = qr/other/i;
             my $d = qr/cache/i;
 
             die "$0: Option --$optname unrecognised argument: $optvalue\n"
-              unless $optvalue =~ m@^(?:$a|$a,$b|$a,$b,$c|$b,$c|$b|$c|$d)\Z@;
+              unless $optvalue =~ m@^(?:$a|$a,$b|$a,$c|$a,$b,$c|$b,$c|$b|$c|$d)\Z@;
 
             $Config{Format} = lc $optvalue;
         },
-        'propagation-delay|P=i' => \$Config{PropagationDelay},
         'port-dbdir|d=s'        => \$Config{PortDBDir},
     ) if ( $0 eq 'cache-update' );
     push @optargs,
@@ -264,7 +262,6 @@ Current Configuration:
   OutputStyle (portdepends) .................... $Config{OutputStyle}
   PortDBDir (cache-update) ..................... $Config{PortDBDir}
   PortsDir ..................................... $Config{PortsDir}
-  PropagationDelay (cache-update) .............. $Config{PropagationDelay}
   ScrubEnvironment (cache-init, cache-update) .. $Config{ScrubEnvironment}
   ShLibs (portindex) ........................... $Config{ShLibs}
   Strict (portindex) ........................... $Config{Strict}

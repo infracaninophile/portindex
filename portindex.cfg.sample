@@ -112,16 +112,6 @@
 
 # $Config{PortsDir} = $ENV{PORTSDIR} || '/usr/ports';
 
-## cache-update (-P, --propagation-delay): A fudge factor to account
-## for the time required between a change being committed to the
-## FreeBSD CVS repository, and when that change gets propagated out to
-## the local cvsup(1) server -- how many seconds older than the last
-## time cache-update was run can the mtime of files checked out in the
-## tree be and have them still considered newly updated?  About 3600
-## seconds (1 hour) seems to be a good value.
-
-# $Config{PropagationDelay} = 60 * 60;
-
 ## make-readmes (-d, --output-directory): top of the directory tree to
 ## create, containing the generated README.html files.  Default: ./ports
 ## (in current working directory).
