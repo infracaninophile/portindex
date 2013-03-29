@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2012 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2013 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -156,7 +156,7 @@ sub read_config ($)
             my $optname  = shift;
             my $optvalue = shift;
 
-            my $a = qr/(?:plain|cvsup-(?:output|checkouts))/i;
+            my $a = qr/(?:plain|svn-up|cvsup-(?:output|checkouts))/i;
             my $b = qr/options/i;
             my $c = qr/other/i;
             my $d = qr/cache/i;
