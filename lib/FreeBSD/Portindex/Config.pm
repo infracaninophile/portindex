@@ -165,7 +165,7 @@ sub read_config ($)
             my $optname  = shift;
             my $optvalue = shift;
 
-            my $a = qr/(?:plain|svn-up/i;
+            my $a = qr/(?:plain|svn-up)/i;
             my $b = qr/options/i;
             my $c = qr/other/i;
             my $d = qr/cache/i;
