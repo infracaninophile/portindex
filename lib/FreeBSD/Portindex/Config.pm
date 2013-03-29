@@ -80,6 +80,8 @@ sub read_config ($)
               /usr/ports/Mk/bsd.licenses.mk
               /usr/ports/Mk/bsd.options.desc.mk
               /usr/ports/Mk/bsd.options.mk
+              /usr/ports/Mk/bsd.pbi.mk
+              /usr/ports/Mk/bsd.pkgng.mk
               /usr/ports/Mk/bsd.sites.mk
               /usr/share/mk/bsd.compat.mk
               /usr/share/mk/bsd.cpu.mk
@@ -91,13 +93,13 @@ sub read_config ($)
               /usr/share/mk/sys.mk
               )
         ],
-        Format           => 'cache',
-        Input            => '-',
-        Output           => '-',
-        OutputStyle      => 'default',
-        PortDBDir        => $ENV{PORT_DBDIR} || '/var/db/ports',
-        PortsDir         => $ENV{PORTSDIR} || '/usr/ports',
-        ReadmeDir        => './ports',
+        Format             => 'cache',
+        Input              => '-',
+        Output             => '-',
+        OutputStyle        => 'default',
+        PortDBDir          => $ENV{PORT_DBDIR} || '/var/db/ports',
+        PortsDir           => $ENV{PORTSDIR} || '/usr/ports',
+        ReadmeDir          => './ports',
         ReadmeTemplatesDir => ( $ENV{PORTSDIR} || '/usr/ports' ) . '/Templates',
         ScrubEnvironment   => 0,
         ShLibs             => 0,
@@ -106,7 +108,15 @@ sub read_config ($)
         UbiquitousMakefiles => [
             qw(
               /etc/make.conf
+              /usr/ports/Mk/bsd.commands.mk
+              /usr/ports/Mk/bsd.licenses.mk
+              /usr/ports/Mk/bsd.options.desc.mk
+              /usr/ports/Mk/bsd.options.mk
+              /usr/ports/Mk/bsd.pbi.mk
+              /usr/ports/Mk/bsd.perl.mk
+              /usr/ports/Mk/bsd.pkgng.mk
               /usr/ports/Mk/bsd.port.mk
+              /usr/ports/Mk/bsd.sites.mk
               /usr/share/mk/bsd.compat.mk
               /usr/share/mk/bsd.cpu.mk
               /usr/share/mk/bsd.own.mk
@@ -161,11 +171,12 @@ sub read_config ($)
             my $d = qr/cache/i;
 
             die "$0: Option --$optname unrecognised argument: $optvalue\n"
-              unless $optvalue =~ m@^(?:$a|$a,$b|$a,$c|$a,$b,$c|$b,$c|$b|$c|$d)\Z@;
+              unless $optvalue =~
+              m@^(?:$a|$a,$b|$a,$c|$a,$b,$c|$b,$c|$b|$c|$d)\Z@;
 
             $Config{Format} = lc $optvalue;
         },
-        'port-dbdir|d=s'        => \$Config{PortDBDir},
+        'port-dbdir|d=s' => \$Config{PortDBDir},
     ) if ( $0 eq 'cache-update' );
     push @optargs,
       (
