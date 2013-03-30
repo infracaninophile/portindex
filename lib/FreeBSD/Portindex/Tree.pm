@@ -42,6 +42,7 @@ use warnings;
 use BerkeleyDB;
 use Scalar::Util qw(blessed);
 use Carp;
+use Cwd qw{realpath};
 
 use FreeBSD::Portindex::Category;
 use FreeBSD::Portindex::Config qw{%Config counter htmlencode};
@@ -146,7 +147,7 @@ sub insert ($$)
 
     return undef
       unless blessed($tree_object)
-          && $tree_object->isa('FreeBSD::Portindex::TreeObject');
+      && $tree_object->isa('FreeBSD::Portindex::TreeObject');
 
     $origin = $tree_object->ORIGIN();
     $self->{LIVE}->{$origin} = $tree_object;
@@ -586,7 +587,7 @@ sub category_match ($$)
     my $origin = shift;
     my $port;
 
-    $origin =~ s@^$Config{PortsDir}/@@;
+    $origin =~ s@^(?:$Config{RealPortsDir}|$Config{PortsDir})/@@;
 
     $port = $self->get($origin);
 
@@ -676,7 +677,10 @@ sub check_other_makefiles($$)
     print STDERR "Checking timestamps on other makefiles: "
       if $Config{Verbose};
     for my $name (
-        $self->allports(qr@^(?!$Config{PortsDir}|$Config{PortDBDir})/@) )
+        $self->allports(
+            qr@^(?!$Config{RealPortsDir}|$Config{PortsDir}|$Config{PortDBDir})/@
+        )
+      )
     {
         $self->add_to_updates_if_modified( $updaters, $name );
         counter( \$counter );
@@ -717,7 +721,7 @@ sub check_port_options ($$)
         $options = "$Config{PortDBDir}/$dir/options";
 
         next
-          unless ( -f $options );      # $dir may be empty
+          unless ( -f $options );    # $dir may be empty
 
         if ( !$self->add_to_updates_if_modified( $updaters, $options ) ) {
 

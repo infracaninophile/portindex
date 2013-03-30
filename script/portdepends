@@ -255,7 +255,9 @@ MAIN:
     # out the dependency tree (recursively)
 
     for my $portorigin (@ARGV) {
-        if ( $portorigin =~ m,^$Config{PortsDir}/([^/]+/[^/]+)\Z, ) {
+        if ( $portorigin =~
+            m,^(?:$Config{RealPortsDir}|$Config{PortsDir})/([^/]+/[^/]+)\Z, )
+        {
             $portorigin = $1;
         }
         if ( $Config{OutputStyle} eq 'graph' ) {

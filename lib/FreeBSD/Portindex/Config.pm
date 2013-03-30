@@ -42,6 +42,7 @@ use Getopt::Long qw(:config no_ignore_case);
 use Pod::Usage;
 use POSIX qw(strftime);
 use Exporter qw(import);
+use Cwd qw(realpath);
 
 use FreeBSD::Portindex::ListVal;
 
@@ -246,6 +247,8 @@ sub read_config ($)
     $Config{UbiquitousMakefiles} =
       FreeBSD::Portindex::ListVal->new( map { s@^(?!/)@$Config{PortsDir}/@; $_ }
           @{ $Config{UbiquitousMakefiles} } );
+
+    $Config{RealPortsDir} = realpath( $Config{PortsDir} );
 
     return;
 }

@@ -88,7 +88,8 @@ sub new_from_make_vars ($$)
     my @makefile_list;
     my $origin;
 
-    ( $origin = $args->{'.CURDIR'} ) =~ s,^$Config{PortsDir}/?,,;
+    ( $origin = $args->{'.CURDIR'} ) =~
+      s,^($Config{RealPortsDir}|$Config{PortsDir})/?,,;
 
     @subdir = split ' ', $args->{SUBDIR};
 
