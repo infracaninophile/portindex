@@ -22,11 +22,15 @@ NAME=$(basename $TRUNK)
 TEMPDIR=$( mktemp -d -t $(basename $0) ) || exit 1
 trap "rm -rf $TEMPDIR; exit" EXIT INT KILL
 
+make clean
+perl Makefile.pl
+make
+
 VERSION=$( make -V VERSION )	# eg 3.0
+${VERSION:?"Can't determine the release version"}
+
 RELEASETAG="RELEASE_$( echo -n $VERSION | tr -cs 0-9 _ )" # eg RELEASE_3_0
-
 RELEASEBRANCH="/tags/${RELEASETAG}/${NAME}"
-
 
 if svn info ^$RELEASEBRANCH >/dev/null 2>&1 ; then
    echo "$(basename $0): $RELEASEBRANCH already exists"
