@@ -365,4 +365,7 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 
         - Update VERSION to 3.1: new release is coming.
 
+3.1 Sat Mar 30 07:55:08 GMT
+
+        - Cope with systems where realpath($PORTSDIR) != $PORTSDIR
 
