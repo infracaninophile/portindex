@@ -22,7 +22,7 @@ NAME=$(basename $TRUNK)
 TEMPDIR=$( mktemp -d -t $(basename $0) ) || exit 1
 trap "rm -rf $TEMPDIR; exit" EXIT INT KILL
 
-make clean
+[ -f Makefile ] && make clean
 perl Makefile.PL
 make
 
