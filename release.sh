@@ -23,7 +23,7 @@ TEMPDIR=$( mktemp -d -t $(basename $0) ) || exit 1
 trap "rm -rf $TEMPDIR; exit" EXIT INT KILL
 
 make clean
-perl Makefile.pl
+perl Makefile.PL
 make
 
 VERSION=$( make -V VERSION )	# eg 3.0
