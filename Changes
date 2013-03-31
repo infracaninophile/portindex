@@ -369,8 +369,8 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 
         - Cope with systems where realpath($PORTSDIR) != $PORTSDIR
 
-3.1 Sun Mar 31 14:12:10 BST
+3.2 Sun Mar 31 14:12:10 BST
 
         - Deal with the realpath($PORTSDIR) != $PORTSDIR case correctly
 
-	- New release 3.1
+	- New release 3.2
