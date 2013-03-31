@@ -255,8 +255,10 @@ MAIN:
     # out the dependency tree (recursively)
 
     for my $portorigin (@ARGV) {
-        if ( $portorigin =~
-            m,^(?:$Config{RealPortsDir}|$Config{PortsDir})/([^/]+/[^/]+)\Z, )
+        if ( $portorigin =~ m,^$Config{PortsDir}/([^/]+/[^/]+)\Z, ) {
+            $portorigin = $1;
+        } elsif ( exists $Config{RealPortsDir}
+            && $portorigin =~ m,^$Config{RealPortsDir}/([^/]+/[^/]+)\Z, )
         {
             $portorigin = $1;
         }

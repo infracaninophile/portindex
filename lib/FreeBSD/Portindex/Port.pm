@@ -126,8 +126,7 @@ sub new_from_make_vars($$$$)
     # .MAKEFILE_LIST which, together with DESCR is used to control
     # incremental updating.
 
-    ( $origin = $args->{'.CURDIR'} ) =~
-      s,^($Config{RealPortsDir}|$Config{PortsDir})/?,,;
+    ( $origin = $args->{'.CURDIR'} ) =~ s,^$Config{PortsDir}/?,,;
     $pkgname = $args->{PKGNAME};
 
     ( $descr, $www ) = _www_descr( $args->{DESCR} );
@@ -289,10 +288,7 @@ sub _depends_list($$$$)
                 # may not be in the cache yet, so guess based on the
                 # file path.
 
-                if ( $arg !~
-                    m@^($Config{RealPortsDir}|$Config{PortsDir})/[^/]+/[^/]+\Z@
-                  )
-                {
+                if ( $arg !~ m@^$Config{PortsDir}/[^/]+/[^/]+\Z@ ) {
                     warn "$0:${origin} ($pkgname) Error. $whatdep $arg ",
                       "-- dependency is not a port\n";
                     $errorflag++;
@@ -305,7 +301,7 @@ sub _depends_list($$$$)
                 last;
             }
         }
-        $arg =~ s@^($Config{RealPortsDir}|$Config{PortsDir})/@@;
+        $arg =~ s@^$Config{PortsDir}/@@;
         push @deps, $arg;
     }
     return $errorflag ? undef : \@deps;

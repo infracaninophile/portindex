@@ -387,6 +387,14 @@ sub make_describe($$)
         return undef;
       };
 
+    # Correct for the effect of $PORTSDIR being a sym-link: .CURDIR
+    # will contain the real path, but we want to use the path via the
+    # sym-link.
+
+    if ( exists $Config{RealPortsDir} ) {
+        $make_vars{'.CURDIR'} =~ s,^$Config{RealPortsDir},$Config{PortsDir},;
+    }
+
     # Create the appropriate type of object (FreeBSD::Portindex::Port
     # or FreeBSD::Portindex::Category) depending on the results of
     # running the make command above.  Only real ports set PKGNAME
@@ -587,7 +595,7 @@ sub category_match ($$)
     my $origin = shift;
     my $port;
 
-    $origin =~ s@^(?:$Config{RealPortsDir}|$Config{PortsDir})/@@;
+    $origin =~ s@^$Config{PortsDir}/@@;
 
     $port = $self->get($origin);
 
@@ -677,10 +685,7 @@ sub check_other_makefiles($$)
     print STDERR "Checking timestamps on other makefiles: "
       if $Config{Verbose};
     for my $name (
-        $self->allports(
-            qr@^(?!$Config{RealPortsDir}|$Config{PortsDir}|$Config{PortDBDir})/@
-        )
-      )
+        $self->allports( qr@^(?!$Config{PortsDir}|$Config{PortDBDir})/@ ) )
     {
         $self->add_to_updates_if_modified( $updaters, $name );
         counter( \$counter );

@@ -248,7 +248,9 @@ sub read_config ($)
       FreeBSD::Portindex::ListVal->new( map { s@^(?!/)@$Config{PortsDir}/@; $_ }
           @{ $Config{UbiquitousMakefiles} } );
 
-    $Config{RealPortsDir} = realpath( $Config{PortsDir} );
+    my $rp = realpath( $Config{PortsDir} );
+    $Config{RealPortsDir} = $rp
+      if ( $Config{PortsDir} ne $rp );
 
     return;
 }
