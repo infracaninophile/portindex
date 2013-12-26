@@ -329,8 +329,8 @@ sub make_describe($$)
       FETCH_DEPENDS
       LIB_DEPENDS
       MAINTAINER
-      OPTIONS
       OPTIONS_DEFINE
+      OPTIONS_FILE
       OPTIONSFILE
       PATCH_DEPENDS
       PKGNAME
@@ -410,22 +410,25 @@ sub make_describe($$)
             return undef;
           };
 
-        # If the port uses OPTIONS (old-style) or OPTIONS_DEFINE
-        # (new-style OPTIONSng), force a Makefile entry to be made for
-        # the options file even though it doesn't exist yet.  (It will
-        # set mtime to 0 in this case) This will trigger a cache
-        # update if OPTIONS are set at a later date.
+        # If the port uses options -- ie. OPTIONS_DEFINE is set, force
+        # Makefile entries to be made for the two variations on the
+        # filename where options are recorded, even though they may
+        # not exist yet.  (It will set mtime to 0 in that case) This
+        # will trigger a cache update if OPTIONS_DEFINE settings are
+        # added at a later date.
 
-        if ( $make_vars{OPTIONS} || $make_vars{OPTIONS_DEFINE} ) {
-            my $makefile = $self->get( $make_vars{OPTIONSFILE} );
+        if ( $make_vars{OPTIONS_DEFINE} ) {
+            for my $var (qw{OPTIONSFILE OPTIONS_FILE}) {
+                my $makefile = $self->get( $make_vars{$var} );
 
-            if ( !$makefile ) {
-                $makefile =
-                  FreeBSD::Portindex::Makefile->new(
-                    ORIGIN => $make_vars{OPTIONSFILE}, );
-                $self->insert($makefile);
+                if ( !$makefile ) {
+                    $makefile =
+                      FreeBSD::Portindex::Makefile->new(
+                        ORIGIN => $make_vars{$var}, );
+                    $self->insert($makefile);
+                }
+                $makefile->mark_used_by( $port->ORIGIN() );
             }
-            $makefile->mark_used_by( $port->ORIGIN() );
         }
     } else {
 
@@ -685,7 +688,7 @@ sub check_other_makefiles($$)
     print STDERR "Checking timestamps on other makefiles: "
       if $Config{Verbose};
     for my $name (
-        $self->allports( qr@^(?!$Config{PortsDir}|$Config{PortDBDir})/@ ) )
+        $self->allports(qr@^(?!$Config{PortsDir}|$Config{PortDBDir})/@) )
     {
         $self->add_to_updates_if_modified( $updaters, $name );
         counter( \$counter );
