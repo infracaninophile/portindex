@@ -27,7 +27,7 @@ perl Makefile.PL
 make
 
 VERSION=$( make -V VERSION )	# eg 3.0
-${VERSION:?"Can't determine the release version"}
+: ${VERSION:?"Can't determine the release version"}
 
 RELEASETAG="RELEASE_$( echo -n $VERSION | tr -cs 0-9 _ )" # eg RELEASE_3_0
 RELEASEBRANCH="/tags/${RELEASETAG}/${NAME}"
