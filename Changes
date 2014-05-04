@@ -374,3 +374,10 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
         - Deal with the realpath($PORTSDIR) != $PORTSDIR case correctly
 
 	- New release 3.2
+
+3.3 Sun May  4 13:49:02 BST
+
+        - Handle the differences between bmake and fmake
+
+	- New release 3.4
+

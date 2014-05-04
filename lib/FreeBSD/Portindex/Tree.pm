@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2013 Matthew Seaman. All rights reserved.
+# Copyright (c) 2004-2014 Matthew Seaman. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -51,7 +51,7 @@ use FreeBSD::Portindex::Makefile;
 use FreeBSD::Portindex::Port;
 use FreeBSD::Portindex::TreeObject;
 
-our $VERSION       = '3.3';    # Release
+our $VERSION       = '3.4';    # Release
 our $CACHE_VERSION = '3.3';    # Earliest binary compat version
 
 sub new ($@)
