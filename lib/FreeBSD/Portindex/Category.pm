@@ -92,15 +92,26 @@ sub new_from_make_vars ($$)
 
     @subdir = split ' ', $args->{SUBDIR};
 
-    # Paths in .MAKEFILE_LIST are either absolute or relative to
-    # .CURDIR Get rid of all the '..' entries.
+    if ( $args->{'.MAKE.MAKEFILES'} ) {
 
-    @makefile_list = _clean(
-        map { s@^(?!/)@$args->{'.CURDIR'}/@; $_ }
-          grep { !m/^\.\.$/ } split ' ',
-        $args->{'.MAKEFILE_LIST'}
-    );
+        # bmake in 10.x or above uses .MAKE.MAKEFILES which is already
+        # a clean, uniqued list of the fully qualified path of all the
+        # included Makefiles (except of Makefile in .CURDIR) .  Use
+        # this for preference if non-empty.
 
+        @makefile_list = map { s@^(?!/)@$args->{'.CURDIR'}/@; $_ } split ' ',
+          $args->{'.MAKE.MAKEFILES'};
+    } else {
+
+        # Paths in .MAKEFILE_LIST are either absolute or relative to
+        # .CURDIR Get rid of all the '..' entries.
+
+        @makefile_list = _clean(
+            map { s@^(?!/)@$args->{'.CURDIR'}/@; $_ }
+              grep { !m/^\.\.$/ } split ' ',
+            $args->{'.MAKEFILE_LIST'}
+        );
+    }
     return $class->new(
         ORIGIN        => $origin,
         SUBDIR        => \@subdir,

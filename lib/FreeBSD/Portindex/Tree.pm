@@ -320,6 +320,7 @@ sub make_describe($$)
 
     my @make_var_list = qw{
       .CURDIR
+      .MAKE.MAKEFILES
       .MAKEFILE_LIST
       BUILD_DEPENDS
       CATEGORIES

@@ -123,7 +123,8 @@ sub new_from_make_vars($$$$)
     # the WWW value.
     #
     # To the usual ports index stuff we add the extra make variable:
-    # .MAKEFILE_LIST which, together with DESCR is used to control
+    # .MAKE.MAKEFILES (bmake, 10.0 or later) or .MAKEFILE_LIST (fmake,
+    # 9.x or earlier) which, together with DESCR is used to control
     # incremental updating.
 
     ( $origin = $args->{'.CURDIR'} ) =~ s,^$Config{PortsDir}/?,,;
@@ -131,8 +132,14 @@ sub new_from_make_vars($$$$)
 
     ( $descr, $www ) = _www_descr( $args->{DESCR} );
 
-    $makefile_list =
-      _makefile_list( $args->{'.MAKEFILE_LIST'}, $args->{'.CURDIR'} );
+    if ( $args->{'.MAKE.MAKEFILES'} ) {
+        $makefile_list =
+          _make_makefiles( $args->{'.MAKE.MAKEFILES'}, $args->{'.CURDIR'} );
+    } else {
+
+        $makefile_list =
+          _makefile_list( $args->{'.MAKEFILE_LIST'}, $args->{'.CURDIR'} );
+    }
 
     # If any of the dependencies aren't there, then don't generate
     # a Port object.
@@ -223,10 +230,36 @@ sub _www_descr($)
 
 #
 # Another non-method sub: grep through the list of makefiles given in
+# .MAKE.MAKEFILES and strip out what it does not make sense to try and
+# process.  Return a ref to the list of interesting Makefiles
+#
+sub _make_makefiles($$)
+{
+    my $make_makefiles = shift;
+    my $origin         = shift;
+
+    # List all of the makefiles which affect the compilation of a
+    # port.  Make sure all path names are normalized and fully
+    # qualified.  Add the origin path where needed.  List is already
+    # uniqued.
+
+    return [
+        map {
+            s@^(?!/)@$origin/@;
+            s@/[^/]+/[^/]+/\.\./\.\./@/@g;
+            s@/[^/]+/\.\./@/@g;
+            $_
+          }
+          split( ' ', $make_makefiles )
+    ];
+}
+
+#
+# Another non-method sub: grep through the list of makefiles given in
 # .MAKEFILE_LIST and strip out what it does not make sense to try and
 # process.  Return a ref to the list of interesting Makefiles
 #
-sub _makefile_list($$$)
+sub _makefile_list($$)
 {
     my $makefile_list = shift;
     my $origin        = shift;
