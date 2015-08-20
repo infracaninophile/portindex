@@ -314,8 +314,13 @@ sub update_timestamp ()
 # Return the mtime of the timestamp file
 sub get_timestamp ()
 {
-    return ( stat "$Config{CacheDir}/$Config{TimestampFilename}" )[9]
-      or die "$0: can't stat $Config{TimestampFilename} -- $!\n";
+    my $tstamp;
+
+    $tstamp = ( stat "$Config{CacheDir}/$Config{TimestampFilename}" )[9];
+    die "$0: can't stat $Config{TimestampFilename} -- $!\n"
+	unless $tstamp;
+	
+    return $tstamp;
 }
 
 # Clear everything out of the environment except for some standard
