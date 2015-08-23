@@ -332,7 +332,6 @@ sub make_describe($$)
       MAINTAINER
       OPTIONS_DEFINE
       OPTIONS_FILE
-      OPTIONSFILE
       PATCH_DEPENDS
       PKGNAME
       PREFIX
@@ -412,24 +411,21 @@ sub make_describe($$)
           };
 
         # If the port uses options -- ie. OPTIONS_DEFINE is set, force
-        # Makefile entries to be made for the two variations on the
-        # filename where options are recorded, even though they may
-        # not exist yet.  (It will set mtime to 0 in that case) This
-        # will trigger a cache update if OPTIONS_DEFINE settings are
-        # added at a later date.
+        # a Makefile entry to be made for file where the options are
+        # recorded, even though it may not exist yet.  (It will set
+        # mtime to 0 in that case) This will trigger a cache update if
+        # OPTIONS_DEFINE settings are added at a later date.
 
         if ( $make_vars{OPTIONS_DEFINE} ) {
-            for my $var (qw{OPTIONSFILE OPTIONS_FILE}) {
-                my $makefile = $self->get( $make_vars{$var} );
+            my $makefile = $self->get( $make_vars{'OPTIONS_FILE'} );
 
-                if ( !$makefile ) {
-                    $makefile =
-                      FreeBSD::Portindex::Makefile->new(
-                        ORIGIN => $make_vars{$var}, );
-                    $self->insert($makefile);
-                }
-                $makefile->mark_used_by( $port->ORIGIN() );
+            if ( !$makefile ) {
+                $makefile =
+                  FreeBSD::Portindex::Makefile->new(
+                    ORIGIN => $make_vars{'OPTIONS_FILE'}, );
+                $self->insert($makefile);
             }
+	    $makefile->mark_used_by( $port->ORIGIN() );
         }
     } else {
 
