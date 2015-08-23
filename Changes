@@ -381,3 +381,17 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 
 	- New release 3.4
 
+3.4 Sun May  4 13:49:02 BST
+
+        - Fix a new warning triggered with perl-5.20 or above
+
+	- The make variable $OPTIONSFILE is now always undefined, so
+          don't try and process it.  Just use $OPTIONS_FILE alone.
+          Attempting to process the empty result from $OPTIONSFILE was
+          causing cache-init(1) etc. to try and do inappropriate
+          things to the CATEGORY object for the root of the ports
+          tree.  Reported by Ion-Mihai Tetcu and Naram Qashat
+
+	- New release 3.5
+
+3.5 Sun Aug 23 21:30:57 BST
