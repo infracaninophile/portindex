@@ -395,3 +395,9 @@ Revision history for Perl extension FreeBSD::Portindex::Port.
 	- New release 3.5
 
 3.5 Sun Aug 23 21:30:57 BST
+
+3.5 Fri Aug 28 14:42:33 BST
+
+        - Reflect upstream change: ${PORTSDIR} is now optional in
+	  {RUN,BUILD,...}_DEPENDS
+
