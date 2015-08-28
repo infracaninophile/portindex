@@ -314,14 +314,14 @@ sub _depends_list($$$$)
           unless $arg;    # Leading whitespace causes a null element
 
         if ( !$directorycache{$arg}++ ) {
-            if ( -d $arg ) {
+            if ( -d $arg || -d "$Config{PortsDir}/$arg" ) {
 
                 # Sanity check -- is the dependency on what appears to
                 # be a port, rather than anything else?  The target
                 # may not be in the cache yet, so guess based on the
                 # file path.
 
-                if ( $arg !~ m@^$Config{PortsDir}/[^/]+/[^/]+\Z@ ) {
+                if ( $arg !~ m@^($Config{PortsDir}/)?[^/]+/[^/]+\Z@ ) {
                     warn "$0:${origin} ($pkgname) Error. $whatdep $arg ",
                       "-- dependency is not a port\n";
                     $errorflag++;
