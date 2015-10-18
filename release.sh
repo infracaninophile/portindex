@@ -35,7 +35,7 @@ if git tag -l | grep -q ^$RELEASETAG ; then
     echo "$(basename $0): $RELEASETAG already exists"
 else
     git tag -s -f -m "Release $VERSION" $RELEASETAG
-    ##git push --follow-tags
+    git push --follow-tags
     echo "$(basename $0): Created release tag $RELEASETAG"
 fi
 
