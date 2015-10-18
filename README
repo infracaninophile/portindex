@@ -1,35 +1,31 @@
 
-FreeBSD-Portindex version 2.0
-=============================
-
-$Id$
+    FreeBSD-Portindex
+    =================
 
    portindex, portdepends, cache-init, cache-update and find-updated
    are a set of perl scripts built around the common core of the
    FreeBSD::Portindex perl modules. Their use is to generate and
    maintain the ports INDEX-N files speedily and efficiently (where N
-   is one of 5, 6 or 7 depending on FreeBSD major version number) or
-   to produce alternatively formatted representations of the same
-   data.  Ultimately they work in a very similar way to the standard
-   make index command, except that the FreeBSD::Portindex tools keep a
-   cache of the make describe output from each port, and can update
-   that cached data incrementally as the ports tree itself is updated.
+   is the FreeBSD major version number) or to produce alternatively
+   formatted representations of the same data.  Ultimately they work
+   in a very similar way to the standard make index command, except
+   that the FreeBSD::Portindex tools keep a cache of the make describe
+   output from each port, and can update that cached data
+   incrementally as the ports tree itself is updated.
 
    Incremental updating is much faster than building the INDEX
    entirely from scratch every time. Once the cache has been
    initialised, all of the changes made over the course of a day or a
    week can be incorporated in a few minutes, and an up to date INDEX
-   file produced in a few seconds. Being able to quickly generate a
-   fresh INDEX file from the cache is also exceedingly handy now that
-   the INDEX files have been removed from CVS.
+   file produced in a few seconds.
 
-   The cache-update process can either take the output of running
-   cvsup over the ports-all collection, or it can read cvsup's
-   checkouts file (usually /var/db/sup/ports-all/checkouts.cvs:.) to
-   work out which ports have been modified or deleted recently. Finally,
-   it can just read a list of port directories -- including the list
-   output by the 'portsnap update' command.  Or you can generate a list
-   of recently updated ports using 'find-updated'.
+   The cache-update process usually detects any modified Makefiles
+   within the ports tree, and from there deduces what ports may have
+   been modified.  Alternatively it can take the output of various
+   currently supported methods of updating the ports tree to achieve
+   the same result.  Finally, it can just read a list of port
+   directories -- including the list output by the 'portsnap update'
+   command.
 
    The list of ports to check for updates will automatically include
    the ports that have been affected indirectly by a change to any of
@@ -47,11 +43,12 @@ $Id$
 DEPENDENCIES
 
    Prerequisites: you will need to have installed a recent version of
-   Perl, at least
+   Perl, formally at least
 
      perl-5.10.1 (lang/perl5.10)
 
-   but any more recent version will work.
+   but an up-to-date and supported recent version is definitely
+   recommended.
 
    Additionally you will need
 
@@ -59,10 +56,7 @@ DEPENDENCIES
 
    and one of the Berkeley Database Library ports such as
    
-     db44-4.8.30.0 (databases/db48).
-
-   Other Perl or BDB versions will work, but have not been thoroughly
-   tested.
+     db5-5.3.28_2 (databases/db5).
 
 INSTALLATION
 
@@ -91,7 +85,7 @@ INSTALLATION
         # chown user:group /var/db/portindex
         % cache-init
 
-   That creates the portindex cache file (about 24MiB currently)
+   That creates the portindex cache file (about 65MiB currently)
    containing all of the make describe output, as well as details of
    all ports Makefiles required to build the port and whether the port
    is a slave port of some other one. It also contains a timestamp
@@ -104,23 +98,24 @@ Then, for day to day use:
 
   iii) Update the Cache
 
-   Before generating a new INDEX-N file, update the FreeBSD::Portindex cache
-   with the details of any recently updated ports. The recommended way to
-   do this is by parsing the output of cvsup. See the POD pages for
-   cache-update and find-updated for other possibilities.
+   Before generating a new INDEX-N file, update the FreeBSD::Portindex
+   cache with the details of any recently updated ports. The
+   recommended way to do this is by updating the ports by whatever
+   your favourite mechanism is, and then scanning the ports tree for
+   modified Makefiles:
 
-       # script /tmp/cvsup.out \
-            cvsup -g -L2 -h cvsupN.XX.freebsd.org \
-            /usr/share/examples/cvsup/ports-supfile
-       % cache-update -i /tmp/cvsup.out
+       # svn up
+       % cache-update
 
-   Portsnap users should do this:
+   See the POD pages for cache-update and find-updated for other
+   possibilities.  For instance, you can parse the output from
+   portsnap like this:
 
        # script /tmp/portsnap.out portsnap update
        % cache-update -f plain,options -i /tmp/portsnap.out
 
-   Repeat as necessary if you run cvsup or portsnap several times
-   between generating new INDEX-N files.
+   Repeat as necessary if you update your ports several times between
+   generating new INDEX-N files.
 
   iv) Generate the INDEX-N file
 
@@ -142,11 +137,13 @@ BUGS
        Perl version -- perl -V output.
        Transcript of session showing how the problem occurs.
 
-   As well as anything else you think is relevant.
+   As well as anything else you think is relevant.  Now that I have
+   move portindex onto GitHub, I will also be happy to receive pull
+   requests or reports of issues through there.
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2004-2012 by Matthew Seaman
+Copyright (C) 2004-2015 by Matthew Seaman
 
 This library is free software; you can redistribute it and/or modify
 it under the following 2-clause BSD style license:
